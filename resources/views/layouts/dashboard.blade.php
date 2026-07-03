@@ -18,15 +18,15 @@
         <div class="sidebar-user">
             <span class="avatar">{{ $dashboard['initials'] }}</span>
             <div><strong>{{ $dashboard['display_name'] }}</strong><small>{{ $dashboard['role_name'] }}</small></div>
-            <form method="POST" action="{{ request()->getBaseUrl() }}/logout">@csrf<button class="logout-button" type="submit" title="Log out">↪</button></form>
+            <form method="POST" action="{{ request()->getBaseUrl() }}/logout">@csrf<button class="logout-button" type="submit" title="Log out">&#8618;</button></form>
         </div>
     </aside>
 
     <main class="dashboard-main">
         <header class="topbar">
-            <button class="menu-button" type="button" data-menu aria-label="Toggle navigation">☰</button>
+            <button class="menu-button" type="button" data-menu aria-label="Toggle navigation">&#9776;</button>
             <div><p class="welcome">Welcome back, {{ $dashboard['first_name'] }}</p><h1>{{ $dashboard['role_name'] }} Dashboard</h1><p>{{ $dashboard['description'] }}</p></div>
-            <div class="top-actions"><button type="button" aria-label="Notifications">●<span class="notification-dot"></span></button><span class="date">{{ now()->format('M d, Y') }}</span></div>
+            <div class="top-actions"><button type="button" aria-label="Notifications">&#9679;<span class="notification-dot"></span></button><span class="date">{{ now()->format('M d, Y') }}</span></div>
         </header>
 
         <section class="stat-grid" aria-label="Dashboard summary">
@@ -36,17 +36,17 @@
         </section>
 
         <section class="panel modules-panel">
-            <div class="section-heading"><div><span class="section-kicker">QUICK ACCESS</span><h2>{{ $dashboard['modules_title'] }}</h2></div><button type="button">•••</button></div>
+            <div class="section-heading"><div><span class="section-kicker">QUICK ACCESS</span><h2>{{ $dashboard['modules_title'] }}</h2></div><button type="button">&#8226;&#8226;&#8226;</button></div>
             <div class="module-grid">
                 @foreach($dashboard['modules'] as $module)
-                    <a class="module-card" href="{{ $module[3] }}"><span class="module-icon">{{ $module[0] }}</span><div><strong>{{ $module[1] }}</strong><small>{{ $module[2] }}</small></div><span class="arrow">→</span></a>
+                    <a class="module-card" href="{{ $module[3] }}"><span class="module-icon">{{ $module[0] }}</span><div><strong>{{ $module[1] }}</strong><small>{{ $module[2] }}</small></div><span class="arrow">&#8594;</span></a>
                 @endforeach
             </div>
         </section>
 
         <div class="dashboard-lower">
             <section class="panel performance-panel">
-                <div class="section-heading"><div><span class="section-kicker">{{ $dashboard['chart_kicker'] }}</span><h2>{{ $dashboard['chart_title'] }}</h2></div><span class="period">This week⌄</span></div>
+                <div class="section-heading"><div><span class="section-kicker">{{ $dashboard['chart_kicker'] }}</span><h2>{{ $dashboard['chart_title'] }}</h2></div><span class="period">This week&#8984;</span></div>
                 <div class="chart" aria-label="Sample weekly sales chart">
                     @foreach([42,68,52,84,64,91,76] as $height)
                         <div class="bar-column"><div class="bar-track"><span style="height: {{ $height }}%"></span></div><small>{{ ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][$loop->index] }}</small></div>
@@ -66,4 +66,3 @@
 </div>
 </body>
 </html>
-

@@ -18,11 +18,18 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::view('/admin/low-stocks', 'admin.low-stocks')->name('admin.low-stocks');
     Route::view('/admin/deadstock', 'admin.dead-stock')->name('admin.dead-stock');
     Route::view('/admin/dead-stock', 'admin.dead-stock');
+    Route::view('/admin/returns', 'admin.returns')->name('admin.returns');
     Route::view('/admin/suppliers', 'admin.suppliers')->name('admin.suppliers');
+    Route::view('/admin/compatibility', 'admin.compatibility')->name('admin.compatibility');
 });
 
 Route::middleware(['auth', 'role:staff'])->group(function () {
     Route::view('/staff/dashboard', 'staff.dashboard')->name('staff.dashboard');
+    Route::view('/staff/stock-management', 'staff.stock-management')->name('staff.stock-management');
+    Route::view('/staff/products', 'staff.products')->name('staff.products');
+    Route::view('/staff/pos', 'staff.pos')->name('staff.pos');
+    Route::view('/staff/returns', 'staff.returns')->name('staff.returns');
+    Route::view('/staff/compatibility', 'staff.compatibility')->name('staff.compatibility');
 });
 
 Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])

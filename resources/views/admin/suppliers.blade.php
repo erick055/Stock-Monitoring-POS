@@ -1,8 +1,8 @@
 @php
 $navigation = [
-    ['D','Dashboard','/admin/dashboard'], ['S','Stock Management','/admin/inventory'], ['P','Products','/admin/products'],
-    ['A','Analytics','/admin/analytics'], ['L','Low Stock Alert','/admin/low-stocks'], ['X','Dead Stock','/admin/deadstock'],
-    ['R','Return & Damage','/admin/returns'], ['Y','Supplier Pricing','/admin/suppliers'], ['C','Part Compatibility','/admin/compatibility'],
+    ['⌂','Dashboard','/admin/dashboard'], ['▣','Stock Management','/admin/inventory'], ['□','Products','/admin/products'],
+         ['⌁','Analytics','/admin/analytics'], ['!','Low Stock Alerts','/admin/low-stocks'],['@','Dead Stock', '/admin/deadstock'],
+        ['◇','Returns & Damages','/admin/returns'], ['♙','Supplier Price','/admin/suppliers'], ['⚙','Part Compatibility','/admin/compatibility'],
 ];
 $summary = [
     ['ACTIVE SUPPLIER', '12', 'Suppliers with active pricing updates', 'purple'],
@@ -35,8 +35,8 @@ $recommendations = [
     <aside class="sidebar" data-sidebar>
         <div class="sidebar-brand"><span class="logo-mark">M</span><div><strong>MotoSync</strong><small>Pareng RJJ Motorcycle Parts</small></div></div>
         <nav class="nav-list" aria-label="Administrator navigation">
-            @foreach($navigation as $index => $item)
-                <a class="nav-link {{ $index === 7 ? 'active' : '' }}" href="{{ $item[2] }}"><span>{{ $item[0] }}</span><span>{{ $item[1] }}</span></a>
+            @foreach($navigation as $item)
+                <a class="nav-link" href="{{ $item[2] }}"><span>{{ $item[0] }}</span><span>{{ $item[1] }}</span></a>
             @endforeach
         </nav>
         <div class="sidebar-user">

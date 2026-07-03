@@ -1,4 +1,4 @@
-﻿@php
+@php
 $dashboard = [
     'role_name' => 'Administrator',
     'display_name' => auth()->user()->name,
@@ -8,7 +8,7 @@ $dashboard = [
     'navigation' => [
         ['⌂','Dashboard','#'], ['▣','Stock Management','/admin/inventory'], ['□','Products','/admin/products'],
          ['⌁','Analytics','/admin/analytics'], ['!','Low Stock Alerts','/admin/low-stocks'],['@','Dead Stock', '/admin/deadstock'],
-        ['◇','Returns & Damages','/admin/returns'], ['♙','User Management','/admin/users'], ['⚙','Settings','/admin/settings'],
+        ['◇','Returns & Damages','/admin/returns'], ['♙','Supplier Price','/admin/suppliers'], ['⚙','Part Compatibility','/admin/compatibility'],
     ],
     'stats' => [
         ['TOTAL PRODUCTS','156','+12 this month','purple'], ['TOTAL STOCK','3,456','Across 8 categories','violet'],
@@ -19,7 +19,7 @@ $dashboard = [
         ['▣','Stock Management','Monitor quantities and movements','/admin/inventory'], ['▤','POS Checkout','Process and review transactions','/admin/pos'],
         ['⌁','Data Analytics','Track sales and profitability','/admin/analytics'], ['!','Low Stock Alerts','Review critical inventory','/admin/low-stocks'],
         ['◉','Dead Stock Detection','Find slow-moving products','/admin/dead-stock'], ['◇','Returns & Damages','Manage product exceptions','/admin/returns'],
-        ['♧','Supplier Monitoring','Review suppliers and pricing','/admin/suppliers'], ['⚙','User & Permissions','Control staff access','/admin/users'],
+        ['♧','Supplier Price','Review suppliers and pricing','/admin/suppliers'], ['⚙','Part Compatibility','Track compatible parts and schedules','/admin/compatibility'],
     ],
     'chart_kicker' => 'PERFORMANCE',
     'chart_title' => 'Sales Overview',
@@ -30,4 +30,3 @@ $dashboard = [
 ];
 @endphp
 @include('layouts.dashboard', ['dashboard' => $dashboard])
-

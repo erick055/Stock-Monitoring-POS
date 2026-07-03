@@ -1,0 +1,24 @@
+.compatibility-main{padding-top:25px}
+.compatibility-header{display:flex;align-items:center;gap:14px;margin-bottom:20px}
+.compatibility-header h1{margin:2px 0 3px;font-size:24px}
+.compatibility-header p{margin:0;color:var(--muted);font-size:10px}
+.compatibility-header .welcome{color:var(--purple-soft);font-size:8px;font-weight:700;letter-spacing:.12em}
+.search-panel,.compatibility-panel,.history-panel{padding:16px;margin-bottom:14px}
+.search-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px}
+.search-grid label{display:grid;gap:6px;color:#cfd2dc;font-size:9px}
+.search-grid input,.search-grid select{width:100%;padding:9px 10px;border:1px solid #6d3fb5;border-radius:8px;background:#10121b;color:#f0f1f5;font:inherit}
+.search-action-wrap{display:flex;align-items:flex-end}
+.search-action{width:100%;padding:10px 12px;border:1px solid #2c7cff;border-radius:8px;background:linear-gradient(180deg,#2e7eff,#1f63d8);color:#fff;font-size:10px;font-weight:600;cursor:pointer}
+.popular-grid,.parts-grid,.maintenance-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+.popular-card,.part-card,.maintenance-card,.history-card{padding:12px 14px;border:1px solid var(--line);border-radius:9px;background:#10121b}
+.popular-card strong,.part-card strong,.maintenance-card strong,.history-card strong{display:block;font-size:10px}
+.popular-card small,.part-card small,.maintenance-card small,.history-card small{display:block;margin-top:4px;color:#8d92a2;font-size:8px}
+.compatibility-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.maintenance-card{border-color:#b5641d}
+.history-list{display:grid;gap:10px}
+.history-card{display:flex;justify-content:space-between;gap:12px}
+.history-card strong:last-child{margin-top:6px}
+.apply-button{padding:7px 16px;border:1px solid #7141be;border-radius:7px;background:#4e2586;color:#fff;font-size:9px;cursor:pointer}
+.compatibility-toast{position:fixed;right:22px;bottom:22px;z-index:40;padding:11px 15px;border:1px solid #3e8e79;border-radius:8px;background:#11231e;color:#72e0bf;font-size:10px;box-shadow:0 15px 40px #000}
+[hidden]{display:none!important}
+@media(max-width:980px){.search-grid,.compatibility-grid,.popular-grid,.parts-grid,.maintenance-grid{grid-template-columns:1fr}.history-card{flex-direction:column}}

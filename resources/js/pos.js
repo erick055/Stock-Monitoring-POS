@@ -1,0 +1,155 @@
+const posApp = document.querySelector('[data-pos-app]');
+
+if (posApp) {
+    const products = JSON.parse(posApp.dataset.products || '[]');
+    const grid = posApp.querySelector('[data-product-grid]');
+    const searchInput = posApp.querySelector('[data-pos-search]');
+    const categoryButtons = [...posApp.querySelectorAll('[data-category]')];
+    const cartContainer = posApp.querySelector('[data-cart-items]');
+    const subtotalNode = posApp.querySelector('[data-subtotal]');
+    const taxNode = posApp.querySelector('[data-tax]');
+    const totalNode = posApp.querySelector('[data-total]');
+    const payTotalNode = posApp.querySelector('[data-pay-total]');
+    const toast = document.querySelector('[data-pos-toast]');
+    const emptyCartMarkup = 'Cart is empty.<br>Select items to begin.';
+    let currentCategory = 'All';
+    let cart = [];
+
+    function showToast(message) {
+        if (!toast) return;
+        toast.textContent = message;
+        toast.hidden = false;
+        window.setTimeout(() => {
+            toast.hidden = true;
+        }, 2200);
+    }
+
+    function peso(amount) {
+        return `P${amount.toFixed(2)}`;
+    }
+
+    function renderProducts() {
+        if (!grid) return;
+        const query = (searchInput?.value || '').trim().toLowerCase();
+        const filtered = products.filter((product) => {
+            const categoryMatch = currentCategory === 'All' || product.category === currentCategory;
+            const queryMatch = !query || `${product.name} ${product.category}`.toLowerCase().includes(query);
+            return categoryMatch && queryMatch;
+        });
+
+        grid.innerHTML = '';
+
+        filtered.forEach((product) => {
+            const card = document.createElement('article');
+            card.className = 'product-card';
+            card.innerHTML = `
+                <div class="product-meta">
+                    <small>${product.category}</small>
+                    <div class="product-title">${product.name}</div>
+                </div>
+                <div class="product-price">${peso(product.price)}</div>
+            `;
+            card.addEventListener('click', () => addToCart(product));
+            grid.appendChild(card);
+        });
+    }
+
+    function updateTotals(subtotal) {
+        const tax = subtotal * 0.12;
+        const total = subtotal + tax;
+        subtotalNode.textContent = peso(subtotal);
+        taxNode.textContent = peso(tax);
+        totalNode.textContent = peso(total);
+        payTotalNode.textContent = peso(total);
+    }
+
+    function renderCart() {
+        if (!cartContainer) return;
+
+        if (!cart.length) {
+            cartContainer.innerHTML = `<div class="empty-cart">${emptyCartMarkup}</div>`;
+            updateTotals(0);
+            return;
+        }
+
+        cartContainer.innerHTML = '';
+        let subtotal = 0;
+
+        cart.forEach((item) => {
+            const lineTotal = item.price * item.qty;
+            subtotal += lineTotal;
+
+            const row = document.createElement('div');
+            row.className = 'cart-item';
+            row.innerHTML = `
+                <div class="item-details">
+                    <h4>${item.name}</h4>
+                    <p>${peso(item.price)}</p>
+                </div>
+                <div class="item-controls">
+                    <button class="qty-btn" type="button" data-action="minus">-</button>
+                    <span>${item.qty}</span>
+                    <button class="qty-btn" type="button" data-action="plus">+</button>
+                    <strong class="item-total">${peso(lineTotal)}</strong>
+                </div>
+            `;
+
+            row.querySelector('[data-action="minus"]').addEventListener('click', () => changeQty(item.id, -1));
+            row.querySelector('[data-action="plus"]').addEventListener('click', () => changeQty(item.id, 1));
+            cartContainer.appendChild(row);
+        });
+
+        updateTotals(subtotal);
+    }
+
+    function addToCart(product) {
+        const existing = cart.find((item) => item.id === product.id);
+        if (existing) {
+            existing.qty += 1;
+        } else {
+            cart.push({ ...product, qty: 1 });
+        }
+        renderCart();
+    }
+
+    function changeQty(id, delta) {
+        const item = cart.find((entry) => entry.id === id);
+        if (!item) return;
+        item.qty += delta;
+        if (item.qty <= 0) {
+            cart = cart.filter((entry) => entry.id !== id);
+        }
+        renderCart();
+    }
+
+    categoryButtons.forEach((button) => {
+        button.addEventListener('click', () => {
+            currentCategory = button.dataset.category || 'All';
+            categoryButtons.forEach((entry) => entry.classList.remove('active'));
+            button.classList.add('active');
+            renderProducts();
+        });
+    });
+
+    searchInput?.addEventListener('input', renderProducts);
+    posApp.querySelector('[data-clear-cart]')?.addEventListener('click', () => {
+        cart = [];
+        renderCart();
+        showToast('Order cleared in UI preview.');
+    });
+    posApp.querySelector('[data-hold-order]')?.addEventListener('click', () => {
+        showToast('Order placed on hold in UI preview.');
+    });
+    posApp.querySelector('[data-process-payment]')?.addEventListener('click', () => {
+        if (!cart.length) {
+            showToast('Cart is empty.');
+            return;
+        }
+        cart = [];
+        renderCart();
+        showToast('Payment processed in UI preview.');
+    });
+
+    renderProducts();
+    renderCart();
+}

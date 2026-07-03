@@ -1,8 +1,7 @@
 @php
 $navigation = [
-    ['⌂','Dashboard','/admin/dashboard'], ['▣','Stock Management','/admin/inventory'], ['□','Products','/admin/products'],
-         ['⌁','Analytics','/admin/analytics'], ['!','Low Stock Alerts','/admin/low-stocks'],['@','Dead Stock', '/admin/deadstock'],
-        ['◇','Returns & Damages','/admin/returns'], ['♙','Supplier Price','/admin/suppliers'], ['⚙','Part Compatibility','/admin/compatibility'],
+    ['⌂','Dashboard','/staff/dashboard'], ['▣','Stock Management','/staff/stock-management'], ['□','Products','#'],
+    ['▤','POS Checkout','/staff/pos'], ['◇','Return & Damage','/staff/returns'], ['⚙','Part Compatibility','/staff/compatibility'],
 ];
 $products = [
     ['ENG-OIL-1L','Engine Oil 1L','Lubricants','₱180','₱250',42,'28%','Active'],
@@ -17,21 +16,21 @@ $products = [
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Products | MotoSync</title>
+    <title>Staff Products | MotoSync</title>
     @vite(['resources/css/dashboard.css','resources/css/products.css','resources/js/dashboard.js','resources/js/products.js'])
 </head>
 <body>
 <div class="dashboard-shell products-shell">
     <aside class="sidebar" data-sidebar>
         <div class="sidebar-brand"><span class="logo-mark">M</span><div><strong>MotoSync</strong><small>Pareng RJJ Motorcycle Parts</small></div></div>
-        <nav class="nav-list" aria-label="Administrator navigation">
+        <nav class="nav-list" aria-label="Staff navigation">
             @foreach($navigation as $index => $item)
                 <a class="nav-link {{ $index === 2 ? 'active' : '' }}" href="{{ $item[2] }}"><span>{{ $item[0] }}</span><span>{{ $item[1] }}</span></a>
             @endforeach
         </nav>
         <div class="sidebar-user">
             <span class="avatar">{{ strtoupper(substr(auth()->user()->name,0,2)) }}</span>
-            <div><strong>{{ auth()->user()->name }}</strong><small>Administrator</small></div>
+            <div><strong>{{ auth()->user()->name }}</strong><small>Staff</small></div>
             <form method="POST" action="{{ request()->getBaseUrl() }}/logout">@csrf<button class="logout-button" type="submit" title="Log out">&#8618;</button></form>
         </div>
     </aside>
