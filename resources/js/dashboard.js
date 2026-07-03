@@ -1,0 +1,1 @@
+﻿const menu=document.querySelector('[data-menu]');const sidebar=document.querySelector('[data-sidebar]');if(menu&&sidebar){menu.addEventListener('click',()=>sidebar.classList.toggle('open'));document.addEventListener('click',event=>{if(window.innerWidth<=760&&!sidebar.contains(event.target)&&!menu.contains(event.target))sidebar.classList.remove('open')})}
