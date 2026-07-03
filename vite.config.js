@@ -14,9 +14,17 @@ export default defineConfig({
                 'resources/js/role-access.js',
                 'resources/css/stock-management.css',
                 'resources/js/stock-management.js',
-                // Make sure these match the exact folder names!
                 'resources/css/products.css', 
                 'resources/js/products.js',
+                'resources/css/analytics.css',
+                'resources/js/analytics.js',
+                'resources/css/low-stocks.css',
+                'resources/js/low-stocks.js',
+                'resources/css/dead-stock.css',
+                'resources/js/dead-stock.js',
+                'resources/css/suppliers.css',
+                'resources/js/suppliers.js',
+                
             ],
             refresh: true,
         }),
@@ -28,5 +36,3 @@ export default defineConfig({
         },
     },
 });
-
-

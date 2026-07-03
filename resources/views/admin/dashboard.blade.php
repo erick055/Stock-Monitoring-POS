@@ -7,7 +7,7 @@ $dashboard = [
     'description' => 'Monitor inventory, sales, and business performance.',
     'navigation' => [
         ['⌂','Dashboard','#'], ['▣','Stock Management','/admin/inventory'], ['□','Products','/admin/products'],
-        ['▤','POS Dashboard','/admin/pos'], ['⌁','Analytics','/admin/analytics'], ['!','Low Stock Alerts','/admin/low-stocks'],['@','Dead Stock', '/admin/deadstock'],
+         ['⌁','Analytics','/admin/analytics'], ['!','Low Stock Alerts','/admin/low-stocks'],['@','Dead Stock', '/admin/deadstock'],
         ['◇','Returns & Damages','/admin/returns'], ['♙','User Management','/admin/users'], ['⚙','Settings','/admin/settings'],
     ],
     'stats' => [

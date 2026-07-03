@@ -1,0 +1,38 @@
+.analytics-main{padding-top:25px}
+.analytics-header{display:flex;align-items:center;gap:14px;margin-bottom:20px}
+.analytics-header h1{margin:2px 0 3px;font-size:24px}
+.analytics-header p{margin:0;color:var(--muted);font-size:10px}
+.analytics-header .welcome{color:var(--purple-soft);font-size:8px;font-weight:700;letter-spacing:.12em}
+.header-tools{display:flex;align-items:center;gap:9px;margin-left:auto}
+.period-select{padding:8px 10px;border:1px solid var(--line);border-radius:7px;background:#0c0e16;color:#d6d8e0;font-size:9px}
+.more-button{width:34px;height:34px;border:1px solid var(--line);border-radius:8px;background:#0e111b;color:#7d8292;cursor:pointer}
+.analytics-stats{margin-bottom:14px}
+.analytics-grid{display:grid;grid-template-columns:1.05fr 1fr;gap:14px;margin-bottom:14px}
+.analytics-panel,.flow-panel{padding:16px}
+.sales-list{display:grid;gap:10px}
+.sales-item{display:flex;justify-content:space-between;align-items:center;padding:13px 14px;border:1px solid var(--line);border-radius:8px;background:#11131c}
+.sales-item strong{font-size:10px}
+.sales-item span{color:#b9bdd0;font-size:10px}
+.day-chart{display:grid;gap:11px}
+.day-row{display:grid;grid-template-columns:32px 1fr auto;align-items:center;gap:10px}
+.day-label{color:#a0a5b6;font-size:9px}
+.day-track{height:8px;border-radius:999px;background:#d7d7dc;overflow:hidden}
+.day-track i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#ff5d4d,#ff8a34 28%,#57c84d 52%,#485bff 78%,#4b2bd6 100%)}
+.day-row strong{font-size:9px;color:#cfd2dc}
+.flow-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+.flow-card{padding:15px 12px;border:1px solid var(--line);border-radius:9px;background:#10121b;text-align:center}
+.flow-card small{display:block;margin-bottom:8px;color:#9ba0b1;font-size:9px}
+.flow-card strong{font-size:14px}
+.flow-card.green{border-color:#2f7d5d}
+.flow-card.green strong{color:#4ee2a6}
+.flow-card.blue{border-color:#2f63bb}
+.flow-card.blue strong{color:#52a4ff}
+.flow-card.orange{border-color:#b5641d}
+.flow-card.orange strong{color:#ff9e4a}
+.flow-card.red{border-color:#9b2b39}
+.flow-card.red strong{color:#ff6676}
+.flow-card.violet{border-color:#5b3c9f}
+.flow-card.violet strong{color:#9f85ff}
+@media(max-width:980px){.analytics-grid{grid-template-columns:1fr}.flow-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:760px){.analytics-header{flex-wrap:wrap}.header-tools{width:100%;margin-left:0;justify-content:space-between}}
+@media(max-width:520px){.analytics-stats,.flow-grid{grid-template-columns:1fr}.day-row{grid-template-columns:28px 1fr auto}.day-row strong{font-size:8px}}

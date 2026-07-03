@@ -1,9 +1,8 @@
 @php
 $navigation = [
-    ['⌂','Dashboard',route('admin.dashboard')], ['▣','Stock Management',route('admin.inventory')],
-    ['□','Products',route('admin.products')], ['▤','POS Dashboard','#'], ['⌁','Analytics','#'],
-    ['!','Low Stock Alerts','#'], ['◉','Dead Stock','#'], ['◇','Returns & Damages','#'],
-    ['♧','Supplier Pricing','#'], ['⚙','User Management','#'],
+    ['⌂','Dashboard','/admin/dashboard'], ['▣','Stock Management','/admin/inventory'], ['□','Products','/admin/products'],
+         ['⌁','Analytics','/admin/analytics'], ['!','Low Stock Alerts','/admin/low-stocks'],['@','Dead Stock', '/admin/deadstock'],
+        ['◇','Returns & Damages','/admin/returns'], ['♙','User Management','/admin/users'], ['⚙','Settings','/admin/settings'],
 ];
 $products = [
     ['ENG-OIL-1L','Engine Oil 1L','Lubricants','₱180','₱250',42,'28%','Active'],
