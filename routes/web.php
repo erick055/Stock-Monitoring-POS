@@ -12,6 +12,7 @@ Route::middleware('guest')->group(function () {
 
 Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::view('/admin/dashboard', 'admin.dashboard')->name('admin.dashboard');
+    Route::view('/admin/inventory', 'admin.stock-management')->name('admin.inventory');
 });
 
 Route::middleware(['auth', 'role:staff'])->group(function () {

@@ -6,8 +6,8 @@ $dashboard = [
     'initials' => 'EA',
     'description' => 'Monitor inventory, sales, and business performance.',
     'navigation' => [
-        ['⌂','Dashboard','#'], ['▣','Inventory','/admin/inventory'], ['□','Products','/admin/products'],
-        ['▤','POS Dashboard','/admin/pos'], ['⌁','Analytics','/admin/analytics'], ['!','Low Stock Alerts','/admin/low-stocks'],
+        ['⌂','Dashboard','#'], ['▣','Stock Management','/admin/inventory'], ['□','Products','/admin/products'],
+        ['▤','POS Dashboard','/admin/pos'], ['⌁','Analytics','/admin/analytics'], ['!','Low Stock Alerts','/admin/low-stocks'],['@','Dead Stock', '/admin/deadstock'],
         ['◇','Returns & Damages','/admin/returns'], ['♙','User Management','/admin/users'], ['⚙','Settings','/admin/settings'],
     ],
     'stats' => [
