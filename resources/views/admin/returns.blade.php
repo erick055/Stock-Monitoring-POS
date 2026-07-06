@@ -1,8 +1,8 @@
 @php
 $navigation = [
     ['⌂','Dashboard','/admin/dashboard'], ['▣','Stock Management','/admin/inventory'], ['□','Products','/admin/products'],
-    ['⌁','Analytics','/admin/analytics'], ['!','Low Stock Alert','/admin/low-stocks'], ['@','Dead Stock','/admin/deadstock'],
-    ['◇','Return & Damage','#'], ['♙','Supplier Price','/admin/suppliers'], ['⚙','Part Compatibility','/admin/compatibility'],
+    ['⌁','Analytics','/admin/analytics'], ['!','Low Stock Alerts','/admin/low-stocks'], ['@','Dead Stock','/admin/deadstock'],
+    ['◇','Returns & Damages','#'], ['♙','Supplier Price','/admin/suppliers'], ['⚙','Part Compatibility','/admin/compatibility'],
 ];
 $summary = [
     ['TOTAL RETURN THIS MONTH', '8', 'Processed customer returns', 'purple'],

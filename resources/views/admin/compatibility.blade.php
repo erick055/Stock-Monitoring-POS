@@ -1,8 +1,8 @@
 @php
 $navigation = [
     ['⌂','Dashboard','/admin/dashboard'], ['▣','Stock Management','/admin/inventory'], ['□','Products','/admin/products'],
-    ['⌁','Analytics','/admin/analytics'], ['!','Low Stock Alert','/admin/low-stocks'], ['@','Dead Stock','/admin/deadstock'],
-    ['◇','Return & Damage','/admin/returns'], ['♙','Supplier Price','/admin/suppliers'], ['⚙','Part Compatibility','#'],
+    ['⌁','Analytics','/admin/analytics'], ['!','Low Stock Alerts','/admin/low-stocks'], ['@','Dead Stock','/admin/deadstock'],
+    ['◇','Returns & Damages','/admin/returns'], ['♙','Supplier Price','/admin/suppliers'], ['⚙','Part Compatibility','#'],
 ];
 $models = [
     ['Honda Click v3', '110cc - 2024'],
