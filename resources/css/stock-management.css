@@ -65,6 +65,21 @@
     cursor: pointer;
 }
 
+.search-button {
+    padding: 8px 14px;
+    border: 1px solid #7541c1;
+    border-radius: 7px;
+    background: #51219a;
+    color: #fff;
+    font-size: 9px;
+    cursor: pointer;
+}
+
+.flash-message { margin-bottom: 14px; padding: 11px 14px; border: 1px solid; border-radius: 8px; font-size: 10px; }
+.flash-message.success { border-color: #286e5e; background: #10251f; color: #77dfbe; }
+.flash-message.error { border-color: #873443; background: #291219; color: #ff9baa; }
+.flash-message ul { margin: 6px 0 0; padding-left: 18px; }
+
 .stock-stats {
     margin-bottom: 14px;
 }
@@ -288,7 +303,8 @@ td small {
 }
 
 .adjustment-card input,
-.adjustment-card select {
+.adjustment-card select,
+.adjustment-card textarea {
     width: 100%;
     padding: 8px;
     border: 1px solid #34384a;
@@ -300,9 +316,40 @@ td small {
 }
 
 .adjustment-card input:focus,
-.adjustment-card select:focus {
+.adjustment-card select:focus,
+.adjustment-card textarea:focus {
     border-color: #7440bc;
 }
+
+.adjustment-card textarea { resize: vertical; }
+.adjustment-card button:disabled { cursor: not-allowed; opacity: .45; }
+
+.ledger-panel { margin-top: 14px; padding: 16px; }
+.ledger-count { color: var(--muted); font-size: 8px; }
+.ledger-panel table { min-width: 1050px; }
+.qty-in { color: #64ddb9; font-weight: 700; }
+.qty-out { color: #ff7b8e; font-weight: 700; }
+.reason-code { display: inline-block; padding: 4px 7px; border-radius: 5px; background: #23163b; color: #bc91ff; font-size: 7px; text-transform: uppercase; }
+.log-cell { max-width: 220px; white-space: normal; }
+.empty-cell { padding: 28px; color: var(--muted); text-align: center; }
+
+body.modal-open { overflow: hidden; }
+.stock-modal { position: fixed; z-index: 100; inset: 0; display: grid; place-items: center; padding: 20px; }
+.stock-modal[hidden] { display: none; }
+.modal-backdrop { position: absolute; inset: 0; background: rgba(2, 3, 8, .82); backdrop-filter: blur(3px); }
+.modal-card { position: relative; width: min(680px, 100%); max-height: calc(100vh - 40px); overflow-y: auto; padding: 20px; border: 1px solid #7140b7; border-radius: 12px; background: #0c0e16; box-shadow: 0 24px 80px #000; }
+.modal-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
+.modal-header h2 { margin: 4px 0 0; font-size: 18px; }
+.modal-header > button { border: 0; background: none; color: #a3a7b5; font-size: 24px; cursor: pointer; }
+.product-form label { display: grid; gap: 5px; color: #9da1af; font-size: 9px; }
+.form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 12px; }
+.product-form input, .product-form select, .product-form textarea { width: 100%; padding: 9px 10px; border: 1px solid #393d50; border-radius: 7px; outline: none; background: #080a11; color: #e4e5eb; font: inherit; }
+.product-form input:focus, .product-form select:focus, .product-form textarea:focus { border-color: #8651d4; }
+.product-form textarea { resize: vertical; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 9px; margin-top: 17px; }
+.modal-actions button { padding: 9px 13px; border-radius: 7px; color: #fff; font-size: 9px; cursor: pointer; }
+.secondary-button { border: 1px solid #3b3f50; background: #171a24; }
+.primary-button { border: 1px solid #8250ca; background: #59239e; }
 
 .adjustment-card button {
     width: 100%;
@@ -376,6 +423,8 @@ td small {
         flex-wrap: wrap;
         justify-content: flex-end;
     }
+
+    .form-grid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 420px) {

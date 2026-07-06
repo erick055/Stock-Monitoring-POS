@@ -1,7 +1,27 @@
-const searchInput=document.querySelector('[data-stock-search]');
-const statusFilter=document.querySelector('[data-status-filter]');
-const rows=[...document.querySelectorAll('[data-stock-rows] tr')];
-const emptyState=document.querySelector('[data-empty-state]');
-function filterStock(){const query=(searchInput?.value||'').trim().toLowerCase();const status=statusFilter?.value||'all';let visible=0;rows.forEach(row=>{const matchesText=!query||row.dataset.search.includes(query);const matchesStatus=status==='all'||row.dataset.status===status;row.hidden=!(matchesText&&matchesStatus);if(!row.hidden)visible++});if(emptyState)emptyState.hidden=visible!==0}
-searchInput?.addEventListener('input',filterStock);statusFilter?.addEventListener('change',filterStock);
-document.querySelectorAll('[data-demo-form]').forEach(form=>form.addEventListener('submit',event=>{event.preventDefault();const toast=document.querySelector('[data-demo-toast]');toast.hidden=false;form.reset();window.setTimeout(()=>toast.hidden=true,2200)}));
+const statusFilter = document.querySelector('[data-status-filter]');
+const filterForm = document.querySelector('[data-filter-form]');
+const modal = document.querySelector('[data-product-modal]');
+const firstProductInput = modal?.querySelector('input[name="sku"]');
+
+statusFilter?.addEventListener('change', () => filterForm?.submit());
+
+function openProductModal() {
+    if (!modal) return;
+    modal.hidden = false;
+    document.body.classList.add('modal-open');
+    window.setTimeout(() => firstProductInput?.focus(), 0);
+}
+
+function closeProductModal() {
+    if (!modal) return;
+    modal.hidden = true;
+    document.body.classList.remove('modal-open');
+}
+
+document.querySelector('[data-open-product]')?.addEventListener('click', openProductModal);
+document.querySelectorAll('[data-close-product]').forEach((button) => button.addEventListener('click', closeProductModal));
+document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && modal && !modal.hidden) closeProductModal();
+});
+
+if (modal?.dataset.openOnError === 'true') openProductModal();
