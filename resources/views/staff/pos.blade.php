@@ -3,18 +3,6 @@ $navigation = [
     ['⌂','Dashboard','/staff/dashboard'], ['▣','Stock Management','/staff/stock-management'], ['□','Products','/staff/products'],
     ['▤','POS Checkout','#'], ['◇','Return & Damage','/staff/returns'], ['⚙','Part Compatibility','/staff/compatibility'],
 ];
-$products = [
-    ['id' => 1, 'name' => 'Fully Synthetic Oil 10W-40', 'price' => 450.00, 'category' => 'Fluids'],
-    ['id' => 2, 'name' => 'Ceramic Brake Pads (Front)', 'price' => 850.00, 'category' => 'Tires'],
-    ['id' => 3, 'name' => 'Heavy Duty Chain 428H', 'price' => 1200.00, 'category' => 'Engine'],
-    ['id' => 4, 'name' => 'Iridium Spark Plug', 'price' => 550.00, 'category' => 'Engine'],
-    ['id' => 5, 'name' => 'Tubeless Tire 90/80-14', 'price' => 1800.00, 'category' => 'Tires'],
-    ['id' => 6, 'name' => 'Labor: Basic Tune-up', 'price' => 350.00, 'category' => 'Service'],
-    ['id' => 7, 'name' => 'Labor: Change Oil', 'price' => 100.00, 'category' => 'Service'],
-    ['id' => 8, 'name' => 'Brake Fluid DOT 4', 'price' => 250.00, 'category' => 'Fluids'],
-    ['id' => 9, 'name' => 'Air Filter Replacement', 'price' => 300.00, 'category' => 'Engine'],
-    ['id' => 10, 'name' => 'Labor: Tire Installation', 'price' => 150.00, 'category' => 'Service'],
-];
 @endphp
 <!DOCTYPE html>
 <html lang="en">
@@ -22,6 +10,7 @@ $products = [
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Staff POS Checkout | MotoSync</title>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     @vite(['resources/css/dashboard.css','resources/css/pos.css','resources/js/dashboard.js','resources/js/pos.js'])
 </head>
 <body>
@@ -46,7 +35,7 @@ $products = [
             <div><p class="welcome">POS WORKSPACE</p><h1>POS Checkout</h1><p>Process orders, manage the cart, and complete payments.</p></div>
         </header>
 
-        <section class="pos-layout" data-pos-app data-products='@json($products)'>
+        <section class="pos-layout" data-pos-app data-products='@json($products)' data-checkout-url="{{ route('staff.pos.checkout') }}">
             <div class="pos-catalog panel">
                 <div class="pos-catalog-head">
                     <div>
@@ -61,10 +50,9 @@ $products = [
 
                 <div class="pos-categories">
                     <button class="cat-btn active" type="button" data-category="All">All Items</button>
-                    <button class="cat-btn" type="button" data-category="Engine">Engine &amp; Drivetrain</button>
-                    <button class="cat-btn" type="button" data-category="Tires">Tires &amp; Brakes</button>
-                    <button class="cat-btn" type="button" data-category="Fluids">Oils &amp; Fluids</button>
-                    <button class="cat-btn" type="button" data-category="Service">Service / Labor</button>
+                    @foreach($categories as $category)
+                        <button class="cat-btn" type="button" data-category="{{ $category }}">{{ $category }}</button>
+                    @endforeach
                 </div>
 
                 <div class="product-grid" data-product-grid></div>

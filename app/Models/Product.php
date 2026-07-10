@@ -31,6 +31,11 @@ class Product extends Model
         return $this->hasMany(InventoryLedger::class, 'product_id', 'product_id');
     }
 
+    public function saleItems(): HasMany
+    {
+        return $this->hasMany(SalesItem::class, 'product_id', 'product_id');
+    }
+
     public function getStockStatusAttribute(): string
     {
         if ($this->current_stock <= $this->reorder_level) {

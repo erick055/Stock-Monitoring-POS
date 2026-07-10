@@ -1,29 +1,8 @@
 @php
 $navigation = [
     ['⌂','Dashboard','/admin/dashboard'], ['▣','Stock Management','/admin/inventory'], ['□','Products','/admin/products'],
-         ['⌁','Analytics','/admin/analytics'], ['!','Low Stock Alerts','/admin/low-stocks'],['@','Dead Stock', '/admin/deadstock'],
-        ['◇','Returns & Damages','/admin/returns'], ['♙','Supplier Price','/admin/suppliers'], ['⚙','Part Compatibility','/admin/compatibility'],
-];
-$topSales = [
-    ['Engine Oil 1L', 'P5,320'],
-    ['Tires', 'P8,320'],
-    ['Bearing', 'P4,320'],
-];
-$salesByDay = [
-    ['Mon', 520, '14%'],
-    ['Tue', 920, '26%'],
-    ['Wed', 1120, '32%'],
-    ['Thu', 1320, '38%'],
-    ['Fri', 2320, '67%'],
-    ['Sat', 3320, '92%'],
-    ['Sun', 4320, '100%'],
-];
-$stockFlow = [
-    ['Added to Stock', '245 ITEMS', 'green'],
-    ['Sold', '1,230 ITEMS', 'blue'],
-    ['Returned', '12 ITEMS', 'orange'],
-    ['Damaged', '8 ITEMS', 'red'],
-    ['Current Stock', '3,456 ITEMS', 'violet'],
+    ['⌁','Analytics','/admin/analytics'], ['!','Low Stock Alerts','/admin/low-stocks'], ['@','Dead Stock', '/admin/deadstock'],
+    ['◇','Returns & Damages','/admin/returns'], ['♙','Supplier Price','/admin/suppliers'], ['⚙','Part Compatibility','/admin/compatibility'],
 ];
 @endphp
 <!DOCTYPE html>
@@ -54,70 +33,103 @@ $stockFlow = [
         <header class="analytics-header">
             <button class="menu-button" type="button" data-menu aria-label="Toggle navigation">&#9776;</button>
             <div>
-                <p class="welcome">PERFORMANCE INSIGHT</p>
+                <p class="welcome">CONNECTED TO POS</p>
                 <h1>Sales &amp; Analytics Dashboard</h1>
-                <p>Track sales movement, orders, and inventory performance.</p>
+                <p>Highest and lowest stock, sales, demand, best sellers, and weekly day-by-day performance.</p>
             </div>
             <div class="header-tools">
-                <select class="period-select" data-period-select aria-label="Select reporting period">
-                    <option>Today</option>
-                    <option selected>This Week</option>
-                    <option>This Month</option>
-                </select>
+                <span class="period-select">Live POS Data</span>
                 <button class="more-button" type="button">&#8226;&#8226;&#8226;</button>
             </div>
         </header>
 
         <section class="stat-grid analytics-stats" aria-label="Analytics summary">
-            <article class="stat-card purple"><div class="stat-head"><span>TOTAL SALES</span><span class="trend-dot"></span></div><strong>P45,320</strong><small>+12% from last week</small></article>
-            <article class="stat-card violet"><div class="stat-head"><span>TRANSACTIONS</span><span class="trend-dot"></span></div><strong>320</strong><small>+8% today</small></article>
-            <article class="stat-card red"><div class="stat-head"><span>AVG. ORDER VALUE</span><span class="trend-dot"></span></div><strong>P320</strong><small>-3% vs average</small></article>
-            <article class="stat-card cyan"><div class="stat-head"><span>PROFIT MARGIN</span><span class="trend-dot"></span></div><strong>35%</strong><small>+2.3% improvement</small></article>
+            <article class="stat-card purple"><div class="stat-head"><span>TOTAL SALES</span><span class="trend-dot"></span></div><strong>₱{{ number_format($summary['total_sales'], 2) }}</strong><small>From completed POS sales</small></article>
+            <article class="stat-card violet"><div class="stat-head"><span>TRANSACTIONS</span><span class="trend-dot"></span></div><strong>{{ number_format($summary['transactions']) }}</strong><small>Paid receipts recorded</small></article>
+            <article class="stat-card red"><div class="stat-head"><span>AVG. ORDER VALUE</span><span class="trend-dot"></span></div><strong>₱{{ number_format($summary['average_order_value'], 2) }}</strong><small>Average POS checkout</small></article>
+            <article class="stat-card cyan"><div class="stat-head"><span>PROFIT MARGIN</span><span class="trend-dot"></span></div><strong>{{ number_format($summary['profit_margin'], 1) }}%</strong><small>Based on product cost vs sales</small></article>
         </section>
 
         <section class="analytics-grid">
             <article class="panel analytics-panel">
                 <div class="section-heading">
-                    <div><span class="section-kicker">BEST SELLERS</span><h2>Top Sales Item</h2></div>
+                    <div><span class="section-kicker">BEST SELLERS</span><h2>Top POS Items</h2></div>
                     <button type="button">&#8226;&#8226;&#8226;</button>
                 </div>
                 <div class="sales-list">
-                    @foreach($topSales as $item)
-                        <div class="sales-item"><strong>{{ $item[0] }}</strong><span>{{ $item[1] }}</span></div>
-                    @endforeach
+                    @forelse($bestSellers as $item)
+                        <div class="sales-item"><strong>{{ $item->name }}</strong><span>{{ number_format($item->units_sold) }} sold · ₱{{ number_format($item->sales_total, 2) }}</span></div>
+                    @empty
+                        <div class="empty-analytics">No POS sales yet. Complete a checkout to show best sellers.</div>
+                    @endforelse
                 </div>
             </article>
 
             <article class="panel analytics-panel">
                 <div class="section-heading">
-                    <div><span class="section-kicker">WEEKLY VIEW</span><h2>Sales by Day</h2></div>
+                    <div><span class="section-kicker">WEEKLY VIEW</span><h2>Sales Day by Day</h2></div>
                     <button type="button">&#8226;&#8226;&#8226;</button>
                 </div>
                 <div class="day-chart" data-day-chart>
-                    @foreach($salesByDay as $day)
+                    @foreach($weeklySales as $day)
                         <div class="day-row">
-                            <span class="day-label">{{ $day[0] }}</span>
-                            <div class="day-track"><i style="width: {{ $day[2] }}"></i></div>
-                            <strong>P{{ number_format($day[1]) }}</strong>
+                            <span class="day-label">{{ $day['label'] }}</span>
+                            <div class="day-track" title="{{ $day['date'] }}"><i style="width: {{ $day['percent'] }}%"></i></div>
+                            <strong>₱{{ number_format($day['total'], 2) }}</strong>
                         </div>
                     @endforeach
                 </div>
             </article>
         </section>
 
-        <section class="panel flow-panel">
-            <div class="section-heading">
-                <div><span class="section-kicker">INVENTORY MOVEMENT</span><h2>Stock Flow Summary</h2></div>
-                <span class="period">Live snapshot</span>
-            </div>
-            <div class="flow-grid">
-                @foreach($stockFlow as $item)
-                    <article class="flow-card {{ $item[2] }}">
-                        <small>{{ $item[0] }}</small>
-                        <strong>{{ $item[1] }}</strong>
-                    </article>
-                @endforeach
-            </div>
+        <section class="analytics-grid inventory-analytics-grid">
+            <article class="panel analytics-panel">
+                <div class="section-heading"><div><span class="section-kicker">STOCK LEVELS</span><h2>Highest Stock</h2></div></div>
+                <div class="sales-list compact-list">
+                    @forelse($highestStock as $product)
+                        <div class="sales-item"><strong>{{ $product->name }}</strong><span>{{ number_format($product->current_stock) }} units</span></div>
+                    @empty
+                        <div class="empty-analytics">No products available.</div>
+                    @endforelse
+                </div>
+            </article>
+
+            <article class="panel analytics-panel">
+                <div class="section-heading"><div><span class="section-kicker">STOCK LEVELS</span><h2>Lowest Stock</h2></div></div>
+                <div class="sales-list compact-list">
+                    @forelse($lowestStock as $product)
+                        <div class="sales-item"><strong>{{ $product->name }}</strong><span>{{ number_format($product->current_stock) }} units · {{ ucfirst($product->stock_status) }}</span></div>
+                    @empty
+                        <div class="empty-analytics">No products available.</div>
+                    @endforelse
+                </div>
+            </article>
+        </section>
+
+        <section class="analytics-grid">
+            <article class="panel analytics-panel">
+                <div class="section-heading"><div><span class="section-kicker">DEMAND</span><h2>Most Requested Items</h2></div><span class="period">Last 30 days</span></div>
+                <div class="sales-list">
+                    @forelse($demand as $item)
+                        <div class="sales-item"><strong>{{ $item->name }}</strong><span>{{ number_format($item->demand_units) }} units demanded</span></div>
+                    @empty
+                        <div class="empty-analytics">No demand yet because no POS sales are saved.</div>
+                    @endforelse
+                </div>
+            </article>
+
+            <section class="panel flow-panel">
+                <div class="section-heading">
+                    <div><span class="section-kicker">INVENTORY MOVEMENT</span><h2>Stock Flow Summary</h2></div>
+                    <span class="period">Live snapshot</span>
+                </div>
+                <div class="flow-grid">
+                    <article class="flow-card green"><small>Added to Stock</small><strong>{{ number_format($stockFlow['added']) }} ITEMS</strong></article>
+                    <article class="flow-card blue"><small>Sold</small><strong>{{ number_format($stockFlow['sold']) }} ITEMS</strong></article>
+                    <article class="flow-card orange"><small>Manual Stock Out</small><strong>{{ number_format($stockFlow['stock_out']) }} ITEMS</strong></article>
+                    <article class="flow-card violet"><small>Current Stock</small><strong>{{ number_format($stockFlow['current']) }} ITEMS</strong></article>
+                </div>
+            </section>
         </section>
     </main>
 </div>

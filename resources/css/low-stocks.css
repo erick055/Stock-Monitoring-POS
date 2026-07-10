@@ -22,6 +22,7 @@
 .alert-card.warning .alert-bar i{background:linear-gradient(90deg,#ff8a34,#f0a300)}
 .alert-actions{display:flex;gap:8px;flex-wrap:wrap}
 .alert-actions span{padding:4px 7px;border:1px solid var(--line);border-radius:999px;background:#151826;color:#a8adbd;font-size:7px}
+.empty-alert{padding:18px;border:1px dashed #383b4e;border-radius:9px;background:#10121b;color:#858a9c;font-size:10px}
 .fast-card{display:grid;grid-template-columns:1.4fr 1fr 1fr auto;align-items:center;gap:12px;padding:14px;border:1px solid var(--line);border-radius:9px;background:#10121b}
 .fast-card span{display:block;color:#8d92a2;font-size:8px}
 .fast-card div strong{margin-top:4px}

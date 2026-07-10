@@ -1,44 +1,8 @@
 @php
 $navigation = [
     ['⌂','Dashboard','/admin/dashboard'], ['▣','Stock Management','/admin/inventory'], ['□','Products','/admin/products'],
-         ['⌁','Analytics','/admin/analytics'], ['!','Low Stock Alerts','/admin/low-stocks'],['@','Dead Stock', '/admin/deadstock'],
-        ['◇','Returns & Damages','/admin/returns'], ['♙','Supplier Price','/admin/suppliers'], ['⚙','Part Compatibility','/admin/compatibility'],
-];
-$alerts = [
-    [
-        'name' => 'Engine Oil 1L',
-        'sku' => 'ENG-OIL-1L',
-        'stock' => 1,
-        'threshold' => 10,
-        'status' => 'Critical',
-        'status_class' => 'critical',
-        'fill' => '9%',
-        'actions' => ['Restock', 'Priority'],
-    ],
-    [
-        'name' => 'Brake Pads Set',
-        'sku' => 'BRK-PAD-01',
-        'stock' => 6,
-        'threshold' => 10,
-        'status' => 'Warning',
-        'status_class' => 'warning',
-        'fill' => '44%',
-        'actions' => ['Monitor', 'Schedule PO'],
-    ],
-];
-$fastMoving = [
-    [
-        'name' => 'Engine Oil 1L',
-        'weekly' => '42 units',
-        'turnover' => '1.8x / wk',
-        'days_left' => '2 days',
-        'status' => 'Fast Moving',
-    ],
-];
-$settings = [
-    ['Email Notification', 'Receive low-stock alerts by email'],
-    ['Sms Alerts', 'Send urgent warnings'],
-    ['Daily Summary', 'Email stock alert summary'],
+    ['⌁','Analytics','/admin/analytics'], ['!','Low Stock Alerts','/admin/low-stocks'], ['@','Dead Stock', '/admin/deadstock'],
+    ['◇','Returns & Damages','/admin/returns'], ['♙','Supplier Price','/admin/suppliers'], ['⚙','Part Compatibility','/admin/compatibility'],
 ];
 @endphp
 <!DOCTYPE html>
@@ -69,17 +33,17 @@ $settings = [
         <header class="alerts-header">
             <button class="menu-button" type="button" data-menu aria-label="Toggle navigation">&#9776;</button>
             <div>
-                <p class="welcome">PERFORMANCE INSIGHT</p>
+                <p class="welcome">LIVE INVENTORY ALERTS</p>
                 <h1>Stock Alerts and Monitoring</h1>
-                <p>Monitor critical inventory levels and review fast-moving items.</p>
+                <p>Monitor critical inventory levels from Stock Management and POS checkout movement.</p>
             </div>
         </header>
 
         <section class="stat-grid alerts-stats" aria-label="Stock alert summary">
-            <article class="stat-card red"><div class="stat-head"><span>CRITICAL LOW STOCK</span><span class="trend-dot"></span></div><strong>1</strong><small>Needs immediate action</small></article>
-            <article class="stat-card orange"><div class="stat-head"><span>LOW STOCK WARNING</span><span class="trend-dot"></span></div><strong>1</strong><small>Near reorder point</small></article>
-            <article class="stat-card purple"><div class="stat-head"><span>AVG DAILY SALES</span><span class="trend-dot"></span></div><strong>156 units</strong><small>Based on current movement</small></article>
-            <article class="stat-card violet"><div class="stat-head"><span>AVG WEEKLY DEMAND</span><span class="trend-dot"></span></div><strong>156 units</strong><small>Rolling 7-day estimate</small></article>
+            <article class="stat-card red"><div class="stat-head"><span>CRITICAL LOW STOCK</span><span class="trend-dot"></span></div><strong>{{ number_format($summary['critical_low']) }}</strong><small>At or below reorder level</small></article>
+            <article class="stat-card orange"><div class="stat-head"><span>LOW STOCK WARNING</span><span class="trend-dot"></span></div><strong>{{ number_format($summary['low_warning']) }}</strong><small>Near reorder point</small></article>
+            <article class="stat-card purple"><div class="stat-head"><span>AVG DAILY SALES</span><span class="trend-dot"></span></div><strong>{{ number_format($summary['avg_daily_sales'], 1) }} units</strong><small>Based on last 7 days POS sales</small></article>
+            <article class="stat-card violet"><div class="stat-head"><span>AVG WEEKLY DEMAND</span><span class="trend-dot"></span></div><strong>{{ number_format($summary['avg_weekly_demand']) }} units</strong><small>Rolling 7-day demand</small></article>
         </section>
 
         <section class="panel alerts-panel">
@@ -87,7 +51,7 @@ $settings = [
                 <div><span class="section-kicker">LIVE INVENTORY WATCH</span><h2>Active Stock Alerts</h2></div>
             </div>
             <div class="alert-list">
-                @foreach($alerts as $alert)
+                @forelse($activeAlerts as $alert)
                     <article class="alert-card {{ $alert['status_class'] }}">
                         <div class="alert-meta">
                             <div>
@@ -103,7 +67,9 @@ $settings = [
                             @endforeach
                         </div>
                     </article>
-                @endforeach
+                @empty
+                    <div class="empty-alert">No low stock alerts right now. Inventory levels are healthy.</div>
+                @endforelse
             </div>
         </section>
 
@@ -112,17 +78,19 @@ $settings = [
                 <div><span class="section-kicker">MOVEMENT SIGNAL</span><h2>Fast Moving Item Analysis</h2></div>
             </div>
             <div class="fast-list">
-                @foreach($fastMoving as $item)
+                @forelse($fastMoving as $item)
                     <article class="fast-card">
                         <div>
                             <strong>{{ $item['name'] }}</strong>
-                            <small>{{ $item['weekly'] }}</small>
+                            <small>{{ $item['sku'] }} | {{ $item['weekly'] }}</small>
                         </div>
                         <div><span>Turnover Trend</span><strong>{{ $item['turnover'] }}</strong></div>
                         <div><span>Days Left</span><strong>{{ $item['days_left'] }}</strong></div>
                         <span class="fast-badge">{{ $item['status'] }}</span>
                     </article>
-                @endforeach
+                @empty
+                    <div class="empty-alert">No POS sales yet. Fast-moving items will appear after staff checkout transactions.</div>
+                @endforelse
             </div>
         </section>
 

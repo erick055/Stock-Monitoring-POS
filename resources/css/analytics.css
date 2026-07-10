@@ -13,13 +13,16 @@
 .sales-item{display:flex;justify-content:space-between;align-items:center;padding:13px 14px;border:1px solid var(--line);border-radius:8px;background:#11131c}
 .sales-item strong{font-size:10px}
 .sales-item span{color:#b9bdd0;font-size:10px}
+.empty-analytics{padding:16px;border:1px dashed #35384a;border-radius:8px;color:#858a9c;font-size:10px;background:#0d0f18}
+.inventory-analytics-grid{grid-template-columns:1fr 1fr}
+.compact-list{max-height:260px;overflow:auto;padding-right:3px}
 .day-chart{display:grid;gap:11px}
 .day-row{display:grid;grid-template-columns:32px 1fr auto;align-items:center;gap:10px}
 .day-label{color:#a0a5b6;font-size:9px}
 .day-track{height:8px;border-radius:999px;background:#d7d7dc;overflow:hidden}
 .day-track i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#ff5d4d,#ff8a34 28%,#57c84d 52%,#485bff 78%,#4b2bd6 100%)}
 .day-row strong{font-size:9px;color:#cfd2dc}
-.flow-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+.flow-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
 .flow-card{padding:15px 12px;border:1px solid var(--line);border-radius:9px;background:#10121b;text-align:center}
 .flow-card small{display:block;margin-bottom:8px;color:#9ba0b1;font-size:9px}
 .flow-card strong{font-size:14px}

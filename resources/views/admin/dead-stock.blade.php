@@ -1,30 +1,8 @@
 @php
 $navigation = [
     ['⌂','Dashboard','/admin/dashboard'], ['▣','Stock Management','/admin/inventory'], ['□','Products','/admin/products'],
-         ['⌁','Analytics','/admin/analytics'], ['!','Low Stock Alerts','/admin/low-stocks'],['@','Dead Stock', '/admin/deadstock'],
-        ['◇','Returns & Damages','/admin/returns'], ['♙','Supplier Price','/admin/suppliers'], ['⚙','Part Compatibility','/admin/compatibility'],
-];
-$summary = [
-    ['DEAD STOCK ITEM', '1', 'Aged items with no recent movement', 'purple'],
-    ['SLOW MOVING', '1', 'Products with weak monthly turnover', 'violet'],
-    ['TRAPPED CAPITAL', 'P15,000', 'Estimated value tied to idle stock', 'orange'],
-];
-$deadStockItem = [
-    'name' => 'Engine Block Set (Old Model)',
-    'sku' => 'ENG-BLK-OLD',
-    'total_cost' => 'P15,000',
-    'age' => '14 months in storage',
-];
-$slowMovingItem = [
-    'name' => 'Premium Exhaust System',
-    'sku' => 'EXH-PRM-22',
-    'velocity' => '2 units / month',
-    'note' => 'Monthly Velocity',
-];
-$recommendations = [
-    'Bundle this item with compatible maintenance parts for clearance campaigns.',
-    'Offer a time-limited discount to recover storage space and idle capital.',
-    'Pause reordering until existing stock movement improves.',
+    ['⌁','Analytics','/admin/analytics'], ['!','Low Stock Alerts','/admin/low-stocks'], ['@','Dead Stock', '/admin/deadstock'],
+    ['◇','Returns & Damages','/admin/returns'], ['♙','Supplier Price','/admin/suppliers'], ['⚙','Part Compatibility','/admin/compatibility'],
 ];
 @endphp
 <!DOCTYPE html>
@@ -57,7 +35,7 @@ $recommendations = [
             <div>
                 <p class="welcome">AI-POWERED INVENTORY OPTIMIZATION</p>
                 <h1>Dead Stock Detection</h1>
-                <p>Review stagnant inventory, slow-moving items, and recovery recommendations.</p>
+                <p>Automated scoring analyzes POS sales, stock aging, demand, and trapped capital.</p>
             </div>
         </header>
 
@@ -69,43 +47,77 @@ $recommendations = [
 
         <section class="panel detail-panel">
             <div class="section-heading">
-                <div><span class="section-kicker">RECOVERY TARGET</span><h2>Dead Stock Item</h2></div>
+                <div><span class="section-kicker">RECOVERY TARGET</span><h2>Dead Stock Items</h2></div>
             </div>
-            <article class="detail-card">
-                <div>
-                    <strong>{{ $deadStockItem['name'] }}</strong>
-                    <small>{{ $deadStockItem['sku'] }} | {{ $deadStockItem['age'] }}</small>
-                    <div class="action-row">
-                        <button type="button" class="mini-action" data-ai-action>Apply Discount</button>
-                        <button type="button" class="mini-action muted" data-ai-action>Remove from Sale</button>
-                    </div>
-                </div>
-                <div class="detail-metric">
-                    <span>Total Cost</span>
-                    <strong>{{ $deadStockItem['total_cost'] }}</strong>
-                </div>
-            </article>
+            <div class="detail-list">
+                @forelse($deadStockItems as $item)
+                    <article class="detail-card">
+                        <div>
+                            <strong>{{ $item['name'] }}</strong>
+                            <small>{{ $item['sku'] }} | {{ $item['stock'] }} units left | {{ $item['age'] }} | Last sale: {{ $item['last_sale'] }}</small>
+                            <div class="ai-score">
+                                <div><span>AI Dead Stock Score</span><strong>{{ $item['score'] }}/100</strong></div>
+                                <div class="score-track"><i class="{{ $item['classification_class'] }}" style="width: {{ $item['score_width'] }}"></i></div>
+                                <span class="ai-badge {{ $item['classification_class'] }}">{{ $item['classification'] }}</span>
+                            </div>
+                            <ul class="reason-list">
+                                @foreach($item['reasons'] as $reason)
+                                    <li>{{ $reason }}</li>
+                                @endforeach
+                            </ul>
+                            <p class="ai-recommendation">{{ $item['recommendation'] }}</p>
+                            <div class="action-row">
+                                <button type="button" class="mini-action" data-ai-action>Apply Discount</button>
+                                <button type="button" class="mini-action muted" data-ai-action>Bundle Item</button>
+                            </div>
+                        </div>
+                        <div class="detail-metric">
+                            <span>Total Cost</span>
+                            <strong>{{ $item['total_cost'] }}</strong>
+                        </div>
+                    </article>
+                @empty
+                    <div class="empty-dead-stock">No dead stock detected. Products have recent POS movement or no idle inventory.</div>
+                @endforelse
+            </div>
         </section>
 
         <section class="panel detail-panel">
             <div class="section-heading">
                 <div><span class="section-kicker">TURNOVER WATCH</span><h2>Slow-Moving Items</h2></div>
             </div>
-            <article class="detail-card">
-                <div>
-                    <strong>{{ $slowMovingItem['name'] }}</strong>
-                    <small>{{ $slowMovingItem['sku'] }}</small>
-                </div>
-                <div class="detail-metric">
-                    <span>{{ $slowMovingItem['note'] }}</span>
-                    <strong>{{ $slowMovingItem['velocity'] }}</strong>
-                </div>
-            </article>
+            <div class="detail-list">
+                @forelse($slowMovingItems as $item)
+                    <article class="detail-card">
+                        <div>
+                            <strong>{{ $item['name'] }}</strong>
+                            <small>{{ $item['sku'] }} | {{ $item['stock'] }} units available | Last sale: {{ $item['last_sale'] }}</small>
+                            <div class="ai-score">
+                                <div><span>AI Risk Score</span><strong>{{ $item['score'] }}/100</strong></div>
+                                <div class="score-track"><i class="{{ $item['classification_class'] }}" style="width: {{ $item['score_width'] }}"></i></div>
+                                <span class="ai-badge {{ $item['classification_class'] }}">{{ $item['classification'] }}</span>
+                            </div>
+                            <ul class="reason-list">
+                                @foreach($item['reasons'] as $reason)
+                                    <li>{{ $reason }}</li>
+                                @endforeach
+                            </ul>
+                            <p class="ai-recommendation">{{ $item['recommendation'] }}</p>
+                        </div>
+                        <div class="detail-metric">
+                            <span>{{ $item['note'] }}</span>
+                            <strong>{{ $item['velocity'] }}</strong>
+                        </div>
+                    </article>
+                @empty
+                    <div class="empty-dead-stock">No slow-moving items yet. Items with small recent POS sales will appear here.</div>
+                @endforelse
+            </div>
         </section>
 
         <section class="panel summary-panel">
             <div class="section-heading">
-                <div><span class="section-kicker">AI RECOMMENDATION</span><h2>AI Recommendation Summary</h2></div>
+                <div><span class="section-kicker">RECOVERY GUIDANCE</span><h2>Recommendation Summary</h2></div>
                 <button class="apply-button" type="button" data-refresh-summary>Refresh</button>
             </div>
             <div class="recommendation-list">

@@ -2,7 +2,13 @@
 
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
+use App\Http\Controllers\AnalyticsController;
+use App\Http\Controllers\DeadStockController;
+use App\Http\Controllers\LowStocksController;
+use App\Http\Controllers\PosController;
+use App\Http\Controllers\ReturnsController;
 use App\Http\Controllers\StockManagementController;
+use App\Http\Controllers\ProductsController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest')->group(function () {
@@ -16,12 +22,14 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::get('/admin/inventory', [StockManagementController::class, 'index'])->name('admin.inventory');
     Route::post('/admin/inventory/products', [StockManagementController::class, 'storeProduct'])->name('admin.inventory.products.store');
     Route::post('/admin/inventory/movements', [StockManagementController::class, 'storeMovement'])->name('admin.inventory.movements.store');
-    Route::view('/admin/products', 'admin.products')->name('admin.products');
-    Route::view('/admin/analytics', 'admin.analytics')->name('admin.analytics');
-    Route::view('/admin/low-stocks', 'admin.low-stocks')->name('admin.low-stocks');
-    Route::view('/admin/deadstock', 'admin.dead-stock')->name('admin.dead-stock');
-    Route::view('/admin/dead-stock', 'admin.dead-stock');
-    Route::view('/admin/returns', 'admin.returns')->name('admin.returns');
+    Route::get('/admin/products', [ProductsController::class, 'index'])->name('admin.products');
+    Route::get('/admin/analytics', [AnalyticsController::class, 'index'])->name('admin.analytics');
+    Route::get('/admin/low-stocks', [LowStocksController::class, 'index'])->name('admin.low-stocks');
+    Route::get('/admin/deadstock', [DeadStockController::class, 'index'])->name('admin.dead-stock');
+    Route::get('/admin/dead-stock', [DeadStockController::class, 'index']);
+    Route::get('/admin/returns', [ReturnsController::class, 'index'])->name('admin.returns');
+    Route::post('/admin/returns/customer', [ReturnsController::class, 'storeReturn'])->name('admin.returns.customer.store');
+    Route::post('/admin/returns/damage', [ReturnsController::class, 'storeDamage'])->name('admin.returns.damage.store');
     Route::view('/admin/suppliers', 'admin.suppliers')->name('admin.suppliers');
     Route::view('/admin/compatibility', 'admin.compatibility')->name('admin.compatibility');
 });
@@ -31,9 +39,12 @@ Route::middleware(['auth', 'role:staff'])->group(function () {
     Route::get('/staff/stock-management', [StockManagementController::class, 'index'])->name('staff.stock-management');
     Route::post('/staff/stock-management/products', [StockManagementController::class, 'storeProduct'])->name('staff.inventory.products.store');
     Route::post('/staff/stock-management/movements', [StockManagementController::class, 'storeMovement'])->name('staff.inventory.movements.store');
-    Route::view('/staff/products', 'staff.products')->name('staff.products');
-    Route::view('/staff/pos', 'staff.pos')->name('staff.pos');
-    Route::view('/staff/returns', 'staff.returns')->name('staff.returns');
+    Route::get('/staff/products', [ProductsController::class, 'index'])->name('staff.products');
+    Route::get('/staff/pos', [PosController::class, 'index'])->name('staff.pos');
+    Route::post('/staff/pos/checkout', [PosController::class, 'store'])->name('staff.pos.checkout');
+    Route::get('/staff/returns', [ReturnsController::class, 'index'])->name('staff.returns');
+    Route::post('/staff/returns/customer', [ReturnsController::class, 'storeReturn'])->name('staff.returns.customer.store');
+    Route::post('/staff/returns/damage', [ReturnsController::class, 'storeDamage'])->name('staff.returns.damage.store');
     Route::view('/staff/compatibility', 'staff.compatibility')->name('staff.compatibility');
 });
 

@@ -1,7 +1,32 @@
-const productSearch=document.querySelector('[data-product-search]');
-const categoryFilter=document.querySelector('[data-category-filter]');
-const productRows=[...document.querySelectorAll('[data-product-rows] tr')];
-const emptyProducts=document.querySelector('[data-empty-products]');
-function filterProducts(){const query=(productSearch?.value||'').trim().toLowerCase();const category=(categoryFilter?.value||'all').toLowerCase();let visible=0;productRows.forEach(row=>{const matchesSearch=!query||row.dataset.search.includes(query);const matchesCategory=category==='all'||row.dataset.category===category;row.hidden=!(matchesSearch&&matchesCategory);if(!row.hidden)visible++});if(emptyProducts)emptyProducts.hidden=visible!==0}
-productSearch?.addEventListener('input',filterProducts);categoryFilter?.addEventListener('change',filterProducts);
-const productModal=document.querySelector('[data-product-modal]');const openProduct=document.querySelector('[data-open-product]');const closeButtons=document.querySelectorAll('[data-close-product]');openProduct?.addEventListener('click',()=>productModal.hidden=false);closeButtons.forEach(button=>button.addEventListener('click',()=>productModal.hidden=true));productModal?.addEventListener('click',event=>{if(event.target===productModal)productModal.hidden=true});document.addEventListener('keydown',event=>{if(event.key==='Escape'&&productModal&&!productModal.hidden)productModal.hidden=true});document.querySelector('[data-product-form]')?.addEventListener('submit',event=>{event.preventDefault();productModal.hidden=true;event.currentTarget.reset();const toast=document.querySelector('[data-product-toast]');toast.hidden=false;window.setTimeout(()=>toast.hidden=true,2200)});
+const filterForm = document.querySelector('[data-products-filter]');
+const detailsModal = document.querySelector('[data-product-details]');
+
+document.querySelectorAll('[data-auto-submit]').forEach((select) => select.addEventListener('change', () => filterForm?.submit()));
+
+function closeDetails() {
+    if (!detailsModal) return;
+    detailsModal.hidden = true;
+    document.body.classList.remove('details-open');
+}
+
+document.querySelectorAll('[data-view-product]').forEach((button) => {
+    button.addEventListener('click', () => {
+        if (!detailsModal) return;
+        const product = JSON.parse(button.dataset.product);
+        const title = detailsModal.querySelector('[data-detail-name]');
+        if (title) title.textContent = product.name;
+        Object.entries(product).forEach(([key, value]) => {
+            const field = detailsModal.querySelector(`[data-detail="${key}"]`);
+            if (!field) return;
+            field.textContent = ['unitCost', 'unitPrice'].includes(key) ? `₱${value}` : key === 'stock' ? `${value} units` : key === 'margin' ? `${value}%` : key === 'id' ? `#${value}` : value;
+        });
+        detailsModal.hidden = false;
+        document.body.classList.add('details-open');
+        detailsModal.querySelector('[data-close-details]')?.focus();
+    });
+});
+
+document.querySelectorAll('[data-close-details]').forEach((button) => button.addEventListener('click', closeDetails));
+document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && detailsModal && !detailsModal.hidden) closeDetails();
+});

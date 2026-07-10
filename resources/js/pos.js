@@ -11,6 +11,8 @@ if (posApp) {
     const totalNode = posApp.querySelector('[data-total]');
     const payTotalNode = posApp.querySelector('[data-pay-total]');
     const toast = document.querySelector('[data-pos-toast]');
+    const checkoutUrl = posApp.dataset.checkoutUrl;
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
     const emptyCartMarkup = 'Cart is empty.<br>Select items to begin.';
     let currentCategory = 'All';
     let cart = [];
@@ -33,7 +35,7 @@ if (posApp) {
         const query = (searchInput?.value || '').trim().toLowerCase();
         const filtered = products.filter((product) => {
             const categoryMatch = currentCategory === 'All' || product.category === currentCategory;
-            const queryMatch = !query || `${product.name} ${product.category}`.toLowerCase().includes(query);
+            const queryMatch = !query || `${product.name} ${product.sku || ''} ${product.category}`.toLowerCase().includes(query);
             return categoryMatch && queryMatch;
         });
 
@@ -44,7 +46,7 @@ if (posApp) {
             card.className = 'product-card';
             card.innerHTML = `
                 <div class="product-meta">
-                    <small>${product.category}</small>
+                    <small>${product.category} · ${product.stock} in stock</small>
                     <div class="product-title">${product.name}</div>
                 </div>
                 <div class="product-price">${peso(product.price)}</div>
@@ -105,6 +107,10 @@ if (posApp) {
     function addToCart(product) {
         const existing = cart.find((item) => item.id === product.id);
         if (existing) {
+            if (existing.qty >= product.stock) {
+                showToast(`Only ${product.stock} stock available for ${product.name}.`);
+                return;
+            }
             existing.qty += 1;
         } else {
             cart.push({ ...product, qty: 1 });
@@ -115,6 +121,10 @@ if (posApp) {
     function changeQty(id, delta) {
         const item = cart.find((entry) => entry.id === id);
         if (!item) return;
+        if (delta > 0 && item.qty >= item.stock) {
+            showToast(`Only ${item.stock} stock available for ${item.name}.`);
+            return;
+        }
         item.qty += delta;
         if (item.qty <= 0) {
             cart = cart.filter((entry) => entry.id !== id);
@@ -140,14 +150,47 @@ if (posApp) {
     posApp.querySelector('[data-hold-order]')?.addEventListener('click', () => {
         showToast('Order placed on hold in UI preview.');
     });
-    posApp.querySelector('[data-process-payment]')?.addEventListener('click', () => {
+    posApp.querySelector('[data-process-payment]')?.addEventListener('click', async (event) => {
         if (!cart.length) {
             showToast('Cart is empty.');
             return;
         }
-        cart = [];
-        renderCart();
-        showToast('Payment processed in UI preview.');
+        const button = event.currentTarget;
+        button.disabled = true;
+        button.classList.add('is-loading');
+        try {
+            const response = await fetch(checkoutUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                },
+                body: JSON.stringify({
+                    payment_method: 'cash',
+                    items: cart.map((item) => ({ product_id: item.id, quantity: item.qty })),
+                }),
+            });
+            const payload = await response.json();
+            if (!response.ok) {
+                const error = payload.message || Object.values(payload.errors || {})?.flat()?.[0] || 'Checkout failed.';
+                showToast(error);
+                return;
+            }
+            cart.forEach((item) => {
+                const product = products.find((entry) => entry.id === item.id);
+                if (product) product.stock -= item.qty;
+            });
+            renderProducts();
+            cart = [];
+            renderCart();
+            showToast(payload.message || 'Payment processed and saved.');
+        } catch (error) {
+            showToast('Could not connect to checkout backend.');
+        } finally {
+            button.disabled = false;
+            button.classList.remove('is-loading');
+        }
     });
 
     renderProducts();

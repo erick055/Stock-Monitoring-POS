@@ -53,5 +53,10 @@ class User extends Authenticatable
     {
         return $this->hasMany(InventoryLedger::class);
     }
+
+    public function salesTransactions(): HasMany
+    {
+        return $this->hasMany(SalesTransaction::class, 'staff_id');
+    }
 }
 
