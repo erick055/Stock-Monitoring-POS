@@ -16,7 +16,7 @@ $dashboard = [
     ],
     'modules_title' => 'System Modules',
     'modules' => [
-        ['▣','Stock Management','Monitor quantities and movements','/admin/inventory'], ['▤','POS Checkout','Process and review transactions','/admin/pos'],
+        ['▣','Stock Management','Monitor quantities and movements','/admin/inventory'], ['□','Product Catalog','Review products and current stock','/admin/products'],
         ['⌁','Data Analytics','Track sales and profitability','/admin/analytics'], ['!','Low Stock Alerts','Review critical inventory','/admin/low-stocks'],
         ['◉','Dead Stock Detection','Find slow-moving products','/admin/dead-stock'], ['◇','Returns & Damages','Manage product exceptions','/admin/returns'],
         ['♧','Supplier Price','Review suppliers and pricing','/admin/suppliers'], ['⚙','Part Compatibility','Track compatible parts and schedules','/admin/compatibility'],

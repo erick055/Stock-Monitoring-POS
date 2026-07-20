@@ -246,3 +246,31 @@ h2 {
 .remember-field input {
     width: auto !important;
 }
+
+.password-hint {
+    margin: -0.35rem 0 1rem;
+    color: var(--muted);
+    font-size: 0.75rem;
+    line-height: 1.5;
+}
+
+.success-box {
+    margin-bottom: 1rem;
+    padding: 0.8rem 1rem;
+    border: 1px solid #26785e;
+    border-radius: 0.55rem;
+    background: rgba(38, 120, 94, 0.12);
+    color: #80ddbf;
+    font-size: 0.8rem;
+}
+
+.secondary-button {
+    width: 100%;
+    margin-top: 0.75rem;
+    padding: 0.8rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: 0.55rem;
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+}

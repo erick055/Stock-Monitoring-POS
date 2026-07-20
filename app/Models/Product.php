@@ -13,8 +13,9 @@ class Product extends Model
     protected $primaryKey = 'product_id';
 
     protected $fillable = [
-        'sku', 'name', 'category', 'unit_cost', 'unit_price',
-        'current_stock', 'reorder_level', 'is_active',
+        'sku', 'name', 'description', 'category', 'dimensions', 'specifications',
+        'required_features', 'unit_cost', 'unit_price', 'current_stock',
+        'reorder_level', 'is_active',
     ];
 
     protected function casts(): array
@@ -22,6 +23,8 @@ class Product extends Model
         return [
             'unit_cost' => 'decimal:2',
             'unit_price' => 'decimal:2',
+            'specifications' => 'array',
+            'required_features' => 'array',
             'is_active' => 'boolean',
         ];
     }
@@ -34,6 +37,11 @@ class Product extends Model
     public function saleItems(): HasMany
     {
         return $this->hasMany(SalesItem::class, 'product_id', 'product_id');
+    }
+
+    public function compatibilities(): HasMany
+    {
+        return $this->hasMany(PartCompatibility::class, 'product_id', 'product_id');
     }
 
     public function getStockStatusAttribute(): string

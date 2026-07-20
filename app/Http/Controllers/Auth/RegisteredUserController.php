@@ -8,32 +8,35 @@ use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Validation\Rule;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rules;
-use Illuminate\Validation\ValidationException;
 
 class RegisteredUserController extends Controller
 {
     public function store(Request $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'string', 'lowercase', 'email', 'max:255', 'unique:'.User::class],
-            'role' => ['required', Rule::in(['admin', 'staff'])],
-            'password' => ['required', 'confirmed', Rules\Password::defaults()],
+        $request->merge([
+            'email' => Str::lower(trim((string) $request->input('email'))),
         ]);
 
-        if ($validated['role'] === 'admin' && User::where('role', 'admin')->exists()) {
-            throw ValidationException::withMessages([
-                'role' => 'An administrator already exists. Ask the current administrator to create another admin account.',
-            ]);
-        }
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'min:2', 'max:100'],
+            'email' => ['required', 'string', 'lowercase', 'email:rfc', 'max:255', 'unique:'.User::class],
+            'password' => [
+                'required',
+                'confirmed',
+                Rules\Password::min(12)->mixedCase()->numbers()->symbols(),
+            ],
+        ]);
+
+        // Public registration can never grant elevated privileges.
+        $validated['role'] = 'staff';
 
         $user = User::create($validated);
         event(new Registered($user));
         Auth::login($user);
         $request->session()->regenerate();
 
-        return redirect()->route($user->role.'.dashboard');
+        return redirect()->route('verification.notice');
     }
 }
