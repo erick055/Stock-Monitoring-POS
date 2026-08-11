@@ -7,6 +7,7 @@ use App\Models\DamagedGood;
 use App\Models\InventoryLedger;
 use App\Models\Product;
 use App\Models\SalesTransaction;
+use App\Services\LowStockAlertService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -45,7 +46,7 @@ class ReturnsController extends Controller
         return view('returns.index', compact('products', 'customerReturns', 'damageLogs', 'summary', 'viewRole'));
     }
 
-    public function storeReturn(Request $request): RedirectResponse
+    public function storeReturn(Request $request, LowStockAlertService $alerts): RedirectResponse
     {
         $validated = $request->validate([
             'product_id' => ['required', Rule::exists('products', 'product_id')->where('is_active', true)],
@@ -57,7 +58,7 @@ class ReturnsController extends Controller
             'status' => ['required', Rule::in(['approved', 'pending', 'rejected'])],
         ]);
 
-        DB::transaction(function () use ($validated, $request) {
+        $product = DB::transaction(function () use ($validated, $request) {
             $product = Product::query()->lockForUpdate()->findOrFail($validated['product_id']);
 
             $return = CustomerReturn::create([
@@ -79,12 +80,16 @@ class ReturnsController extends Controller
                     'logs' => "Customer return #{$return->return_id} approved and added back to sellable stock.",
                 ]);
             }
+
+            return $product->fresh();
         });
+
+        $alerts->checkProduct($product);
 
         return back()->with('success', 'Customer return recorded successfully.');
     }
 
-    public function storeDamage(Request $request): RedirectResponse
+    public function storeDamage(Request $request, LowStockAlertService $alerts): RedirectResponse
     {
         $validated = $request->validate([
             'product_id' => ['required', Rule::exists('products', 'product_id')->where('is_active', true)],
@@ -94,7 +99,7 @@ class ReturnsController extends Controller
             'status' => ['required', Rule::in(['reported', 'reviewed', 'disposed'])],
         ]);
 
-        DB::transaction(function () use ($validated, $request) {
+        $product = DB::transaction(function () use ($validated, $request) {
             $product = Product::query()->lockForUpdate()->findOrFail($validated['product_id']);
 
             if ($product->current_stock < (int) $validated['quantity']) {
@@ -119,7 +124,11 @@ class ReturnsController extends Controller
                 'reason_code' => 'DAMAGED_GOODS',
                 'logs' => "Damage log #{$damage->damage_id} removed from sellable inventory.",
             ]);
+
+            return $product->fresh();
         });
+
+        $alerts->checkProduct($product);
 
         return back()->with('success', 'Damaged goods recorded successfully.');
     }

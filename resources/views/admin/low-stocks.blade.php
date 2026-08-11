@@ -11,7 +11,7 @@ $navigation = [
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stock Alerts | MotoSync</title>
-    @vite(['resources/css/dashboard.css','resources/css/low-stocks.css','resources/js/dashboard.js','resources/js/low-stocks.js'])
+    @vite(['resources/css/dashboard.css','resources/css/low-stocks.css','resources/css/responsive.css','resources/js/dashboard.js','resources/js/low-stocks.js'])
 </head>
 <body>
 <div class="dashboard-shell alerts-shell">
@@ -48,29 +48,41 @@ $navigation = [
 
         <section class="panel alerts-panel">
             <div class="section-heading">
-                <div><span class="section-kicker">LIVE INVENTORY WATCH</span><h2>Active Stock Alerts</h2></div>
+                <div><span class="section-kicker">LIVE INVENTORY WATCH</span><h2>Active Stock Alerts</h2><small>{{ number_format($activeAlerts->total()) }} matching products</small></div>
             </div>
-            <div class="alert-list">
-                @forelse($activeAlerts as $alert)
-                    <article class="alert-card {{ $alert['status_class'] }}">
-                        <div class="alert-meta">
-                            <div>
-                                <strong>{{ $alert['name'] }}</strong>
-                                <small>{{ $alert['sku'] }} | {{ $alert['stock'] }} left | Reorder at {{ $alert['threshold'] }}</small>
-                            </div>
-                            <span class="alert-badge {{ $alert['status_class'] }}">{{ $alert['status'] }}</span>
-                        </div>
-                        <div class="alert-bar"><i style="width: {{ $alert['fill'] }}"></i></div>
-                        <div class="alert-actions">
-                            @foreach($alert['actions'] as $action)
-                                <span>{{ $action }}</span>
-                            @endforeach
-                        </div>
-                    </article>
-                @empty
-                    <div class="empty-alert">No low stock alerts right now. Inventory levels are healthy.</div>
-                @endforelse
+            <form class="data-toolbar" method="GET" action="{{ route('admin.low-stocks') }}">
+                <label class="compact-search"><span>Search</span><input name="search" value="{{ $search }}" placeholder="Product, SKU, or category"></label>
+                <label><span>Status</span><select name="status"><option value="all" @selected($status === 'all')>All alerts</option><option value="critical" @selected($status === 'critical')>Critical</option><option value="warning" @selected($status === 'warning')>Warning</option></select></label>
+                <label><span>Rows</span><select name="per_page">@foreach([10,25,50,100] as $size)<option value="{{ $size }}" @selected($perPage === $size)>{{ $size }}</option>@endforeach</select></label>
+                <button type="submit">Apply</button>
+                @if($search || $status !== 'all' || $perPage !== 25)<a href="{{ route('admin.low-stocks') }}">Reset</a>@endif
+            </form>
+            <div class="table-wrap compact-alert-table">
+                <table>
+                    <thead><tr><th>Product</th><th>Status</th><th>Stock</th><th>Reorder At</th><th>Level</th><th>Suggested Action</th></tr></thead>
+                    <tbody>
+                    @forelse($activeAlerts as $alert)
+                        <tr>
+                            <td><strong>{{ $alert['name'] }}</strong><small>{{ $alert['sku'] }}</small></td>
+                            <td><span class="alert-badge {{ $alert['status_class'] }}">{{ $alert['status'] }}</span></td>
+                            <td><strong>{{ number_format($alert['stock']) }}</strong></td>
+                            <td>{{ number_format($alert['threshold']) }}</td>
+                            <td><div class="compact-level"><i class="{{ $alert['status_class'] }}" style="width:{{ $alert['fill'] }}"></i></div></td>
+                            <td>{{ implode(' / ', $alert['actions']) }}</td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="6" class="empty-table">No products match the selected alert filters.</td></tr>
+                    @endforelse
+                    </tbody>
+                </table>
             </div>
+            @if($activeAlerts->hasPages())
+                <nav class="compact-pagination" aria-label="Stock alert pages">
+                    @if($activeAlerts->onFirstPage())<span>Previous</span>@else<a href="{{ $activeAlerts->previousPageUrl() }}">Previous</a>@endif
+                    <strong>Page {{ $activeAlerts->currentPage() }} of {{ $activeAlerts->lastPage() }}</strong>
+                    @if($activeAlerts->hasMorePages())<a href="{{ $activeAlerts->nextPageUrl() }}">Next</a>@else<span>Next</span>@endif
+                </nav>
+            @endif
         </section>
 
         <section class="panel fast-panel">
@@ -97,20 +109,58 @@ $navigation = [
         <section class="panel settings-panel">
             <div class="section-heading">
                 <div><span class="section-kicker">NOTIFICATION CONTROL</span><h2>Alert Settings</h2></div>
-                <button class="apply-button" type="button" data-apply-settings>Apply</button>
+                <form method="POST" action="{{ route('admin.low-stocks.run-now') }}">@csrf<button class="check-button" type="submit">Run alert check now</button></form>
             </div>
-            <div class="settings-grid">
-                @foreach($settings as $setting)
+            <form class="notification-settings" method="POST" action="{{ route('admin.low-stocks.settings') }}">
+                @csrf
+                <div class="settings-grid">
                     <label class="setting-card">
-                        <span>{{ $setting[0] }}</span>
-                        <small>{{ $setting[1] }}</small>
-                        <input type="checkbox" checked>
+                        <span>Email Notification</span><small>Send immediate warning and critical alerts</small>
+                        <input type="hidden" name="email_enabled" value="0"><input name="email_enabled" value="1" type="checkbox" @checked($settings->email_enabled)>
                     </label>
-                @endforeach
+                    <label class="setting-card">
+                        <span>SMS Alerts</span><small>Send urgent alerts through {{ $smsStatus }}</small>
+                        <input type="hidden" name="sms_enabled" value="0"><input name="sms_enabled" value="1" type="checkbox" @checked($settings->sms_enabled)>
+                    </label>
+                    <label class="setting-card">
+                        <span>Daily Summary</span><small>Email one consolidated report each day</small>
+                        <input type="hidden" name="daily_summary_enabled" value="0"><input name="daily_summary_enabled" value="1" type="checkbox" @checked($settings->daily_summary_enabled)>
+                    </label>
+                </div>
+                <div class="notification-destinations">
+                    <label>Email destination<input name="notification_email" type="email" value="{{ old('notification_email', $settings->notification_email) }}" placeholder="owner@example.com"></label>
+                    <label>SMS destination<input name="notification_phone" type="tel" value="{{ old('notification_phone', $settings->notification_phone) }}" placeholder="+639171234567"></label>
+                    <label>Daily summary time<input name="daily_summary_time" type="time" value="{{ old('daily_summary_time', $settings->daily_summary_time) }}" required></label>
+                    <button class="apply-button" type="submit">Save settings</button>
+                </div>
+                @if($errors->any())<div class="settings-error">{{ $errors->first() }}</div>@endif
+            </form>
+        </section>
+
+        <section class="panel delivery-panel">
+            <div class="section-heading"><div><span class="section-kicker">DELIVERY AUDIT</span><h2>Notification History</h2></div></div>
+            <div class="table-wrap delivery-table">
+                <table>
+                    <thead><tr><th>Time</th><th>Channel</th><th>Type</th><th>Recipient</th><th>Status</th><th>Details</th></tr></thead>
+                    <tbody>
+                    @forelse($deliveries as $delivery)
+                        <tr>
+                            <td>{{ $delivery->created_at->format('M d, h:i A') }}</td>
+                            <td>{{ strtoupper($delivery->channel) }}</td>
+                            <td>{{ str_replace('_', ' ', ucfirst($delivery->alert_type)) }}</td>
+                            <td>{{ $delivery->recipient }}</td>
+                            <td><span class="delivery-status {{ $delivery->status }}">{{ ucfirst($delivery->status) }}</span></td>
+                            <td title="{{ $delivery->error ?: $delivery->message }}">{{ mb_strimwidth($delivery->error ?: $delivery->message, 0, 70, '...') }}</td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="6" class="empty-deliveries">No notifications have been attempted yet.</td></tr>
+                    @endforelse
+                    </tbody>
+                </table>
             </div>
         </section>
 
-        <div class="alerts-toast" data-alerts-toast hidden role="status">Alert settings saved in UI preview.</div>
+        @if(session('success'))<div class="alerts-toast" data-alerts-toast role="status">{{ session('success') }}</div>@endif
     </main>
 </div>
 </body>

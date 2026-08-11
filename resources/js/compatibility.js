@@ -19,14 +19,3 @@ filterButtons.forEach((button) => {
         if (filterEmpty) filterEmpty.hidden = visible !== 0;
     });
 });
-
-const motorcycleProfile = document.querySelector('[data-motorcycle-profile]');
-
-motorcycleProfile?.addEventListener('change', () => {
-    const option = motorcycleProfile.selectedOptions[0];
-
-    ['brand', 'model', 'year', 'engine', 'variant'].forEach((field) => {
-        const input = document.querySelector(`[name="${field}"]`);
-        if (input) input.value = option?.dataset[field] || '';
-    });
-});

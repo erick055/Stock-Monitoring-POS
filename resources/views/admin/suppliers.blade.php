@@ -1,25 +1,8 @@
 @php
 $navigation = [
     ['⌂','Dashboard','/admin/dashboard'], ['▣','Stock Management','/admin/inventory'], ['□','Products','/admin/products'],
-         ['⌁','Analytics','/admin/analytics'], ['!','Low Stock Alerts','/admin/low-stocks'],['@','Dead Stock', '/admin/deadstock'],
-        ['◇','Returns & Damages','/admin/returns'], ['♙','Supplier Price','/admin/suppliers'], ['⚙','Part Compatibility','/admin/compatibility'],
-];
-$summary = [
-    ['ACTIVE SUPPLIER', '12', 'Suppliers with active pricing updates', 'purple'],
-    ['PRICE CHANGES', '18', 'Changes tracked this month', 'orange'],
-    ['AVG MARGIN', '24%', 'Across priority items', 'violet'],
-];
-$supplierProducts = [
-    ['supplier' => 'ABC Motor Parts', 'product' => 'Engine Oil', 'current' => 'P250', 'previous' => 'P230', 'change' => '+8.7%', 'updated' => 'Jul 3'],
-    ['supplier' => 'ABC Motor Parts', 'product' => 'Oil Filter', 'current' => 'P180', 'previous' => 'P165', 'change' => '+9.1%', 'updated' => 'Jul 2'],
-];
-$slowMoving = [
-    ['supplier' => 'Superior Tire Co.', 'product' => 'Tire (Front)', 'current' => 'P1,200', 'previous' => 'P1,150', 'change' => '+4.3%', 'updated' => 'Jul 1'],
-];
-$recommendations = [
-    'Hold purchases on slow-moving items until current stock levels improve.',
-    'Negotiate bulk pricing for high-volume parts with repeated monthly increases.',
-    'Review margin changes before finalizing the next purchase order.',
+    ['⌁','Analytics','/admin/analytics'], ['!','Low Stock Alerts','/admin/low-stocks'], ['@','Dead Stock','/admin/deadstock'],
+    ['◇','Returns & Damages','/admin/returns'], ['♙','Supplier Price','/admin/suppliers'], ['⚙','Part Compatibility','/admin/compatibility'],
 ];
 @endphp
 <!DOCTYPE html>
@@ -28,7 +11,7 @@ $recommendations = [
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Supplier Price | MotoSync</title>
-    @vite(['resources/css/dashboard.css','resources/css/suppliers.css','resources/js/dashboard.js','resources/js/suppliers.js'])
+    @vite(['resources/css/dashboard.css','resources/css/suppliers.css','resources/css/responsive.css','resources/js/dashboard.js','resources/js/suppliers.js'])
 </head>
 <body>
 <div class="dashboard-shell suppliers-shell">
@@ -36,13 +19,13 @@ $recommendations = [
         <div class="sidebar-brand"><span class="logo-mark">M</span><div><strong>MotoSync</strong><small>Pareng RJJ Motorcycle Parts</small></div></div>
         <nav class="nav-list" aria-label="Administrator navigation">
             @foreach($navigation as $index => $item)
-                <a class="nav-link {{ $index === 7 ? 'active' : '' }}" href="{{ $item[2] === '#' ? '#' : url($item[2]) }}"><span>{{ $item[0] }}</span><span>{{ $item[1] }}</span></a>
+                <a class="nav-link {{ $index === 7 ? 'active' : '' }}" href="{{ url($item[2]) }}"><span>{{ $item[0] }}</span><span>{{ $item[1] }}</span></a>
             @endforeach
         </nav>
         <div class="sidebar-user">
-            <span class="avatar">{{ strtoupper(substr(auth()->user()->name,0,2)) }}</span>
+            <span class="avatar">{{ strtoupper(substr(auth()->user()->name, 0, 2)) }}</span>
             <div><strong>{{ auth()->user()->name }}</strong><small>Administrator</small></div>
-            <form method="POST" action="{{ request()->getBaseUrl() }}/logout">@csrf<button class="logout-button" type="submit" title="Log out">&#8618;</button></form>
+            <form method="POST" action="{{ route('logout') }}">@csrf<button class="logout-button" type="submit" title="Log out">&#8618;</button></form>
         </div>
     </aside>
 
@@ -50,71 +33,147 @@ $recommendations = [
         <header class="suppliers-header">
             <button class="menu-button" type="button" data-menu aria-label="Toggle navigation">&#9776;</button>
             <div>
-                <p class="welcome">SUPPLIER COST TRACKING</p>
+                <p class="welcome">REAL SUPPLIER PRICE IMPORTS</p>
                 <h1>Supplier Price</h1>
-                <p>Track supplier prices, margin changes, and pricing recommendations.</p>
+                <p>Upload, validate, review, and publish supplier CSV or Excel price lists.</p>
             </div>
         </header>
 
+        @if(session('success'))<div class="supplier-message success" role="status">{{ session('success') }}</div>@endif
+        @if($errors->any())
+            <div class="supplier-message error" role="alert"><strong>Please correct the following:</strong><ul>@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>
+        @endif
+
         <section class="stat-grid suppliers-stats" aria-label="Supplier price summary">
-            @foreach($summary as $card)
-                <article class="stat-card {{ $card[3] }}"><div class="stat-head"><span>{{ $card[0] }}</span><span class="trend-dot"></span></div><strong>{{ $card[1] }}</strong><small>{{ $card[2] }}</small></article>
-            @endforeach
+            <article class="stat-card purple"><div class="stat-head"><span>ACTIVE SUPPLIERS</span></div><strong>{{ $summary['suppliers'] }}</strong><small>With imported pricing</small></article>
+            <article class="stat-card violet"><div class="stat-head"><span>PUBLISHED PRICES</span></div><strong>{{ $summary['prices'] }}</strong><small>Current supplier SKUs</small></article>
+            <article class="stat-card orange"><div class="stat-head"><span>PRICE CHANGES</span></div><strong>{{ $summary['changes'] }}</strong><small>Changed since previous import</small></article>
+            <article class="stat-card red"><div class="stat-head"><span>STALE PRICES</span></div><strong>{{ $summary['stale'] }}</strong><small>Not updated for 30 days</small></article>
         </section>
+
+        @if($summary['suppliers'] || $summary['prices'] || $imports->isNotEmpty())
+            <details class="panel supplier-danger-zone">
+                <summary>Delete all supplier price data</summary>
+                <div class="danger-zone-content">
+                    <div>
+                        <strong>Start supplier pricing from a clean slate</strong>
+                        <p>This permanently removes suppliers, published prices, price history, staged rows, and import history. Products, inventory quantities, product costs, sales, and POS records are not changed.</p>
+                    </div>
+                    <form method="POST" action="{{ route('admin.suppliers.purge') }}" data-supplier-purge>
+                        @csrf @method('DELETE')
+                        <label>Type <b>DELETE</b> to confirm
+                            <input name="confirmation_text" autocomplete="off" spellcheck="false" placeholder="DELETE" data-purge-confirmation required>
+                        </label>
+                        <button class="delete-all-button" type="submit" data-purge-button disabled>Delete all supplier data</button>
+                    </form>
+                </div>
+            </details>
+        @endif
+
+        <section class="panel import-panel">
+            <div class="section-heading">
+                <div><span class="section-kicker">STEP 1</span><h2>Upload supplier price list</h2></div>
+                <span class="source-badge">CSV or XLSX · maximum 10 MB / 2,000 rows</span>
+            </div>
+            <form class="supplier-import-form" method="POST" action="{{ route('admin.suppliers.imports.upload') }}" enctype="multipart/form-data">
+                @csrf
+                <label>Supplier name<input name="supplier_name" value="{{ old('supplier_name') }}" required maxlength="150" placeholder="ABC Motor Parts"></label>
+                <label>Supplier code<input name="supplier_code" value="{{ old('supplier_code') }}" required maxlength="50" pattern="[A-Za-z0-9_-]+" placeholder="ABC-MOTOR"></label>
+                <label class="file-field">Price-list file<input name="price_file" type="file" accept=".csv,.xlsx" required data-supplier-file><span data-file-name>Choose CSV or XLSX file</span></label>
+                <button class="apply-button" type="submit">Upload and preview</button>
+            </form>
+            <div class="format-guide">
+                <strong>Required columns:</strong>
+                <code>supplier_sku</code><code>product_name</code><code>unit_price</code>
+                <strong>Optional:</strong>
+                <code>internal_sku</code><code>currency</code><code>available_quantity</code><code>minimum_order_quantity</code><code>lead_time_days</code><code>effective_date</code>
+            </div>
+            <p class="import-note">Use <strong>internal_sku</strong> to match a supplier item to an existing MotoSync product. Publishing supplier prices does not overwrite the product’s inventory cost.</p>
+        </section>
+
+        @if($selectedImport)
+            <section class="panel preview-panel">
+                <div class="section-heading">
+                    <div><span class="section-kicker">STEP 2 · REVIEW</span><h2>{{ $selectedImport->supplier->name }} — {{ $selectedImport->source_filename }}</h2></div>
+                    <span class="import-status {{ $selectedImport->error_count ? 'has-errors' : 'ready' }}">{{ $selectedImport->valid_count }} valid · {{ $selectedImport->error_count }} errors</span>
+                </div>
+                <div class="supplier-table-wrap">
+                    <table>
+                        <thead><tr><th>Row</th><th>Supplier SKU</th><th>Product</th><th>MotoSync match</th><th>Price</th><th>Availability</th><th>Status</th></tr></thead>
+                        <tbody>
+                        @foreach($selectedImport->rows as $row)
+                            <tr class="{{ $row->validation_errors ? 'row-error' : '' }}">
+                                <td>{{ $row->row_number }}</td>
+                                <td>{{ $row->supplier_sku }}</td>
+                                <td>{{ $row->product_name }}</td>
+                                <td>{{ $row->internal_sku ? ($row->product_id ? $row->internal_sku : $row->internal_sku.' (not found)') : 'Not supplied' }}</td>
+                                <td>{{ $row->currency }} {{ number_format((float) $row->unit_price, 2) }}</td>
+                                <td>{{ $row->available_quantity ?? 'Not supplied' }}</td>
+                                <td>
+                                    @if($row->validation_errors)
+                                        <ul class="row-errors">@foreach($row->validation_errors as $error)<li>{{ $error }}</li>@endforeach</ul>
+                                    @else
+                                        <span class="valid-label">Ready</span>
+                                    @endif
+                                </td>
+                            </tr>
+                        @endforeach
+                        </tbody>
+                    </table>
+                </div>
+                <div class="approval-actions">
+                    <form method="POST" action="{{ route('admin.suppliers.imports.reject', $selectedImport) }}">@csrf<button class="reject-button" type="submit">Reject import</button></form>
+                    <form method="POST" action="{{ route('admin.suppliers.imports.approve', $selectedImport) }}">@csrf<button class="apply-button" type="submit" @disabled($selectedImport->error_count > 0)>Approve and publish prices</button></form>
+                </div>
+            </section>
+        @endif
 
         <section class="panel suppliers-panel">
             <div class="section-heading">
-                <div><span class="section-kicker">SUPPLIER CATALOG</span><h2>Supplier Products and Pricing</h2></div>
+                <div><span class="section-kicker">CURRENT DATA</span><h2>Published supplier prices</h2></div>
             </div>
             <div class="pricing-list">
-                @foreach($supplierProducts as $item)
+                @forelse($prices as $price)
+                    @php
+                        $change = $price->previous_price && (float) $price->previous_price > 0
+                            ? (((float) $price->unit_price - (float) $price->previous_price) / (float) $price->previous_price) * 100
+                            : null;
+                        $isStale = $price->last_updated_at->lt(now()->subDays(30));
+                    @endphp
                     <article class="pricing-card">
                         <div class="supplier-line">
-                            <strong>{{ $item['supplier'] }}</strong>
-                            <small>{{ $item['product'] }}</small>
+                            <strong>{{ $price->supplier->name }}</strong>
+                            <small>{{ $price->product_name }} · {{ $price->supplier_sku }}</small>
+                            <em>{{ $price->product ? 'Matched: '.$price->product->sku : 'Unmatched supplier item' }}</em>
                         </div>
-                        <div class="pricing-pill">{{ $item['current'] }}<span>Current Price</span></div>
-                        <div class="pricing-pill">{{ $item['previous'] }}<span>Previous Price</span></div>
-                        <div class="pricing-pill accent">{{ $item['change'] }}<span>Change</span></div>
-                        <div class="pricing-pill">{{ $item['updated'] }}<span>Last Update</span></div>
+                        <div class="pricing-pill">{{ $price->currency }} {{ number_format((float) $price->unit_price, 2) }}<span>Current price</span></div>
+                        <div class="pricing-pill">{{ $price->previous_price ? $price->currency.' '.number_format((float) $price->previous_price, 2) : 'First import' }}<span>Previous price</span></div>
+                        <div class="pricing-pill accent">{{ $change === null ? 'New' : sprintf('%+.1f%%', $change) }}<span>Change</span></div>
+                        <div class="pricing-pill">{{ $price->available_quantity ?? 'Unknown' }}<span>Supplier stock</span></div>
+                        <div class="pricing-pill {{ $isStale ? 'stale' : '' }}">{{ $isStale ? 'Stale' : $price->last_updated_at->diffForHumans() }}<span>Freshness</span></div>
                     </article>
-                @endforeach
+                @empty
+                    <div class="empty-state">No supplier prices have been published. Upload a price list to begin.</div>
+                @endforelse
             </div>
         </section>
 
-        <section class="panel suppliers-panel">
-            <div class="section-heading">
-                <div><span class="section-kicker">SLOW MOVING WATCH</span><h2>Slow-Moving Items</h2></div>
-            </div>
-            <div class="pricing-list">
-                @foreach($slowMoving as $item)
-                    <article class="pricing-card compact">
-                        <div class="supplier-line">
-                            <strong>{{ $item['supplier'] }}</strong>
-                            <small>{{ $item['product'] }}</small>
-                        </div>
-                        <div class="pricing-pill">{{ $item['current'] }}<span>Current Price</span></div>
-                        <div class="pricing-pill">{{ $item['previous'] }}<span>Previous Price</span></div>
-                        <div class="pricing-pill accent">{{ $item['change'] }}<span>Change</span></div>
-                        <div class="pricing-pill">{{ $item['updated'] }}<span>Last Update</span></div>
-                    </article>
-                @endforeach
+        <section class="panel imports-panel">
+            <div class="section-heading"><div><span class="section-kicker">AUDIT TRAIL</span><h2>Recent imports</h2></div></div>
+            <div class="import-list">
+                @forelse($imports as $import)
+                    <a href="{{ route('admin.suppliers', ['import' => $import->supplier_import_id]) }}">
+                        <strong>{{ $import->supplier->name }}</strong>
+                        <span>{{ $import->source_filename }}</span>
+                        <span>{{ $import->row_count }} rows</span>
+                        <span class="import-status {{ $import->status }}">{{ ucfirst($import->status) }}</span>
+                        <time>{{ $import->created_at->format('M d, Y H:i') }}</time>
+                    </a>
+                @empty
+                    <div class="empty-state">No import history yet.</div>
+                @endforelse
             </div>
         </section>
-
-        <section class="panel recommendation-panel">
-            <div class="section-heading">
-                <div><span class="section-kicker">AI RECOMMENDATION</span><h2>AI Recommendation Summary</h2></div>
-                <button class="apply-button" type="button" data-refresh-suppliers>Refresh</button>
-            </div>
-            <div class="recommendation-list">
-                @foreach($recommendations as $recommendation)
-                    <p>{{ $recommendation }}</p>
-                @endforeach
-            </div>
-        </section>
-
-        <div class="suppliers-toast" data-suppliers-toast hidden role="status">Supplier price summary refreshed in UI preview.</div>
     </main>
 </div>
 </body>

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\InventoryLedger;
 use App\Models\Product;
+use App\Services\LowStockAlertService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -51,12 +52,15 @@ class StockManagementController extends Controller
         return view($view, compact('products', 'allProducts', 'ledgers', 'summary', 'search', 'status'));
     }
 
-    public function storeProduct(Request $request): RedirectResponse
+    public function storeProduct(Request $request, LowStockAlertService $alerts): RedirectResponse
     {
         $validated = $request->validate([
             'sku' => ['required', 'string', 'max:100', 'unique:products,sku'],
             'name' => ['required', 'string', 'max:255'],
             'category' => ['nullable', 'string', 'max:100'],
+            'manufacturer' => ['nullable', 'string', 'max:150'],
+            'manufacturer_part_number' => ['nullable', 'string', 'max:150'],
+            'description' => ['nullable', 'string', 'max:5000'],
             'unit_cost' => ['required', 'numeric', 'min:0'],
             'unit_price' => ['required', 'numeric', 'min:0'],
             'reorder_level' => ['required', 'integer', 'min:0'],
@@ -65,9 +69,28 @@ class StockManagementController extends Controller
             'logs' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        DB::transaction(function () use ($validated, $request) {
+        $category = preg_replace('/\s+/u', ' ', trim((string) ($validated['category'] ?? '')));
+
+        if ($category !== '') {
+            $existingCategory = Product::query()
+                ->whereNotNull('category')
+                ->distinct()
+                ->get(['category'])
+                ->first(fn (Product $product) => mb_strtolower(trim($product->category), 'UTF-8') === mb_strtolower($category, 'UTF-8'))
+                ?->category;
+
+            $validated['category'] = $existingCategory ?: $category;
+        } else {
+            $validated['category'] = null;
+        }
+
+        $product = DB::transaction(function () use ($validated, $request) {
             $product = Product::create([
-                ...collect($validated)->only(['sku', 'name', 'category', 'unit_cost', 'unit_price', 'reorder_level'])->all(),
+                ...collect($validated)->only([
+                    'sku', 'name', 'manufacturer', 'manufacturer_part_number', 'category',
+                    'description', 'unit_cost', 'unit_price',
+                    'reorder_level',
+                ])->all(),
                 'current_stock' => $validated['qty_in'],
             ]);
 
@@ -77,14 +100,18 @@ class StockManagementController extends Controller
                 'qty_in' => $validated['qty_in'],
                 'qty_out' => 0,
                 'reason_code' => $validated['reason_code'],
-                'logs' => $validated['logs'] ?: 'Product added to inventory.',
+                'logs' => ($validated['logs'] ?? null) ?: 'Product added to inventory.',
             ]);
+
+            return $product;
         });
+
+        $alerts->checkProduct($product);
 
         return back()->with('success', 'Product and opening inventory were added successfully.');
     }
 
-    public function storeMovement(Request $request): RedirectResponse
+    public function storeMovement(Request $request, LowStockAlertService $alerts): RedirectResponse
     {
         $validated = $request->validate([
             'product_id' => ['required', Rule::exists('products', 'product_id')->where('is_active', true)],
@@ -94,7 +121,7 @@ class StockManagementController extends Controller
             'logs' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        DB::transaction(function () use ($validated, $request) {
+        $product = DB::transaction(function () use ($validated, $request) {
             $product = Product::query()->lockForUpdate()->findOrFail($validated['product_id']);
             $quantity = (int) $validated['quantity'];
 
@@ -124,10 +151,15 @@ class StockManagementController extends Controller
                 'qty_in' => max($change, 0),
                 'qty_out' => max(-$change, 0),
                 'reason_code' => $validated['reason_code'],
-                'logs' => $validated['logs'],
+                'logs' => $validated['logs'] ?? null,
             ]);
+
+            return $product->fresh();
         });
+
+        $alerts->checkProduct($product);
 
         return back()->with('success', 'Stock movement recorded successfully.');
     }
+
 }

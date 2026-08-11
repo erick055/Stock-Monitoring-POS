@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MotoSync | Verify Email</title>
-    @vite(['resources/css/role-access.css'])
+    @vite(['resources/css/role-access.css', 'resources/css/responsive.css'])
 </head>
 <body>
 <main class="auth-shell">

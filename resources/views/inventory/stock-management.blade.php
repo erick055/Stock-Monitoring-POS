@@ -17,7 +17,7 @@ $movementStoreRoute = $isAdmin ? route('admin.inventory.movements.store') : rout
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stock Management | MotoSync</title>
-    @vite(['resources/css/dashboard.css','resources/css/stock-management.css','resources/js/dashboard.js','resources/js/stock-management.js'])
+    @vite(['resources/css/dashboard.css','resources/css/stock-management.css','resources/css/responsive.css','resources/js/dashboard.js','resources/js/stock-management.js'])
 </head>
 <body>
 <div class="dashboard-shell stock-shell">
@@ -138,12 +138,15 @@ $movementStoreRoute = $isAdmin ? route('admin.inventory.movements.store') : rout
                 <label>SKU<input name="sku" value="{{ old('sku') }}" maxlength="100" required></label>
                 <label>Product name<input name="name" value="{{ old('name') }}" maxlength="255" required></label>
                 <label>Category<input name="category" value="{{ old('category') }}" maxlength="100" placeholder="e.g. Lubricants"></label>
+                <label>Manufacturer<input name="manufacturer" value="{{ old('manufacturer') }}" maxlength="150" placeholder="e.g. Honda, NGK, DID"></label>
+                <label>Manufacturer part number<input name="manufacturer_part_number" value="{{ old('manufacturer_part_number') }}" maxlength="150" placeholder="Official part number"></label>
                 <label>Opening Qty In<input name="qty_in" value="{{ old('qty_in', 0) }}" type="number" min="0" required></label>
                 <label>Unit cost (₱)<input name="unit_cost" value="{{ old('unit_cost', 0) }}" type="number" min="0" step="0.01" required></label>
                 <label>Selling price (₱)<input name="unit_price" value="{{ old('unit_price', 0) }}" type="number" min="0" step="0.01" required></label>
                 <label>Reorder level<input name="reorder_level" value="{{ old('reorder_level', 5) }}" type="number" min="0" required></label>
                 <label>Reason code<select name="reason_code" required><option value="OPENING_STOCK">Opening stock</option><option value="PURCHASE_RECEIPT">Purchase receipt</option><option value="NEW_PRODUCT">New product</option></select></label>
             </div>
+            <label>Manufacturer description<textarea name="description" rows="2" maxlength="5000" placeholder="Official product description">{{ old('description') }}</textarea></label>
             <label>Inventory log<textarea name="logs" rows="3" maxlength="1000" placeholder="Describe when or why this product was added">{{ old('logs') }}</textarea></label>
             <div class="modal-actions"><button type="button" class="secondary-button" data-close-product>Cancel</button><button type="submit" class="primary-button">Add product and ledger entry</button></div>
         </form>

@@ -10,3 +10,6 @@
 @media(max-width:900px){.vehicle-search-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:560px){.vehicle-search-grid,.checker-actions{grid-template-columns:1fr}}
 .checker-form{grid-template-columns:1fr}.catalog-selector{max-width:100%}.summary-recommended strong{color:#73a8ff}
+.status-compatible{border-left-color:#27c38a}.status-compatible .result-badge{background:#123d31;color:#65e1b7}
+.vehicle-search-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.result-summary{grid-template-columns:repeat(4,minmax(0,1fr))}
+@media(max-width:900px){.vehicle-search-grid,.result-summary{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:560px){.vehicle-search-grid,.result-summary,.checker-actions{grid-template-columns:1fr}}

@@ -11,7 +11,7 @@ $navigation = [
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dead Stock | MotoSync</title>
-    @vite(['resources/css/dashboard.css','resources/css/dead-stock.css','resources/js/dashboard.js','resources/js/dead-stock.js'])
+    @vite(['resources/css/dashboard.css','resources/css/dead-stock.css','resources/css/responsive.css','resources/js/dashboard.js','resources/js/dead-stock.js'])
 </head>
 <body>
 <div class="dashboard-shell dead-stock-shell">
@@ -39,80 +39,95 @@ $navigation = [
             </div>
         </header>
 
+        @if(session('success'))<div class="promotion-message success" role="status">{{ session('success') }}</div>@endif
+        @if($errors->any())<div class="promotion-message error" role="alert">{{ $errors->first() }}</div>@endif
+
         <section class="stat-grid dead-stock-stats" aria-label="Dead stock summary">
             @foreach($summary as $card)
                 <article class="stat-card {{ $card[3] }}"><div class="stat-head"><span>{{ $card[0] }}</span><span class="trend-dot"></span></div><strong>{{ $card[1] }}</strong><small>{{ $card[2] }}</small></article>
             @endforeach
         </section>
 
-        <section class="panel detail-panel">
+        <section class="panel detail-panel risk-inventory-panel">
             <div class="section-heading">
-                <div><span class="section-kicker">RECOVERY TARGET</span><h2>Dead Stock Items</h2></div>
+                <div><span class="section-kicker">AI RECOVERY QUEUE</span><h2>Inventory Unlikely to Sell Soon</h2><small>{{ number_format($riskItems->total()) }} matching products. AI suggests; only an administrator can approve an offer.</small></div>
             </div>
-            <div class="detail-list">
-                @forelse($deadStockItems as $item)
-                    <article class="detail-card">
-                        <div>
-                            <strong>{{ $item['name'] }}</strong>
-                            <small>{{ $item['sku'] }} | {{ $item['stock'] }} units left | {{ $item['age'] }} | Last sale: {{ $item['last_sale'] }}</small>
-                            <div class="ai-score">
-                                <div><span>AI Dead Stock Score</span><strong>{{ $item['score'] }}/100</strong></div>
-                                <div class="score-track"><i class="{{ $item['classification_class'] }}" style="width: {{ $item['score_width'] }}"></i></div>
-                                <span class="ai-badge {{ $item['classification_class'] }}">{{ $item['classification'] }}</span>
-                            </div>
-                            <ul class="reason-list">
-                                @foreach($item['reasons'] as $reason)
-                                    <li>{{ $reason }}</li>
-                                @endforeach
-                            </ul>
-                            <p class="ai-recommendation">{{ $item['recommendation'] }}</p>
-                            <div class="action-row">
-                                <button type="button" class="mini-action" data-ai-action>Apply Discount</button>
-                                <button type="button" class="mini-action muted" data-ai-action>Bundle Item</button>
-                            </div>
-                        </div>
-                        <div class="detail-metric">
-                            <span>Total Cost</span>
-                            <strong>{{ $item['total_cost'] }}</strong>
-                        </div>
-                    </article>
-                @empty
-                    <div class="empty-dead-stock">No dead stock detected. Products have recent POS movement or no idle inventory.</div>
-                @endforelse
+            <form class="data-toolbar" method="GET" action="{{ route('admin.dead-stock') }}">
+                <label class="compact-search"><span>Search</span><input name="search" value="{{ $search }}" placeholder="Product or SKU"></label>
+                <label><span>Risk</span><select name="classification"><option value="all" @selected($classification === 'all')>All risks</option><option value="dead" @selected($classification === 'dead')>Dead stock</option><option value="slow" @selected($classification === 'slow')>Slow moving</option></select></label>
+                <label><span>Rows</span><select name="per_page">@foreach([10,25,50,100] as $size)<option value="{{ $size }}" @selected($perPage === $size)>{{ $size }}</option>@endforeach</select></label>
+                <button type="submit">Apply</button>
+                @if($search || $classification !== 'all' || $perPage !== 25)<a href="{{ route('admin.dead-stock') }}">Reset</a>@endif
+            </form>
+            <div class="table-wrap risk-table">
+                <table>
+                    <thead><tr><th>Product</th><th>Risk</th><th>Score</th><th>Stock</th><th>30-Day Sales</th><th>Last Sale</th><th>Capital</th><th>Analysis</th><th>Owner Action</th></tr></thead>
+                    <tbody>
+                    @forelse($riskItems as $item)
+                        <tr>
+                            <td><strong>{{ $item['name'] }}</strong><small>{{ $item['sku'] }} | {{ $item['age'] }}</small></td>
+                            <td><span class="ai-badge {{ $item['classification_class'] }}">{{ $item['classification'] }}</span></td>
+                            <td><div class="table-score" title="{{ $item['classification'] === 'Dead Stock' ? 'AI Dead Stock Score' : 'AI Risk Score' }}"><strong>{{ $item['score'] }}</strong><div class="score-track"><i class="{{ $item['classification_class'] }}" style="width:{{ $item['score_width'] }}"></i></div></div></td>
+                            <td>{{ number_format($item['stock']) }}</td>
+                            <td>{{ number_format($item['monthly_units']) }}</td>
+                            <td>{{ $item['last_sale'] }}</td>
+                            <td><strong>{{ $item['total_cost'] }}</strong></td>
+                            <td>
+                                <details class="risk-details">
+                                    <summary>View</summary>
+                                    <ul>@foreach($item['reasons'] as $reason)<li>{{ $reason }}</li>@endforeach</ul>
+                                    <p>{{ $item['recommendation'] }}</p>
+                                </details>
+                            </td>
+                            <td>
+                                <details class="promotion-details" @if($item['active_promotion']) open @endif>
+                                    <summary>{{ $item['active_promotion'] ? 'Active offer' : 'Choose action' }}</summary>
+                                    @if($item['active_promotion'])
+                                        <div class="active-promotion">
+                                            <strong>{{ $item['active_promotion']['label'] }} · {{ number_format($item['active_promotion']['discount_percent'], 2) }}% off</strong>
+                                            <span>₱{{ number_format($item['unit_price'], 2) }} → ₱{{ number_format($item['active_promotion']['promotional_price'], 2) }}</span>
+                                            @if($item['active_promotion']['bundle_note'])<small>{{ $item['active_promotion']['bundle_note'] }}</small>@endif
+                                            <small>Approved by {{ $item['active_promotion']['administrator'] }}</small>
+                                            <form method="POST" action="{{ route('admin.dead-stock.promotions.end', $item['product_id']) }}" data-end-promotion>
+                                                @csrf @method('DELETE')
+                                                <button class="end-promotion" type="submit">End offer</button>
+                                            </form>
+                                        </div>
+                                    @endif
+                                    <form class="promotion-form" method="POST" action="{{ route('admin.dead-stock.promotions.apply', $item['product_id']) }}" data-promotion-form>
+                                        @csrf
+                                        <input type="hidden" name="action_type" value="discount" data-action-type>
+                                        <div class="promotion-actions" role="group" aria-label="Choose promotion for {{ $item['name'] }}">
+                                            <button class="selected" type="button" data-promotion-action="discount">Discount</button>
+                                            <button type="button" data-promotion-action="promo_bundle">Promo bundle</button>
+                                            <button type="button" data-promotion-action="clearance">Clearance sale</button>
+                                        </div>
+                                        <label>Discount percentage
+                                            <span class="discount-input"><input name="discount_percent" type="number" min="1" max="90" step="0.01" value="{{ $item['active_promotion']['discount_percent'] ?? 10 }}" required><b>%</b></span>
+                                        </label>
+                                        <label data-bundle-field hidden>Bundle details
+                                            <input name="bundle_note" type="text" maxlength="160" placeholder="Example: Buy with oil filter">
+                                        </label>
+                                        <p class="price-preview" data-price-preview data-base-price="{{ $item['unit_price'] }}">Regular ₱{{ number_format($item['unit_price'], 2) }}</p>
+                                        <button class="approve-promotion" type="submit">Approve selected action</button>
+                                        <small>Nothing changes until you press approve.</small>
+                                    </form>
+                                </details>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="9" class="empty-table">No products match the selected risk filters.</td></tr>
+                    @endforelse
+                    </tbody>
+                </table>
             </div>
-        </section>
-
-        <section class="panel detail-panel">
-            <div class="section-heading">
-                <div><span class="section-kicker">TURNOVER WATCH</span><h2>Slow-Moving Items</h2></div>
-            </div>
-            <div class="detail-list">
-                @forelse($slowMovingItems as $item)
-                    <article class="detail-card">
-                        <div>
-                            <strong>{{ $item['name'] }}</strong>
-                            <small>{{ $item['sku'] }} | {{ $item['stock'] }} units available | Last sale: {{ $item['last_sale'] }}</small>
-                            <div class="ai-score">
-                                <div><span>AI Risk Score</span><strong>{{ $item['score'] }}/100</strong></div>
-                                <div class="score-track"><i class="{{ $item['classification_class'] }}" style="width: {{ $item['score_width'] }}"></i></div>
-                                <span class="ai-badge {{ $item['classification_class'] }}">{{ $item['classification'] }}</span>
-                            </div>
-                            <ul class="reason-list">
-                                @foreach($item['reasons'] as $reason)
-                                    <li>{{ $reason }}</li>
-                                @endforeach
-                            </ul>
-                            <p class="ai-recommendation">{{ $item['recommendation'] }}</p>
-                        </div>
-                        <div class="detail-metric">
-                            <span>{{ $item['note'] }}</span>
-                            <strong>{{ $item['velocity'] }}</strong>
-                        </div>
-                    </article>
-                @empty
-                    <div class="empty-dead-stock">No slow-moving items yet. Items with small recent POS sales will appear here.</div>
-                @endforelse
-            </div>
+            @if($riskItems->hasPages())
+                <nav class="compact-pagination" aria-label="At-risk inventory pages">
+                    @if($riskItems->onFirstPage())<span>Previous</span>@else<a href="{{ $riskItems->previousPageUrl() }}">Previous</a>@endif
+                    <strong>Page {{ $riskItems->currentPage() }} of {{ $riskItems->lastPage() }}</strong>
+                    @if($riskItems->hasMorePages())<a href="{{ $riskItems->nextPageUrl() }}">Next</a>@else<span>Next</span>@endif
+                </nav>
+            @endif
         </section>
 
         <section class="panel summary-panel">

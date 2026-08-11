@@ -3,14 +3,27 @@
 namespace App\Http\Controllers;
 
 use App\Models\Product;
+use App\Models\ProductPromotion;
 use App\Models\SalesItem;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 class DeadStockController extends Controller
 {
-    public function index(): View
+    public function index(Request $request): View
     {
+        $search = trim((string) $request->query('search'));
+        $classification = (string) $request->query('classification', 'all');
+        $perPage = in_array((int) $request->query('per_page', 25), [10, 25, 50, 100], true)
+            ? (int) $request->query('per_page', 25)
+            : 25;
         $products = Product::query()
+            ->with('activePromotion.administrator')
             ->where('is_active', true)
             ->where('current_stock', '>', 0)
             ->orderByDesc('current_stock')
@@ -42,13 +55,95 @@ class DeadStockController extends Controller
 
         $recommendations = $this->buildRecommendations($deadStockItems, $slowMovingItems);
 
+        $filteredRiskItems = $scoredProducts
+            ->whereIn('classification', ['Dead Stock', 'Slow Moving'])
+            ->when($classification === 'dead', fn ($items) => $items->where('classification', 'Dead Stock'))
+            ->when($classification === 'slow', fn ($items) => $items->where('classification', 'Slow Moving'))
+            ->when($search, fn ($items) => $items->filter(fn (array $item) => str_contains(
+                mb_strtolower($item['name'].' '.$item['sku']),
+                mb_strtolower($search)
+            )))
+            ->values();
+
+        $page = LengthAwarePaginator::resolveCurrentPage();
+        $riskItems = new LengthAwarePaginator(
+            $filteredRiskItems->forPage($page, $perPage)->values(),
+            $filteredRiskItems->count(),
+            $perPage,
+            $page,
+            ['path' => $request->url(), 'query' => $request->query()]
+        );
+
         return view('admin.dead-stock', compact(
             'summary',
             'deadStockItems',
             'slowMovingItems',
             'recommendations',
-            'scoredProducts'
+            'scoredProducts',
+            'riskItems',
+            'search',
+            'classification',
+            'perPage'
         ));
+    }
+
+    public function applyPromotion(Request $request, Product $product): RedirectResponse
+    {
+        $validated = $request->validate([
+            'action_type' => ['required', Rule::in(['discount', 'promo_bundle', 'clearance'])],
+            'discount_percent' => ['required', 'numeric', 'min:1', 'max:90'],
+            'bundle_note' => ['nullable', 'required_if:action_type,promo_bundle', 'string', 'max:160'],
+        ]);
+
+        $analysis = $this->scoreProduct(
+            $product,
+            (int) ($this->soldUnitsByProduct(30)[$product->product_id] ?? 0),
+            (int) ($this->soldUnitsByProduct(90)[$product->product_id] ?? 0),
+            $this->latestSaleByProduct()[$product->product_id] ?? null
+        );
+
+        if (! in_array($analysis['classification'], ['Dead Stock', 'Slow Moving'], true)) {
+            throw ValidationException::withMessages([
+                'promotion' => 'This product is no longer classified as unlikely to sell soon. Refresh the AI inventory scan before applying an offer.',
+            ]);
+        }
+
+        $promotion = DB::transaction(function () use ($product, $request, $validated) {
+            $lockedProduct = Product::query()->lockForUpdate()->findOrFail($product->product_id);
+            $discount = round((float) $validated['discount_percent'], 2);
+            $promotionalPrice = round((float) $lockedProduct->unit_price * (1 - ($discount / 100)), 2);
+
+            ProductPromotion::query()
+                ->where('product_id', $lockedProduct->product_id)
+                ->where('status', 'active')
+                ->update(['status' => 'ended', 'ended_at' => now()]);
+
+            return ProductPromotion::create([
+                'product_id' => $lockedProduct->product_id,
+                'applied_by' => $request->user()->id,
+                'action_type' => $validated['action_type'],
+                'discount_percent' => $discount,
+                'original_price' => $lockedProduct->unit_price,
+                'promotional_price' => $promotionalPrice,
+                'bundle_note' => $validated['bundle_note'] ?? null,
+                'status' => 'active',
+                'started_at' => now(),
+            ]);
+        });
+
+        return back()->with('success', "{$promotion->action_label} approved for {$product->name} at {$promotion->discount_percent}% off.");
+    }
+
+    public function endPromotion(Product $product): RedirectResponse
+    {
+        $ended = ProductPromotion::query()
+            ->where('product_id', $product->product_id)
+            ->where('status', 'active')
+            ->update(['status' => 'ended', 'ended_at' => now()]);
+
+        return back()->with('success', $ended
+            ? "The active offer for {$product->name} was ended. The POS now uses its regular price."
+            : "{$product->name} has no active offer to end.");
     }
 
     private function soldUnitsByProduct(int $days): array
@@ -124,6 +219,7 @@ class DeadStockController extends Controller
         };
 
         return [
+            'product_id' => $product->product_id,
             'name' => $product->name,
             'sku' => $product->sku,
             'stock' => $product->current_stock,
@@ -135,6 +231,14 @@ class DeadStockController extends Controller
             'classification_class' => strtolower(str_replace(' ', '-', $classification)),
             'total_cost' => '₱' . number_format($totalCost, 2),
             'total_cost_raw' => $totalCost,
+            'unit_price' => (float) $product->unit_price,
+            'active_promotion' => $product->activePromotion ? [
+                'label' => $product->activePromotion->action_label,
+                'discount_percent' => (float) $product->activePromotion->discount_percent,
+                'promotional_price' => (float) $product->activePromotion->promotional_price,
+                'bundle_note' => $product->activePromotion->bundle_note,
+                'administrator' => $product->activePromotion->administrator?->name ?? 'Administrator',
+            ] : null,
             'age' => $product->created_at?->diffForHumans(null, true) . ' in inventory',
             'last_sale' => $daysSinceLastSale === null ? 'No sale recorded' : "{$daysSinceLastSale} day(s) ago",
             'velocity' => number_format($monthlyUnits) . ' units / month',

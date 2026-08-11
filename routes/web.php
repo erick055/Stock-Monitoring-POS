@@ -10,6 +10,7 @@ use App\Http\Controllers\PosController;
 use App\Http\Controllers\ProductsController;
 use App\Http\Controllers\ReturnsController;
 use App\Http\Controllers\StockManagementController;
+use App\Http\Controllers\SupplierPriceController;
 use Illuminate\Foundation\Auth\EmailVerificationRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -48,16 +49,22 @@ Route::middleware(['auth', 'verified', 'role:admin'])->group(function () {
     Route::get('/admin/products', [ProductsController::class, 'index'])->name('admin.products');
     Route::get('/admin/analytics', [AnalyticsController::class, 'index'])->name('admin.analytics');
     Route::get('/admin/low-stocks', [LowStocksController::class, 'index'])->name('admin.low-stocks');
+    Route::post('/admin/low-stocks/settings', [LowStocksController::class, 'updateSettings'])->name('admin.low-stocks.settings');
+    Route::post('/admin/low-stocks/run-now', [LowStocksController::class, 'runNow'])->name('admin.low-stocks.run-now');
     Route::get('/admin/deadstock', [DeadStockController::class, 'index'])->name('admin.dead-stock');
     Route::get('/admin/dead-stock', [DeadStockController::class, 'index']);
+    Route::post('/admin/dead-stock/{product}/promotions', [DeadStockController::class, 'applyPromotion'])->name('admin.dead-stock.promotions.apply');
+    Route::delete('/admin/dead-stock/{product}/promotions', [DeadStockController::class, 'endPromotion'])->name('admin.dead-stock.promotions.end');
     Route::get('/admin/returns', [ReturnsController::class, 'index'])->name('admin.returns');
     Route::post('/admin/returns/customer', [ReturnsController::class, 'storeReturn'])->name('admin.returns.customer.store');
     Route::post('/admin/returns/damage', [ReturnsController::class, 'storeDamage'])->name('admin.returns.damage.store');
-    Route::view('/admin/suppliers', 'admin.suppliers')->name('admin.suppliers');
+    Route::get('/admin/suppliers', [SupplierPriceController::class, 'index'])->name('admin.suppliers');
+    Route::post('/admin/suppliers/imports', [SupplierPriceController::class, 'upload'])->name('admin.suppliers.imports.upload');
+    Route::post('/admin/suppliers/imports/{supplierImport}/approve', [SupplierPriceController::class, 'approve'])->name('admin.suppliers.imports.approve');
+    Route::post('/admin/suppliers/imports/{supplierImport}/reject', [SupplierPriceController::class, 'reject'])->name('admin.suppliers.imports.reject');
+    Route::delete('/admin/suppliers/data', [SupplierPriceController::class, 'purge'])->name('admin.suppliers.purge');
     Route::get('/admin/compatibility', [CompatibilityController::class, 'index'])->name('admin.compatibility');
-    Route::post('/admin/compatibility/motorcycles', [CompatibilityController::class, 'storeMotorcycle'])->name('admin.compatibility.motorcycles.store');
-    Route::post('/admin/compatibility/product-profile', [CompatibilityController::class, 'updateProductProfile'])->name('admin.compatibility.products.profile');
-    Route::post('/admin/compatibility/fitments', [CompatibilityController::class, 'storeFitment'])->name('admin.compatibility.fitments.store');
+    Route::post('/admin/compatibility/ai-recommendations', [CompatibilityController::class, 'index'])->middleware('throttle:3,1')->name('admin.compatibility.ai');
 });
 
 Route::middleware(['auth', 'verified', 'role:staff'])->group(function () {
@@ -68,10 +75,14 @@ Route::middleware(['auth', 'verified', 'role:staff'])->group(function () {
     Route::get('/staff/products', [ProductsController::class, 'index'])->name('staff.products');
     Route::get('/staff/pos', [PosController::class, 'index'])->name('staff.pos');
     Route::post('/staff/pos/checkout', [PosController::class, 'store'])->name('staff.pos.checkout');
+    Route::post('/staff/pos/holds', [PosController::class, 'storeHold'])->name('staff.pos.holds.store');
+    Route::delete('/staff/pos/holds/{heldOrder}', [PosController::class, 'cancelHold'])->name('staff.pos.holds.cancel');
+    Route::get('/staff/pos/receipts/{sale}', [PosController::class, 'showReceipt'])->name('staff.pos.receipts.show');
     Route::get('/staff/returns', [ReturnsController::class, 'index'])->name('staff.returns');
     Route::post('/staff/returns/customer', [ReturnsController::class, 'storeReturn'])->name('staff.returns.customer.store');
     Route::post('/staff/returns/damage', [ReturnsController::class, 'storeDamage'])->name('staff.returns.damage.store');
     Route::get('/staff/compatibility', [CompatibilityController::class, 'index'])->name('staff.compatibility');
+    Route::post('/staff/compatibility/ai-recommendations', [CompatibilityController::class, 'index'])->middleware('throttle:3,1')->name('staff.compatibility.ai');
 });
 
 Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])

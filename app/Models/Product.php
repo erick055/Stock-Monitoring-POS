@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Product extends Model
 {
@@ -13,8 +14,8 @@ class Product extends Model
     protected $primaryKey = 'product_id';
 
     protected $fillable = [
-        'sku', 'name', 'description', 'category', 'dimensions', 'specifications',
-        'required_features', 'unit_cost', 'unit_price', 'current_stock',
+        'sku', 'name', 'manufacturer', 'manufacturer_part_number', 'description',
+        'category', 'unit_cost', 'unit_price', 'current_stock',
         'reorder_level', 'is_active',
     ];
 
@@ -23,8 +24,6 @@ class Product extends Model
         return [
             'unit_cost' => 'decimal:2',
             'unit_price' => 'decimal:2',
-            'specifications' => 'array',
-            'required_features' => 'array',
             'is_active' => 'boolean',
         ];
     }
@@ -39,9 +38,21 @@ class Product extends Model
         return $this->hasMany(SalesItem::class, 'product_id', 'product_id');
     }
 
-    public function compatibilities(): HasMany
+    public function promotions(): HasMany
     {
-        return $this->hasMany(PartCompatibility::class, 'product_id', 'product_id');
+        return $this->hasMany(ProductPromotion::class, 'product_id', 'product_id');
+    }
+
+    public function activePromotion(): HasOne
+    {
+        return $this->hasOne(ProductPromotion::class, 'product_id', 'product_id')
+            ->where('status', 'active')
+            ->latestOfMany('product_promotion_id');
+    }
+
+    public function getSellingPriceAttribute(): float
+    {
+        return (float) ($this->activePromotion?->promotional_price ?? $this->unit_price);
     }
 
     public function getStockStatusAttribute(): string

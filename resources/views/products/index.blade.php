@@ -15,7 +15,7 @@ $navigation = $isAdmin ? [
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Products | MotoSync</title>
-    @vite(['resources/css/dashboard.css','resources/css/products.css','resources/js/dashboard.js','resources/js/products.js'])
+    @vite(['resources/css/dashboard.css','resources/css/products.css','resources/css/responsive.css','resources/js/dashboard.js','resources/js/products.js'])
 </head>
 <body>
 <div class="dashboard-shell products-shell">

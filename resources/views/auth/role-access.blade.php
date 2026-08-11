@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MotoSync | Account Access</title>
-    @vite(['resources/css/role-access.css', 'resources/js/role-access.js'])
+    @vite(['resources/css/role-access.css', 'resources/css/responsive.css', 'resources/js/role-access.js'])
 </head>
 <body>
 <main class="auth-shell" data-old-mode="{{ old('auth_mode', 'login') }}" data-base-url="{{ request()->getBaseUrl() }}" data-has-errors="{{ $errors->any() ? 'true' : 'false' }}">

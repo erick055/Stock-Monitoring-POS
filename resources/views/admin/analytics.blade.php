@@ -11,7 +11,7 @@ $navigation = [
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Analytics | MotoSync</title>
-    @vite(['resources/css/dashboard.css','resources/css/analytics.css','resources/js/dashboard.js','resources/js/analytics.js'])
+    @vite(['resources/css/dashboard.css','resources/css/analytics.css','resources/css/responsive.css','resources/js/dashboard.js','resources/js/analytics.js'])
 </head>
 <body>
 <div class="dashboard-shell analytics-shell">

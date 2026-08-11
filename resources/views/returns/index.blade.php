@@ -20,7 +20,7 @@ $damageRoute = $isAdmin ? route('admin.returns.damage.store') : route('staff.ret
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Return & Damage | MotoSync</title>
-    @vite(['resources/css/dashboard.css','resources/css/returns.css','resources/js/dashboard.js','resources/js/returns.js'])
+    @vite(['resources/css/dashboard.css','resources/css/returns.css','resources/css/responsive.css','resources/js/dashboard.js','resources/js/returns.js'])
 </head>
 <body>
 <div class="dashboard-shell returns-shell">

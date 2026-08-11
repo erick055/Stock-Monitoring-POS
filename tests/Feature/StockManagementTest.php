@@ -60,6 +60,28 @@ class StockManagementTest extends TestCase
         ]);
     }
 
+    public function test_new_product_reuses_existing_category_regardless_of_capitalization(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        Product::create([
+            'sku' => 'BRK-OLD', 'name' => 'Existing Brake', 'category' => 'Brake Parts',
+            'unit_price' => 100, 'current_stock' => 1,
+        ]);
+
+        $this->actingAs($admin)->post(route('admin.inventory.products.store'), [
+            'sku' => 'BRK-NEW',
+            'name' => 'New Brake',
+            'category' => '  brake   parts  ',
+            'unit_cost' => 50,
+            'unit_price' => 100,
+            'reorder_level' => 2,
+            'qty_in' => 5,
+            'reason_code' => 'OPENING_STOCK',
+        ])->assertSessionHas('success');
+
+        $this->assertSame('Brake Parts', Product::where('sku', 'BRK-NEW')->value('category'));
+    }
+
     public function test_stock_in_and_stock_out_update_balance_and_create_logs(): void
     {
         $staff = User::factory()->create(['role' => 'staff']);
