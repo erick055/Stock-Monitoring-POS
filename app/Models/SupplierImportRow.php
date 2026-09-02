@@ -24,4 +24,9 @@ class SupplierImportRow extends Model
     {
         return $this->belongsTo(SupplierImport::class, 'supplier_import_id', 'supplier_import_id');
     }
+
+    public function product(): BelongsTo
+    {
+        return $this->belongsTo(Product::class, 'product_id', 'product_id');
+    }
 }

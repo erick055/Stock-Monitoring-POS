@@ -61,10 +61,10 @@ $navigation = [
                     </div>
                     <form method="POST" action="{{ route('admin.suppliers.purge') }}" data-supplier-purge>
                         @csrf @method('DELETE')
-                        <label>Type <b>DELETE</b> to confirm
-                            <input name="confirmation_text" autocomplete="off" spellcheck="false" placeholder="DELETE" data-purge-confirmation required>
+                        <label>Confirm with your account password
+                            <input name="password" type="password" autocomplete="current-password" placeholder="Enter your password" data-purge-password required>
                         </label>
-                        <button class="delete-all-button" type="submit" data-purge-button disabled>Delete all supplier data</button>
+                        <button class="delete-all-button" type="submit" data-purge-button>Delete all supplier data</button>
                     </form>
                 </div>
             </details>
@@ -88,7 +88,7 @@ $navigation = [
                 <strong>Optional:</strong>
                 <code>internal_sku</code><code>currency</code><code>available_quantity</code><code>minimum_order_quantity</code><code>lead_time_days</code><code>effective_date</code>
             </div>
-            <p class="import-note">Use <strong>internal_sku</strong> to match a supplier item to an existing MotoSync product. Publishing supplier prices does not overwrite the product’s inventory cost.</p>
+            <p class="import-note">Matching checks internal SKU first, then supplier SKU, then a unique exact product name. Publishing does not change product costs or store inventory until the owner applies an item.</p>
         </section>
 
         @if($selectedImport)
@@ -106,7 +106,13 @@ $navigation = [
                                 <td>{{ $row->row_number }}</td>
                                 <td>{{ $row->supplier_sku }}</td>
                                 <td>{{ $row->product_name }}</td>
-                                <td>{{ $row->internal_sku ? ($row->product_id ? $row->internal_sku : $row->internal_sku.' (not found)') : 'Not supplied' }}</td>
+                                <td>
+                                    @if($row->product)
+                                        <span class="match-label matched">Matched: {{ $row->product->sku }} — {{ $row->product->name }}</span>
+                                    @else
+                                        <span class="match-label unmatched">Unmatched{{ $row->internal_sku ? ': '.$row->internal_sku.' not found' : '' }}</span>
+                                    @endif
+                                </td>
                                 <td>{{ $row->currency }} {{ number_format((float) $row->unit_price, 2) }}</td>
                                 <td>{{ $row->available_quantity ?? 'Not supplied' }}</td>
                                 <td>
@@ -142,8 +148,8 @@ $navigation = [
                     @endphp
                     <article class="pricing-card">
                         <div class="supplier-line">
-                            <strong>{{ $price->supplier->name }}</strong>
-                            <small>{{ $price->product_name }} · {{ $price->supplier_sku }}</small>
+                            <strong>{{ $price->product_name }}</strong>
+                            <small>{{ $price->supplier->name }} · Supplier SKU: {{ $price->supplier_sku }}</small>
                             <em>{{ $price->product ? 'Matched: '.$price->product->sku : 'Unmatched supplier item' }}</em>
                         </div>
                         <div class="pricing-pill">{{ $price->currency }} {{ number_format((float) $price->unit_price, 2) }}<span>Current price</span></div>
@@ -151,12 +157,59 @@ $navigation = [
                         <div class="pricing-pill accent">{{ $change === null ? 'New' : sprintf('%+.1f%%', $change) }}<span>Change</span></div>
                         <div class="pricing-pill">{{ $price->available_quantity ?? 'Unknown' }}<span>Supplier stock</span></div>
                         <div class="pricing-pill {{ $isStale ? 'stale' : '' }}">{{ $isStale ? 'Stale' : $price->last_updated_at->diffForHumans() }}<span>Freshness</span></div>
+                        <details class="catalog-sync">
+                            <summary>{{ $price->product ? 'Manage product match and cost' : 'Match or add this item to Products' }}</summary>
+                            <div class="catalog-sync-body">
+                                <div class="sync-explanation">
+                                    <strong>{{ $price->product ? 'Currently matched to '.$price->product->sku.' — '.$price->product->name : 'This supplier item is not connected to Products yet.' }}</strong>
+                                    <span>Supplier stock is informational and will never be added to store inventory automatically.</span>
+                                </div>
+
+                                <form class="match-product-form" method="POST" action="{{ route('admin.suppliers.prices.match', $price) }}" data-catalog-match-form>
+                                    @csrf @method('PATCH')
+                                    <label>Match an existing product
+                                        <input type="search" list="catalog-product-options" placeholder="Search SKU or product name" autocomplete="off" data-catalog-match-search required>
+                                        <input type="hidden" name="product_id" data-catalog-product-id>
+                                    </label>
+                                    <button class="match-button" type="submit">Save match</button>
+                                </form>
+
+                                @if($price->product)
+                                    <form class="apply-cost-form" method="POST" action="{{ route('admin.suppliers.prices.apply-cost', $price) }}" data-apply-supplier-cost data-product-name="{{ $price->product->name }}" data-cost="{{ $price->currency }} {{ number_format((float) $price->unit_price, 2) }}">
+                                        @csrf @method('PATCH')
+                                        <div><small>Current product cost</small><strong>₱{{ number_format((float) $price->product->unit_cost, 2) }}</strong></div>
+                                        <div><small>Supplier cost to apply</small><strong>{{ $price->currency }} {{ number_format((float) $price->unit_price, 2) }}</strong></div>
+                                        <button class="apply-button" type="submit" @disabled(strtoupper($price->currency) !== 'PHP')>Apply supplier cost</button>
+                                    </form>
+                                @else
+                                    <form class="create-catalog-product" method="POST" action="{{ route('admin.suppliers.prices.create-product', $price) }}">
+                                        @csrf
+                                        <label>Product SKU<input name="sku" value="{{ $price->supplier_sku }}" maxlength="100" required></label>
+                                        <label>Selling price (₱)<input name="selling_price" type="number" min="0" step="0.01" placeholder="Set owner selling price" required></label>
+                                        <label>Category<input name="category" maxlength="100" placeholder="e.g. Brake Parts"></label>
+                                        <label>Shelf location<input name="shelf_location" maxlength="100" placeholder="e.g. Aisle B · Shelf 2"></label>
+                                        <label>Reorder level<input name="reorder_level" type="number" min="0" value="5" required></label>
+                                        <button class="apply-button" type="submit" @disabled(strtoupper($price->currency) !== 'PHP')>Create in Products</button>
+                                    </form>
+                                @endif
+
+                                @if(strtoupper($price->currency) !== 'PHP')
+                                    <p class="currency-warning">Convert this supplier price to PHP before applying it to the product catalog.</p>
+                                @endif
+                            </div>
+                        </details>
                     </article>
                 @empty
                     <div class="empty-state">No supplier prices have been published. Upload a price list to begin.</div>
                 @endforelse
             </div>
         </section>
+
+        <datalist id="catalog-product-options">
+            @foreach($catalogProducts as $catalogProduct)
+                <option value="{{ $catalogProduct->sku }} — {{ $catalogProduct->name }} (#{{ $catalogProduct->product_id }})" data-product-id="{{ $catalogProduct->product_id }}"></option>
+            @endforeach
+        </datalist>
 
         <section class="panel imports-panel">
             <div class="section-heading"><div><span class="section-kicker">AUDIT TRAIL</span><h2>Recent imports</h2></div></div>

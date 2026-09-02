@@ -7,12 +7,13 @@ $navigation = $isAdmin
         ['◇','Returns & Damages','#'], ['♙','Supplier Price','/admin/suppliers'], ['⚙','Part Compatibility','/admin/compatibility'],
     ]
     : [
-        ['⌂','Dashboard','/staff/dashboard'], ['▣','Stock Management','/staff/stock-management'], ['□','Products','/staff/products'],
+        ['⌂','Dashboard','/staff/dashboard'], ['□','Products','/staff/products'],
         ['▤','POS Checkout','/staff/pos'], ['◇','Return & Damage','#'], ['⚙','Part Compatibility','/staff/compatibility'],
     ];
-$activeIndex = $isAdmin ? 6 : 4;
+$activeIndex = $isAdmin ? 6 : 3;
 $returnRoute = $isAdmin ? route('admin.returns.customer.store') : route('staff.returns.customer.store');
 $damageRoute = $isAdmin ? route('admin.returns.damage.store') : route('staff.returns.damage.store');
+$oldReceipt = $receipts->firstWhere('id', (int) old('sale_id'));
 @endphp
 <!DOCTYPE html>
 <html lang="en">
@@ -44,7 +45,7 @@ $damageRoute = $isAdmin ? route('admin.returns.damage.store') : route('staff.ret
             <div>
                 <p class="welcome">LIVE RETURNS, DAMAGES, AND REFUNDS</p>
                 <h1>Return &amp; Damage Management</h1>
-                <p>Record customer returns, remove damaged goods from sellable stock, and track replacement status.</p>
+                <p>Find the customer receipt first, then select the exact item that was sold.</p>
             </div>
         </header>
 
@@ -62,34 +63,55 @@ $damageRoute = $isAdmin ? route('admin.returns.damage.store') : route('staff.ret
         </section>
 
         <section class="returns-actions-grid">
-            <form class="panel return-form-card" method="POST" action="{{ $returnRoute }}">
+            <form class="panel return-form-card" method="POST" action="{{ $returnRoute }}" data-receipt-form data-form-kind="return">
                 @csrf
                 <div class="section-heading"><div><span class="section-kicker">CUSTOMER CASE</span><h2>Record Product Return</h2></div></div>
                 <div class="form-grid">
-                    <label>Product<select name="product_id" required><option value="">Select product</option>@foreach($products as $product)<option value="{{ $product->product_id }}">{{ $product->sku }} — {{ $product->name }}</option>@endforeach</select></label>
-                    <label>Sale ID optional<input name="sale_id" type="number" min="1" placeholder="Receipt / sale ID"></label>
-                    <label>Qty<input name="quantity" type="number" min="1" value="1" required></label>
-                    <label>Refund Amount<input name="refund_amount" type="number" step="0.01" min="0" value="0"></label>
-                    <label>Condition<select name="item_condition" required><option value="sellable">Sellable</option><option value="damaged">Damaged</option></select></label>
-                    <label>Status<select name="status" required><option value="approved">Approved</option><option value="pending">Pending</option><option value="rejected">Rejected</option></select></label>
-                    <label class="wide">Reason<input name="reason" maxlength="255" placeholder="Defective, wrong item, customer exchange..." required></label>
+                    <label class="wide">Customer Receipt
+                        <input type="search" list="customer-receipts" value="{{ $oldReceipt['label'] ?? '' }}" placeholder="Search receipt number, date, amount, or item" autocomplete="off" required data-receipt-search>
+                        <input type="hidden" name="sale_id" value="{{ old('sale_id') }}" data-receipt-id>
+                    </label>
+                    <div class="receipt-preview wide" data-receipt-preview hidden></div>
+                    <label class="wide">Product From This Receipt
+                        <select name="product_id" required disabled data-receipt-product data-old-value="{{ old('product_id') }}"><option value="">Select a receipt first</option></select>
+                    </label>
+                    <label>Qty<input name="quantity" type="number" min="1" value="{{ old('quantity', 1) }}" required data-item-quantity></label>
+                    <label>Refund Amount<input name="refund_amount" type="number" step="0.01" min="0" value="{{ old('refund_amount', 0) }}" data-refund-amount></label>
+                    <label>Condition<select name="item_condition" required><option value="sellable" @selected(old('item_condition') === 'sellable')>Sellable</option><option value="damaged" @selected(old('item_condition') === 'damaged')>Damaged</option></select></label>
+                    <label>Status<select name="status" required><option value="approved" @selected(old('status') === 'approved')>Approved</option><option value="pending" @selected(old('status') === 'pending')>Pending</option><option value="rejected" @selected(old('status') === 'rejected')>Rejected</option></select></label>
+                    <label class="wide">Reason<input name="reason" maxlength="255" value="{{ old('reason') }}" placeholder="Defective, wrong item, customer exchange..." required></label>
                 </div>
-                <button class="panel-action" type="submit" @disabled($products->isEmpty())>+ Save Product Return</button>
+                <button class="panel-action" type="submit" @disabled($receipts->isEmpty())>+ Save Product Return</button>
             </form>
 
-            <form class="panel return-form-card" method="POST" action="{{ $damageRoute }}">
+            <form class="panel return-form-card" method="POST" action="{{ $damageRoute }}" data-receipt-form data-form-kind="damage">
                 @csrf
-                <div class="section-heading"><div><span class="section-kicker">DAMAGE TRACKER</span><h2>Record Damaged Goods</h2></div></div>
+                <div class="section-heading"><div><span class="section-kicker">CUSTOMER DAMAGE TRACKER</span><h2>Record Damaged Receipt Item</h2></div></div>
                 <div class="form-grid">
-                    <label>Product<select name="product_id" required><option value="">Select product</option>@foreach($products as $product)<option value="{{ $product->product_id }}">{{ $product->sku }} — {{ $product->name }} ({{ $product->current_stock }})</option>@endforeach</select></label>
-                    <label>Qty<input name="quantity" type="number" min="1" value="1" required></label>
-                    <label>Replacement<select name="replacement_status" required><option value="pending">Pending</option><option value="ordered">Ordered</option><option value="replaced">Replaced</option><option value="not_replaceable">Not replaceable</option></select></label>
-                    <label>Status<select name="status" required><option value="reported">Reported</option><option value="reviewed">Reviewed</option><option value="disposed">Disposed</option></select></label>
-                    <label class="wide">Damage Reason<input name="damage_reason" maxlength="255" placeholder="Water damaged, broken packaging, shop damage..." required></label>
+                    <label class="wide">Customer Receipt
+                        <input type="search" list="customer-receipts" value="{{ $oldReceipt['label'] ?? '' }}" placeholder="Search receipt number, date, amount, or item" autocomplete="off" required data-receipt-search>
+                        <input type="hidden" name="sale_id" value="{{ old('sale_id') }}" data-receipt-id>
+                    </label>
+                    <div class="receipt-preview wide" data-receipt-preview hidden></div>
+                    <label class="wide">Product From This Receipt
+                        <select name="product_id" required disabled data-receipt-product data-old-value="{{ old('product_id') }}"><option value="">Select a receipt first</option></select>
+                    </label>
+                    <label>Qty<input name="quantity" type="number" min="1" value="{{ old('quantity', 1) }}" required data-item-quantity></label>
+                    <label>Replacement<select name="replacement_status" required><option value="pending" @selected(old('replacement_status') === 'pending')>Pending</option><option value="ordered" @selected(old('replacement_status') === 'ordered')>Ordered</option><option value="replaced" @selected(old('replacement_status') === 'replaced')>Replaced</option><option value="not_replaceable" @selected(old('replacement_status') === 'not_replaceable')>Not replaceable</option></select></label>
+                    <label>Status<select name="status" required><option value="reported" @selected(old('status') === 'reported')>Reported</option><option value="reviewed" @selected(old('status') === 'reviewed')>Reviewed</option><option value="disposed" @selected(old('status') === 'disposed')>Disposed</option></select></label>
+                    <label class="wide">Damage Reason<input name="damage_reason" maxlength="255" value="{{ old('damage_reason') }}" placeholder="Broken, defective, or damaged after purchase..." required></label>
                 </div>
-                <button class="panel-action" type="submit" @disabled($products->isEmpty())>+ Save Damage Log</button>
+                <p class="inventory-note">This documents an item already sold on the receipt. Current inventory will not be deducted again.</p>
+                <button class="panel-action" type="submit" @disabled($receipts->isEmpty())>+ Save Damage Log</button>
             </form>
         </section>
+
+        <datalist id="customer-receipts">
+            @foreach($receipts as $receipt)
+                <option value="{{ $receipt['label'] }}">{{ $receipt['cashier'] }} · {{ $receipt['items']->count() }} available item(s)</option>
+            @endforeach
+        </datalist>
+        <script type="application/json" id="receipt-selector-data">{!! json_encode($receipts, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!}</script>
 
         <section class="panel returns-panel">
             <div class="section-heading"><div><span class="section-kicker">CUSTOMER CASES</span><h2>Customer Returns</h2></div></div>
@@ -98,7 +120,7 @@ $damageRoute = $isAdmin ? route('admin.returns.damage.store') : route('staff.ret
                     <article class="case-card">
                         <div class="case-main">
                             <strong>{{ $return->product?->name ?? 'Deleted product' }}</strong>
-                            <small>Return #{{ $return->return_id }} @if($return->sale_id) | Sale #{{ $return->sale_id }} @endif | {{ $return->returned_at->format('M d, Y h:i A') }}</small>
+                            <small>Return #{{ $return->return_id }} @if($return->sale_id) | Receipt POS-{{ str_pad((string) $return->sale_id, 6, '0', STR_PAD_LEFT) }} @endif | {{ $return->returned_at->format('M d, Y h:i A') }}</small>
                             <div class="case-meta"><span>Qty: {{ $return->quantity }}</span><span>Reason: {{ $return->reason }}</span><span>Condition: {{ ucfirst($return->item_condition) }}</span></div>
                         </div>
                         <div class="case-side">
@@ -114,13 +136,13 @@ $damageRoute = $isAdmin ? route('admin.returns.damage.store') : route('staff.ret
         </section>
 
         <section class="panel returns-panel">
-            <div class="section-heading"><div><span class="section-kicker">INTERNAL DAMAGE TRACKER</span><h2>Damage Log</h2></div></div>
+            <div class="section-heading"><div><span class="section-kicker">CUSTOMER DAMAGE TRACKER</span><h2>Damage Log</h2></div></div>
             <div class="case-list">
                 @forelse($damageLogs as $log)
                     <article class="case-card">
                         <div class="case-main">
                             <strong>{{ $log->product?->name ?? 'Deleted product' }}</strong>
-                            <small>{{ $log->damage_reason }}</small>
+                            <small>@if($log->sale_id)Receipt POS-{{ str_pad((string) $log->sale_id, 6, '0', STR_PAD_LEFT) }} · @endif{{ $log->damage_reason }}</small>
                             <div class="case-meta"><span>Replacement Status: {{ ucfirst(str_replace('_', ' ', $log->replacement_status)) }}</span><span>Logged by: {{ $log->user?->name ?? 'System' }}</span></div>
                         </div>
                         <div class="case-side">

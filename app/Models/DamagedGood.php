@@ -14,6 +14,7 @@ class DamagedGood extends Model
 
     protected $fillable = [
         'product_id',
+        'sale_id',
         'user_id',
         'quantity',
         'damage_reason',
@@ -32,6 +33,11 @@ class DamagedGood extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class, 'product_id', 'product_id');
+    }
+
+    public function sale(): BelongsTo
+    {
+        return $this->belongsTo(SalesTransaction::class, 'sale_id', 'sale_id');
     }
 
     public function user(): BelongsTo

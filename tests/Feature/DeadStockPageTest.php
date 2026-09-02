@@ -84,13 +84,18 @@ class DeadStockPageTest extends TestCase
         $response->assertOk()
             ->assertSee('Old Engine Block')
             ->assertSee('Premium Exhaust')
-            ->assertDontSee('Fast Oil')
             ->assertSee('₱4,000.00')
             ->assertSee('1 units / month')
             ->assertSee('AI Dead Stock Score')
             ->assertSee('Dead Stock')
             ->assertSee('No POS sales recorded in the last 90 days')
-            ->assertSee('Apply clearance discount');
+            ->assertSee('Apply a targeted discount')
+            ->assertDontSee('Clearance sale');
+
+        $response->assertViewHas('riskItems', fn ($items) => $items
+            ->contains(fn ($item) => $item['product_id'] === $deadProduct->product_id)
+            && $items->contains(fn ($item) => $item['product_id'] === $slowProduct->product_id)
+            && ! $items->contains(fn ($item) => $item['product_id'] === $healthyProduct->product_id));
     }
 
     public function test_at_risk_inventory_is_searchable_filtered_and_paginated(): void
@@ -115,7 +120,8 @@ class DeadStockPageTest extends TestCase
         $this->actingAs($admin)->get(route('admin.dead-stock', ['search' => 'DEAD-035']))
             ->assertOk()
             ->assertSee('Dead Product 35')
-            ->assertDontSee('Dead Product 34');
+            ->assertViewHas('riskItems', fn ($items) => $items->total() === 1
+                && $items->first()['product_id'] === Product::where('sku', 'DEAD-035')->value('product_id'));
     }
 
     public function test_admin_can_approve_replace_and_end_a_dead_stock_offer(): void
@@ -145,7 +151,7 @@ class DeadStockPageTest extends TestCase
 
         $this->actingAs($admin)
             ->post(route('admin.dead-stock.promotions.apply', $product), [
-                'action_type' => 'clearance',
+                'action_type' => 'discount',
                 'discount_percent' => 30,
             ])
             ->assertRedirect();
@@ -153,7 +159,7 @@ class DeadStockPageTest extends TestCase
         $this->assertSame('ended', $promotion->fresh()->status);
         $this->assertDatabaseHas('product_promotions', [
             'product_id' => $product->product_id,
-            'action_type' => 'clearance',
+            'action_type' => 'discount',
             'discount_percent' => 30,
             'promotional_price' => 700,
             'status' => 'active',
@@ -169,22 +175,60 @@ class DeadStockPageTest extends TestCase
         ]);
     }
 
-    public function test_promo_bundle_requires_owner_entered_bundle_details(): void
+    public function test_clearance_sale_cannot_be_created_from_dead_stock(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $product = Product::create([
+            'sku' => 'NO-CLEARANCE-01', 'name' => 'No Clearance Product',
+            'unit_price' => 500, 'current_stock' => 5,
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('admin.dead-stock.promotions.apply', $product), [
+                'action_type' => 'clearance',
+                'discount_percent' => 30,
+            ])
+            ->assertSessionHasErrors('action_type');
+
+        $this->assertDatabaseCount('product_promotions', 0);
+    }
+
+    public function test_promo_bundle_requires_a_searchable_inventory_product_and_sets_zero_pos_value(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);
         $product = Product::create([
             'sku' => 'BUNDLE-DEAD-01', 'name' => 'Bundle Candidate',
             'unit_price' => 500, 'current_stock' => 5,
         ]);
+        $companion = Product::create([
+            'sku' => 'BUNDLE-OIL-01', 'name' => 'Bundle Engine Oil',
+            'unit_price' => 250, 'current_stock' => 10,
+        ]);
+
+        $this->actingAs($admin)->get(route('admin.dead-stock'))
+            ->assertOk()
+            ->assertSee('Bundle Engine Oil')
+            ->assertSee('bundle-product-options');
 
         $this->actingAs($admin)
             ->post(route('admin.dead-stock.promotions.apply', $product), [
                 'action_type' => 'promo_bundle',
-                'discount_percent' => 10,
             ])
-            ->assertSessionHasErrors('bundle_note');
+            ->assertSessionHasErrors('bundle_product_id');
 
         $this->assertDatabaseCount('product_promotions', 0);
+
+        $this->actingAs($admin)
+            ->post(route('admin.dead-stock.promotions.apply', $product), [
+                'action_type' => 'promo_bundle',
+                'bundle_product_id' => $companion->product_id,
+            ])
+            ->assertRedirect();
+
+        $promotion = ProductPromotion::firstOrFail();
+        $this->assertSame($companion->product_id, $promotion->bundle_product_id);
+        $this->assertSame('0.00', $promotion->promotional_price);
+        $this->assertSame('100.00', $promotion->discount_percent);
     }
 
     public function test_admin_cannot_promote_a_product_the_latest_scan_marks_healthy(): void
@@ -219,6 +263,61 @@ class DeadStockPageTest extends TestCase
             ->assertSessionHasErrors('promotion');
 
         $this->assertDatabaseCount('product_promotions', 0);
+    }
+
+    public function test_admin_can_archive_and_restore_dead_stock_without_changing_inventory_or_pos(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $staff = User::factory()->create(['role' => 'staff']);
+        $product = Product::create([
+            'sku' => 'ARCHIVE-DEAD-01', 'name' => 'Archived Dead Part',
+            'unit_cost' => 200, 'unit_price' => 350, 'current_stock' => 5, 'reorder_level' => 5,
+        ]);
+
+        $this->actingAs($admin)->patch(route('admin.dead-stock.archive', $product), [
+            'archive_note' => 'Recovery action documented; hide from the working queue.',
+        ])->assertRedirect()->assertSessionHas('success');
+
+        $product->refresh();
+        $this->assertNotNull($product->dead_stock_archived_at);
+        $this->assertSame($admin->id, $product->dead_stock_archived_by);
+        $this->assertSame(5, $product->current_stock);
+        $this->assertTrue($product->is_active);
+
+        $this->actingAs($admin)->get(route('admin.dead-stock'))
+            ->assertOk()
+            ->assertViewHas('riskItems', fn ($items) => ! $items->contains(fn ($item) => $item['product_id'] === $product->product_id));
+
+        $this->actingAs($admin)->get(route('admin.dead-stock', ['status' => 'archived']))
+            ->assertOk()
+            ->assertSee('Archived Dead-Stock Items')
+            ->assertSee('Recovery action documented')
+            ->assertSee('Restore to active queue')
+            ->assertViewHas('riskItems', fn ($items) => $items->contains(fn ($item) => $item['product_id'] === $product->product_id));
+
+        $this->actingAs($staff)->get(route('staff.pos'))
+            ->assertOk()
+            ->assertViewHas('products', fn ($products) => $products->contains(fn ($item) => $item['id'] === $product->product_id));
+
+        $this->actingAs($admin)->patch(route('admin.dead-stock.restore', $product))
+            ->assertRedirect(route('admin.dead-stock'));
+
+        $this->assertNull($product->fresh()->dead_stock_archived_at);
+        $this->actingAs($admin)->get(route('admin.dead-stock'))
+            ->assertViewHas('riskItems', fn ($items) => $items->contains(fn ($item) => $item['product_id'] === $product->product_id));
+    }
+
+    public function test_staff_cannot_archive_or_restore_dead_stock(): void
+    {
+        $staff = User::factory()->create(['role' => 'staff']);
+        $product = Product::create([
+            'sku' => 'ARCHIVE-PROTECTED-01', 'name' => 'Archive Protected Part',
+            'unit_price' => 350, 'current_stock' => 5,
+        ]);
+
+        $this->actingAs($staff)->patch(route('admin.dead-stock.archive', $product))->assertForbidden();
+        $this->actingAs($staff)->patch(route('admin.dead-stock.restore', $product))->assertForbidden();
+        $this->assertNull($product->fresh()->dead_stock_archived_at);
     }
 
     public function test_staff_cannot_manage_dead_stock_offers(): void

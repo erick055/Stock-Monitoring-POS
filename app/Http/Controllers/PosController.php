@@ -21,7 +21,7 @@ class PosController extends Controller
     public function index(): View
     {
         $sourceProducts = Product::query()
-            ->with('activePromotion')
+            ->with('activePromotion.bundleProduct')
             ->where('is_active', true)
             ->where('current_stock', '>', 0)
             ->orderBy('category')
@@ -48,9 +48,15 @@ class PosController extends Controller
                     'label' => $product->activePromotion->action_label,
                     'discount' => (float) $product->activePromotion->discount_percent,
                     'bundleNote' => $product->activePromotion->bundle_note,
+                    'bundleProduct' => $product->activePromotion->bundleProduct ? [
+                        'id' => $product->activePromotion->bundleProduct->product_id,
+                        'name' => $product->activePromotion->bundleProduct->name,
+                        'sku' => $product->activePromotion->bundleProduct->sku,
+                    ] : null,
                 ] : null,
                 'category' => $categoryLabels[$categoryKey],
                 'categoryKey' => $categoryKey,
+                'shelfLocation' => $product->shelf_location,
                 'stock' => $product->current_stock,
             ];
         });
@@ -102,6 +108,7 @@ class PosController extends Controller
             'items' => ['required', 'array', 'min:1'],
             'items.*.product_id' => ['required', Rule::exists('products', 'product_id')->where('is_active', true)],
             'items.*.quantity' => ['required', 'integer', 'min:1'],
+            'labor_amount' => ['nullable', 'numeric', 'min:0', 'max:9999999999.99'],
         ]);
 
         $heldOrder = DB::transaction(function () use ($validated, $request) {
@@ -110,6 +117,8 @@ class PosController extends Controller
                 ->whereIn('product_id', collect($validated['items'])->pluck('product_id'))
                 ->get()
                 ->keyBy('product_id');
+
+            $this->ensureBundleComposition($products, $validated['items']);
 
             foreach ($validated['items'] as $item) {
                 $product = $products->get($item['product_id']);
@@ -123,6 +132,7 @@ class PosController extends Controller
 
             $heldOrder = HeldOrder::create([
                 'staff_id' => $request->user()->id,
+                'labor_amount' => round((float) ($validated['labor_amount'] ?? 0), 2),
                 'status' => 'held',
                 'held_at' => now(),
             ]);
@@ -168,12 +178,22 @@ class PosController extends Controller
             'items.*.quantity' => ['required', 'integer', 'min:1'],
             'payment_method' => ['nullable', 'string', 'max:50'],
             'held_order_id' => ['nullable', 'integer', 'exists:held_orders,held_order_id'],
+            'labor_amount' => ['nullable', 'numeric', 'min:0', 'max:9999999999.99'],
         ]);
 
         $sale = DB::transaction(function () use ($validated, $request) {
             $subtotal = 0;
             $saleItems = [];
             $heldOrder = null;
+
+            $products = Product::query()
+                ->with('activePromotion')
+                ->whereIn('product_id', collect($validated['items'])->pluck('product_id'))
+                ->lockForUpdate()
+                ->get()
+                ->keyBy('product_id');
+
+            $this->ensureBundleComposition($products, $validated['items']);
 
             if (! empty($validated['held_order_id'])) {
                 $heldOrder = HeldOrder::query()->lockForUpdate()->findOrFail($validated['held_order_id']);
@@ -184,13 +204,12 @@ class PosController extends Controller
             }
 
             foreach ($validated['items'] as $cartItem) {
-                $product = Product::query()->lockForUpdate()->findOrFail($cartItem['product_id']);
-                $product->load('activePromotion');
+                $product = $products->get($cartItem['product_id']);
                 $quantity = (int) $cartItem['quantity'];
 
-                if ($product->current_stock < $quantity) {
+                if (! $product || $product->current_stock < $quantity) {
                     throw ValidationException::withMessages([
-                        'items' => "{$product->name} only has {$product->current_stock} stock left.",
+                        'items' => ($product?->name ?? 'A selected product').' no longer has enough stock.',
                     ]);
                 }
 
@@ -210,12 +229,14 @@ class PosController extends Controller
             }
 
             $tax = round($subtotal * 0.12, 2);
-            $total = round($subtotal + $tax, 2);
+            $labor = round((float) ($validated['labor_amount'] ?? 0), 2);
+            $total = round($subtotal + $tax + $labor, 2);
 
             $sale = SalesTransaction::create([
                 'staff_id' => $request->user()->id,
                 'subtotal' => $subtotal,
                 'tax_amount' => $tax,
+                'labor_amount' => $labor,
                 'total_sale_amount' => $total,
                 'payment_status' => 'paid',
                 'payment_method' => $validated['payment_method'] ?? 'cash',
@@ -267,6 +288,7 @@ class PosController extends Controller
                 'payment_method' => ucfirst($sale->payment_method),
                 'subtotal' => (float) $sale->subtotal,
                 'tax' => (float) $sale->tax_amount,
+                'labor' => (float) $sale->labor_amount,
                 'total' => (float) $sale->total_sale_amount,
                 'items' => $sale->items->map(fn (SalesItem $item) => [
                     'name' => $item->product->name,
@@ -277,6 +299,31 @@ class PosController extends Controller
                 ])->values(),
             ],
         ], 201);
+    }
+
+    private function ensureBundleComposition($products, array $items): void
+    {
+        $quantities = collect($items)
+            ->groupBy('product_id')
+            ->map(fn ($lines) => $lines->sum('quantity'));
+
+        foreach ($products as $product) {
+            $promotion = $product->activePromotion;
+            if (! $promotion || $promotion->action_type !== 'promo_bundle' || ! $promotion->bundle_product_id) {
+                continue;
+            }
+
+            $freeQuantity = (int) ($quantities[$product->product_id] ?? 0);
+            $companionQuantity = (int) ($quantities[$promotion->bundle_product_id] ?? 0);
+
+            if ($companionQuantity < $freeQuantity) {
+                $companion = Product::query()->find($promotion->bundle_product_id);
+                throw ValidationException::withMessages([
+                    'items' => "{$product->name} is free only when bundled with "
+                        .($companion?->name ?? 'its selected companion product').'.',
+                ]);
+            }
+        }
     }
 
     private function holdNumber(HeldOrder $heldOrder): string
@@ -291,7 +338,12 @@ class PosController extends Controller
             'number' => $this->holdNumber($heldOrder),
             'date' => $heldOrder->held_at->format('M d, Y h:i A'),
             'cashier' => $heldOrder->staff?->name ?? 'Former staff',
-            'total' => (float) $heldOrder->items->sum(fn (HeldOrderItem $item) => $item->quantity * (float) $item->unit_price),
+            'labor' => (float) $heldOrder->labor_amount,
+            'total' => round(
+                (float) $heldOrder->items->sum(fn (HeldOrderItem $item) => $item->quantity * (float) $item->unit_price) * 1.12
+                + (float) $heldOrder->labor_amount,
+                2
+            ),
             'cancel_url' => route('staff.pos.holds.cancel', $heldOrder),
             'items' => $heldOrder->items->map(fn (HeldOrderItem $item) => [
                 'product_id' => $item->product_id,

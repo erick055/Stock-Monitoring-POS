@@ -4,6 +4,7 @@ use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\CompatibilityController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DeadStockController;
 use App\Http\Controllers\LowStocksController;
 use App\Http\Controllers\PosController;
@@ -42,12 +43,15 @@ Route::middleware('auth')->group(function () {
 });
 
 Route::middleware(['auth', 'verified', 'role:admin'])->group(function () {
-    Route::view('/admin/dashboard', 'admin.dashboard')->name('admin.dashboard');
+    Route::get('/admin/dashboard', [DashboardController::class, 'admin'])->name('admin.dashboard');
     Route::get('/admin/inventory', [StockManagementController::class, 'index'])->name('admin.inventory');
     Route::post('/admin/inventory/products', [StockManagementController::class, 'storeProduct'])->name('admin.inventory.products.store');
+    Route::patch('/admin/inventory/products/{product}/shelf-location', [StockManagementController::class, 'updateShelfLocation'])->name('admin.inventory.products.shelf-location');
+    Route::delete('/admin/inventory/products/{product}', [StockManagementController::class, 'destroyProduct'])->middleware('throttle:5,1')->name('admin.inventory.products.destroy');
     Route::post('/admin/inventory/movements', [StockManagementController::class, 'storeMovement'])->name('admin.inventory.movements.store');
     Route::get('/admin/products', [ProductsController::class, 'index'])->name('admin.products');
     Route::get('/admin/analytics', [AnalyticsController::class, 'index'])->name('admin.analytics');
+    Route::get('/admin/analytics/export/excel', [AnalyticsController::class, 'export'])->middleware('throttle:10,1')->name('admin.analytics.export');
     Route::get('/admin/low-stocks', [LowStocksController::class, 'index'])->name('admin.low-stocks');
     Route::post('/admin/low-stocks/settings', [LowStocksController::class, 'updateSettings'])->name('admin.low-stocks.settings');
     Route::post('/admin/low-stocks/run-now', [LowStocksController::class, 'runNow'])->name('admin.low-stocks.run-now');
@@ -55,6 +59,8 @@ Route::middleware(['auth', 'verified', 'role:admin'])->group(function () {
     Route::get('/admin/dead-stock', [DeadStockController::class, 'index']);
     Route::post('/admin/dead-stock/{product}/promotions', [DeadStockController::class, 'applyPromotion'])->name('admin.dead-stock.promotions.apply');
     Route::delete('/admin/dead-stock/{product}/promotions', [DeadStockController::class, 'endPromotion'])->name('admin.dead-stock.promotions.end');
+    Route::patch('/admin/dead-stock/{product}/archive', [DeadStockController::class, 'archive'])->name('admin.dead-stock.archive');
+    Route::patch('/admin/dead-stock/{product}/restore', [DeadStockController::class, 'restore'])->name('admin.dead-stock.restore');
     Route::get('/admin/returns', [ReturnsController::class, 'index'])->name('admin.returns');
     Route::post('/admin/returns/customer', [ReturnsController::class, 'storeReturn'])->name('admin.returns.customer.store');
     Route::post('/admin/returns/damage', [ReturnsController::class, 'storeDamage'])->name('admin.returns.damage.store');
@@ -62,16 +68,16 @@ Route::middleware(['auth', 'verified', 'role:admin'])->group(function () {
     Route::post('/admin/suppliers/imports', [SupplierPriceController::class, 'upload'])->name('admin.suppliers.imports.upload');
     Route::post('/admin/suppliers/imports/{supplierImport}/approve', [SupplierPriceController::class, 'approve'])->name('admin.suppliers.imports.approve');
     Route::post('/admin/suppliers/imports/{supplierImport}/reject', [SupplierPriceController::class, 'reject'])->name('admin.suppliers.imports.reject');
-    Route::delete('/admin/suppliers/data', [SupplierPriceController::class, 'purge'])->name('admin.suppliers.purge');
+    Route::patch('/admin/suppliers/prices/{supplierPrice}/match', [SupplierPriceController::class, 'matchProduct'])->name('admin.suppliers.prices.match');
+    Route::patch('/admin/suppliers/prices/{supplierPrice}/apply-cost', [SupplierPriceController::class, 'applyCost'])->name('admin.suppliers.prices.apply-cost');
+    Route::post('/admin/suppliers/prices/{supplierPrice}/create-product', [SupplierPriceController::class, 'createProduct'])->name('admin.suppliers.prices.create-product');
+    Route::delete('/admin/suppliers/data', [SupplierPriceController::class, 'purge'])->middleware('throttle:5,1')->name('admin.suppliers.purge');
     Route::get('/admin/compatibility', [CompatibilityController::class, 'index'])->name('admin.compatibility');
     Route::post('/admin/compatibility/ai-recommendations', [CompatibilityController::class, 'index'])->middleware('throttle:3,1')->name('admin.compatibility.ai');
 });
 
 Route::middleware(['auth', 'verified', 'role:staff'])->group(function () {
-    Route::view('/staff/dashboard', 'staff.dashboard')->name('staff.dashboard');
-    Route::get('/staff/stock-management', [StockManagementController::class, 'index'])->name('staff.stock-management');
-    Route::post('/staff/stock-management/products', [StockManagementController::class, 'storeProduct'])->name('staff.inventory.products.store');
-    Route::post('/staff/stock-management/movements', [StockManagementController::class, 'storeMovement'])->name('staff.inventory.movements.store');
+    Route::get('/staff/dashboard', [DashboardController::class, 'staff'])->name('staff.dashboard');
     Route::get('/staff/products', [ProductsController::class, 'index'])->name('staff.products');
     Route::get('/staff/pos', [PosController::class, 'index'])->name('staff.pos');
     Route::post('/staff/pos/checkout', [PosController::class, 'store'])->name('staff.pos.checkout');

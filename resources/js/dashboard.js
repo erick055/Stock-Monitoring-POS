@@ -32,3 +32,22 @@ if (menu && sidebar) {
         if (window.innerWidth > 900) setOpen(false);
     });
 }
+
+const dashboard = document.querySelector('[data-dashboard]');
+const refreshButton = document.querySelector('[data-dashboard-refresh]');
+
+refreshButton?.addEventListener('click', () => {
+    refreshButton.classList.add('refreshing');
+    window.location.reload();
+});
+
+if (dashboard) {
+    const refreshMs = Number(dashboard.dataset.refreshMs || 0);
+    if (refreshMs >= 30000) {
+        window.setInterval(() => {
+            if (document.visibilityState === 'visible' && !document.querySelector('input:focus, textarea:focus, select:focus')) {
+                window.location.reload();
+            }
+        }, refreshMs);
+    }
+}

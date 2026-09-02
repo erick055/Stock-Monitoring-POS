@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\User;
 use Illuminate\Auth\Events\Verified;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\URL;
 use Tests\TestCase;
@@ -63,6 +64,34 @@ class AuthenticationTest extends TestCase
         ])->assertRedirect(route('staff.dashboard'));
 
         $this->assertAuthenticated();
+    }
+
+    public function test_remembered_login_sets_a_persistent_browser_cookie(): void
+    {
+        User::factory()->create([
+            'email' => 'remember@example.com',
+            'role' => 'admin',
+            'password' => self::STRONG_PASSWORD,
+        ]);
+
+        $response = $this->post('/login', [
+            'email' => 'remember@example.com',
+            'password' => self::STRONG_PASSWORD,
+            'remember' => '1',
+        ]);
+
+        $response->assertRedirect(route('admin.dashboard'))
+            ->assertCookie(Auth::guard()->getRecallerName());
+        $this->assertAuthenticated();
+    }
+
+    public function test_logged_in_browser_is_redirected_to_its_account_dashboard(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $staff = User::factory()->create(['role' => 'staff']);
+
+        $this->actingAs($admin)->get('/')->assertRedirect(route('admin.dashboard'));
+        $this->actingAs($staff)->get('/')->assertRedirect(route('staff.dashboard'));
     }
 
     public function test_login_is_throttled_after_five_failed_attempts(): void

@@ -9,6 +9,8 @@ if (posApp) {
     const cartContainer = posApp.querySelector('[data-cart-items]');
     const subtotalNode = posApp.querySelector('[data-subtotal]');
     const taxNode = posApp.querySelector('[data-tax]');
+    const laborInput = posApp.querySelector('[data-labor-amount]');
+    const laborTotalNode = posApp.querySelector('[data-labor-total]');
     const totalNode = posApp.querySelector('[data-total]');
     const payTotalNode = posApp.querySelector('[data-pay-total]');
     const toast = document.querySelector('[data-pos-toast]');
@@ -53,6 +55,10 @@ if (posApp) {
         receiptModal.querySelector('[data-receipt-cashier]').textContent = `Cashier: ${receipt.cashier}`;
         receiptModal.querySelector('[data-receipt-subtotal]').textContent = peso(receipt.subtotal);
         receiptModal.querySelector('[data-receipt-tax]').textContent = peso(receipt.tax);
+        const labor = Number(receipt.labor) || 0;
+        const laborRow = receiptModal.querySelector('[data-receipt-labor-row]');
+        laborRow.hidden = labor <= 0;
+        receiptModal.querySelector('[data-receipt-labor]').textContent = peso(labor);
         receiptModal.querySelector('[data-receipt-total]').textContent = peso(receipt.total);
         receiptModal.querySelector('[data-receipt-print]').href = receipt.url;
 
@@ -140,6 +146,7 @@ if (posApp) {
             return [{ ...product, qty: Math.min(item.quantity, product.stock) }];
         });
 
+        laborInput.value = hold.labor > 0 ? hold.labor.toFixed(2) : '';
         activeHeldOrderId = hold.id;
         renderCart();
         renderHeldOrders();
@@ -166,6 +173,7 @@ if (posApp) {
             if (activeHeldOrderId === hold.id) {
                 activeHeldOrderId = null;
                 cart = [];
+                laborInput.value = '';
                 renderCart();
             }
             renderHeldOrders();
@@ -231,7 +239,7 @@ if (posApp) {
         const query = (searchInput?.value || '').trim().toLowerCase();
         const filtered = products.filter((product) => {
             const categoryMatch = currentCategory === 'All' || product.categoryKey === currentCategory;
-            const queryMatch = !query || `${product.name} ${product.sku || ''} ${product.category}`.toLowerCase().includes(query);
+            const queryMatch = !query || `${product.name} ${product.sku || ''} ${product.category} ${product.shelfLocation || ''}`.toLowerCase().includes(query);
             return categoryMatch && queryMatch;
         });
 
@@ -242,10 +250,10 @@ if (posApp) {
             card.className = 'product-card';
             card.innerHTML = `
                 <div class="product-meta">
-                    <small>${product.category} · ${product.stock} in stock</small>
+                    <small>${product.category} · ${product.stock} in stock${product.shelfLocation ? ` · Shelf ${product.shelfLocation}` : ''}</small>
                     <div class="product-title">${product.name}</div>
                 </div>
-                <div class="product-price">${product.promotion ? `<small class="regular-price">${peso(product.basePrice)}</small><span>${peso(product.price)}</span><em>${product.promotion.label} · ${product.promotion.discount}% off</em>` : peso(product.price)}</div>
+                <div class="product-price">${product.promotion ? `<small class="regular-price">${peso(product.basePrice)}</small><span>${peso(product.price)}</span><em>${product.promotion.bundleProduct ? `Free with ${product.promotion.bundleProduct.name}` : `${product.promotion.label} · ${product.promotion.discount}% off`}</em>` : peso(product.price)}</div>
             `;
             card.addEventListener('click', () => addToCart(product));
             grid.appendChild(card);
@@ -257,7 +265,7 @@ if (posApp) {
         const query = (searchInput?.value || '').trim().toLowerCase();
         const filtered = products.filter((product) => {
             const categoryMatch = currentCategory === 'All' || product.categoryKey === currentCategory;
-            const queryMatch = !query || `${product.name} ${product.sku || ''} ${product.category}`.toLowerCase().includes(query);
+            const queryMatch = !query || `${product.name} ${product.sku || ''} ${product.category} ${product.shelfLocation || ''}`.toLowerCase().includes(query);
             return categoryMatch && queryMatch;
         });
 
@@ -303,7 +311,7 @@ if (posApp) {
                 const meta = document.createElement('div');
                 meta.className = 'product-meta';
                 const stock = document.createElement('small');
-                stock.textContent = `${product.stock} in stock`;
+                stock.textContent = `${product.stock} in stock${product.shelfLocation ? ` · Shelf ${product.shelfLocation}` : ''}`;
                 const productTitle = document.createElement('div');
                 productTitle.className = 'product-title';
                 productTitle.textContent = product.name;
@@ -318,7 +326,9 @@ if (posApp) {
                     const promoPrice = document.createElement('span');
                     promoPrice.textContent = peso(product.price);
                     const promoBadge = document.createElement('em');
-                    promoBadge.textContent = `${product.promotion.label} · ${product.promotion.discount}% off`;
+                    promoBadge.textContent = product.promotion.bundleProduct
+                        ? `Free with ${product.promotion.bundleProduct.name}`
+                        : `${product.promotion.label} · ${product.promotion.discount}% off`;
                     price.append(regularPrice, promoPrice, promoBadge);
                 } else {
                     price.textContent = peso(product.price);
@@ -339,11 +349,23 @@ if (posApp) {
         });
     }
 
+    function laborAmount() {
+        const amount = Number.parseFloat(laborInput?.value || '0');
+
+        return Number.isFinite(amount) && amount > 0 ? Math.round(amount * 100) / 100 : 0;
+    }
+
+    function currentSubtotal() {
+        return cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+    }
+
     function updateTotals(subtotal) {
         const tax = subtotal * 0.12;
-        const total = subtotal + tax;
+        const labor = laborAmount();
+        const total = subtotal + tax + labor;
         subtotalNode.textContent = peso(subtotal);
         taxNode.textContent = peso(tax);
+        laborTotalNode.textContent = peso(labor);
         totalNode.textContent = peso(total);
         payTotalNode.textContent = peso(total);
     }
@@ -388,15 +410,27 @@ if (posApp) {
     }
 
     function addToCart(product) {
-        const existing = cart.find((item) => item.id === product.id);
-        if (existing) {
-            if (existing.qty >= product.stock) {
-                showToast(`Only ${product.stock} stock available for ${product.name}.`);
-                return;
-            }
-            existing.qty += 1;
-        } else {
-            cart.push({ ...product, qty: 1 });
+        const companionId = product.promotion?.bundleProduct?.id;
+        const companion = companionId ? products.find((entry) => entry.id === companionId) : null;
+        const additions = companion ? [companion, product] : [product];
+
+        const unavailable = additions.find((entry) => {
+            const existing = cart.find((item) => item.id === entry.id);
+            return (existing?.qty || 0) >= entry.stock;
+        });
+        if (unavailable) {
+            showToast(`Only ${unavailable.stock} stock available for ${unavailable.name}.`);
+            return;
+        }
+
+        additions.forEach((entry) => {
+            const existing = cart.find((item) => item.id === entry.id);
+            if (existing) existing.qty += 1;
+            else cart.push({ ...entry, qty: 1 });
+        });
+
+        if (companion) {
+            showToast(`${product.name} added free with ${companion.name}.`);
         }
         renderCart();
     }
@@ -404,13 +438,35 @@ if (posApp) {
     function changeQty(id, delta) {
         const item = cart.find((entry) => entry.id === id);
         if (!item) return;
+
+        const companionId = item.promotion?.bundleProduct?.id;
+        const companion = companionId ? cart.find((entry) => entry.id === companionId) : null;
         if (delta > 0 && item.qty >= item.stock) {
             showToast(`Only ${item.stock} stock available for ${item.name}.`);
             return;
         }
+        if (delta > 0 && companion && companion.qty >= companion.stock) {
+            showToast(`Only ${companion.stock} stock available for ${companion.name}.`);
+            return;
+        }
+
+        if (delta < 0 && !companionId) {
+            const requiredByBundles = cart
+                .filter((entry) => entry.promotion?.bundleProduct?.id === item.id)
+                .reduce((sum, entry) => sum + entry.qty, 0);
+            if ((item.qty + delta) < requiredByBundles) {
+                showToast(`${item.name} is required by an active promo bundle.`);
+                return;
+            }
+        }
+
         item.qty += delta;
+        if (companion) companion.qty += delta;
         if (item.qty <= 0) {
             cart = cart.filter((entry) => entry.id !== id);
+        }
+        if (companion && companion.qty <= 0) {
+            cart = cart.filter((entry) => entry.id !== companion.id);
         }
         renderCart();
     }
@@ -425,14 +481,21 @@ if (posApp) {
     });
 
     searchInput?.addEventListener('input', renderProducts);
+    laborInput?.addEventListener('input', () => updateTotals(currentSubtotal()));
+    laborInput?.addEventListener('blur', () => {
+        laborInput.value = laborAmount() > 0 ? laborAmount().toFixed(2) : '';
+        updateTotals(currentSubtotal());
+    });
     posApp.querySelector('[data-clear-cart]')?.addEventListener('click', () => {
         cart = [];
+        laborInput.value = '';
         renderCart();
         showToast('Order cleared in UI preview.');
     });
     holdButton?.addEventListener('click', async () => {
         if (activeHeldOrderId) {
             cart = [];
+            laborInput.value = '';
             activeHeldOrderId = null;
             renderCart();
             renderHeldOrders();
@@ -455,6 +518,7 @@ if (posApp) {
                     'X-CSRF-TOKEN': csrfToken,
                 },
                 body: JSON.stringify({
+                    labor_amount: laborAmount(),
                     items: cart.map((item) => ({ product_id: item.id, quantity: item.qty })),
                 }),
             });
@@ -465,6 +529,7 @@ if (posApp) {
             }
             heldOrders.unshift(payload.hold);
             cart = [];
+            laborInput.value = '';
             renderCart();
             renderHeldOrders();
             showToast(payload.message);
@@ -500,6 +565,7 @@ if (posApp) {
                 body: JSON.stringify({
                     payment_method: 'cash',
                     held_order_id: activeHeldOrderId,
+                    labor_amount: laborAmount(),
                     items: cart.map((item) => ({ product_id: item.id, quantity: item.qty })),
                 }),
             });
@@ -515,6 +581,7 @@ if (posApp) {
             });
             renderProducts();
             cart = [];
+            laborInput.value = '';
             if (activeHeldOrderId) {
                 heldOrders = heldOrders.filter((hold) => hold.id !== activeHeldOrderId);
                 activeHeldOrderId = null;

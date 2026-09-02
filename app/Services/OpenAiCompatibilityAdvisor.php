@@ -77,11 +77,21 @@ class OpenAiCompatibilityAdvisor
                     ]];
                 }
 
-                $response = Http::withToken(config('openai.api_key'))
+                $caBundle = config('openai.ca_bundle');
+                $http = Http::withToken(config('openai.api_key'))
                     ->acceptJson()
                     ->timeout(config('openai.timeout', 30))
-                    ->retry(2, 500, throw: false)
-                    ->post(rtrim(config('openai.base_url'), '/').'/responses', $payload);
+                    ->retry(2, 500, throw: false);
+
+                if (is_string($caBundle) && $caBundle !== '') {
+                    if (! is_readable($caBundle)) {
+                        throw new RuntimeException("The configured OpenAI CA bundle is not readable: {$caBundle}");
+                    }
+
+                    $http = $http->withOptions(['verify' => $caBundle]);
+                }
+
+                $response = $http->post(rtrim(config('openai.base_url'), '/').'/responses', $payload);
 
                 if (! $response->successful()) {
                     $errorCode = (string) $response->json('error.code', 'unknown_error');

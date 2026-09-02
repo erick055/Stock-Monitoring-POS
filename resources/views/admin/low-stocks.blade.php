@@ -119,7 +119,7 @@ $navigation = [
                         <input type="hidden" name="email_enabled" value="0"><input name="email_enabled" value="1" type="checkbox" @checked($settings->email_enabled)>
                     </label>
                     <label class="setting-card">
-                        <span>SMS Alerts</span><small>Send urgent alerts through {{ $smsStatus }}</small>
+                        <span>SMS Alerts</span><small>{{ $smsStatus }}</small>
                         <input type="hidden" name="sms_enabled" value="0"><input name="sms_enabled" value="1" type="checkbox" @checked($settings->sms_enabled)>
                     </label>
                     <label class="setting-card">

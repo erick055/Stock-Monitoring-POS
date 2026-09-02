@@ -5,9 +5,11 @@ $navigation = $isAdmin ? [
     ['⌁','Analytics','/admin/analytics'], ['!','Low Stock Alerts','/admin/low-stocks'], ['@','Dead Stock','/admin/deadstock'],
     ['◇','Returns & Damages','/admin/returns'], ['♙','Supplier Price','/admin/suppliers'], ['⚙','Part Compatibility','/admin/compatibility'],
 ] : [
-    ['⌂','Dashboard','/staff/dashboard'], ['▣','Stock Management','/staff/stock-management'], ['□','Products','/staff/products'],
+    ['⌂','Dashboard','/staff/dashboard'], ['□','Products','/staff/products'],
     ['▤','POS Checkout','/staff/pos'], ['◇','Return & Damage','/staff/returns'], ['⚙','Part Compatibility','/staff/compatibility'],
 ];
+$activeIndex = $isAdmin ? 2 : 1;
+$productDetailRecords = [];
 @endphp
 <!DOCTYPE html>
 <html lang="en">
@@ -23,7 +25,7 @@ $navigation = $isAdmin ? [
         <div class="sidebar-brand"><span class="logo-mark">M</span><div><strong>MotoSync</strong><small>Pareng RJJ Motorcycle Parts</small></div></div>
         <nav class="nav-list" aria-label="{{ $isAdmin ? 'Administrator' : 'Staff' }} navigation">
             @foreach($navigation as $index => $item)
-                <a class="nav-link {{ $index === 2 ? 'active' : '' }}" href="{{ $item[2] === '#' ? '#' : url($item[2]) }}"><span>{{ $item[0] }}</span><span>{{ $item[1] }}</span></a>
+                <a class="nav-link {{ $index === $activeIndex ? 'active' : '' }}" href="{{ $item[2] === '#' ? '#' : url($item[2]) }}"><span>{{ $item[0] }}</span><span>{{ $item[1] }}</span></a>
             @endforeach
         </nav>
         <div class="sidebar-user">
@@ -43,7 +45,7 @@ $navigation = $isAdmin ? [
         <section class="stat-grid product-stats" aria-label="Product summary">
             <article class="stat-card purple"><div class="stat-head"><span>TOTAL PRODUCTS</span><span class="trend-dot"></span></div><strong>{{ number_format($summary['total_products']) }}</strong><small>Active catalog items</small></article>
             <article class="stat-card violet"><div class="stat-head"><span>CATEGORIES</span><span class="trend-dot"></span></div><strong>{{ number_format($summary['categories']) }}</strong><small>Active categories</small></article>
-            <article class="stat-card cyan"><div class="stat-head"><span>AVERAGE MARGIN</span><span class="trend-dot"></span></div><strong>{{ number_format($summary['average_margin'], 1) }}%</strong><small>Based on selling price</small></article>
+            <article class="stat-card cyan"><div class="stat-head"><span>AVERAGE PROFIT</span><span class="trend-dot"></span></div><strong>{{ $summary['average_profit'] < 0 ? '-₱' : '₱' }}{{ number_format(abs($summary['average_profit']), 0) }}</strong><small>Profit per unit</small></article>
             <article class="stat-card purple"><div class="stat-head"><span>STOCK VALUE</span><span class="trend-dot"></span></div><strong>₱{{ number_format($summary['total_value'], 2) }}</strong><small>At current unit cost</small></article>
         </section>
 
@@ -51,7 +53,7 @@ $navigation = $isAdmin ? [
             <div class="products-toolbar">
                 <div><span class="section-kicker">PRODUCT CATALOG</span><h2>Products Inventory</h2></div>
                 <form class="toolbar-controls" method="GET" data-products-filter>
-                    <label class="product-search"><span>⌕</span><input name="search" value="{{ $search }}" type="search" placeholder="Search name, SKU, category"></label>
+                    <label class="product-search"><span>⌕</span><input name="search" value="{{ $search }}" type="search" placeholder="Search name, SKU, category, shelf"></label>
                     <select name="category" aria-label="Filter by category" data-auto-submit><option value="">All categories</option>@foreach($categories as $item)<option value="{{ $item }}" @selected($category === $item)>{{ $item }}</option>@endforeach</select>
                     <select name="sort" aria-label="Sort products" data-auto-submit><option value="name" @selected($sort === 'name')>Name A–Z</option><option value="newest" @selected($sort === 'newest')>Newest</option><option value="stock_high" @selected($sort === 'stock_high')>Stock: high to low</option><option value="stock_low" @selected($sort === 'stock_low')>Stock: low to high</option><option value="price_high" @selected($sort === 'price_high')>Price: high to low</option><option value="price_low" @selected($sort === 'price_low')>Price: low to high</option></select>
                     <button class="filter-button" type="submit">Search</button>
@@ -60,40 +62,74 @@ $navigation = $isAdmin ? [
             </div>
             <div class="products-table-wrap">
                 <table>
-                    <thead><tr><th>Product ID</th><th>Product</th><th>Category</th><th>Unit cost</th><th>Selling price</th><th>Stock</th><th>Margin</th><th>Status</th><th>Details</th></tr></thead>
+                    <thead><tr><th>Product ID</th><th>Product</th><th>Category</th><th>Shelf location</th><th>Unit cost</th><th>Selling price</th><th>Stock</th><th>Profit</th><th>Status</th><th>Details</th></tr></thead>
                     <tbody>
                     @forelse($products as $product)
                         @php
-                            $margin = (float) $product->unit_price > 0 ? (((float) $product->unit_price - (float) $product->unit_cost) / (float) $product->unit_price) * 100 : 0;
+                            $grossProfit = (float) $product->unit_price - (float) $product->unit_cost;
                             $status = $product->stock_status;
+                            $promotion = $product->activePromotion;
+                            $promotionText = $promotion
+                                ? $promotion->action_label.' · '.($promotion->action_type === 'promo_bundle'
+                                    ? ($promotion->bundleProduct ? 'Free '.$promotion->bundleProduct->name : ($promotion->bundle_note ?: 'Bundle offer'))
+                                    : number_format((float) $promotion->discount_percent, 1).'% off · ₱'.number_format((float) $promotion->promotional_price, 2))
+                                : 'No active promotion';
+                            $supplierPriceText = $product->supplierPrices->isEmpty()
+                                ? 'No matched supplier prices'
+                                : $product->supplierPrices->sortBy('unit_price')->map(function ($price) {
+                                    $availability = $price->available_quantity === null ? 'stock unknown' : number_format($price->available_quantity).' available';
+                                    $updated = $price->last_updated_at?->format('M d, Y') ?? 'date unavailable';
+                                    return ($price->supplier?->name ?? 'Deleted supplier').' · '.$price->currency.' '.number_format((float) $price->unit_price, 2).' · '.$availability.' · updated '.$updated;
+                                })->join("\n");
+                            $latestLedger = $product->latestLedger;
+                            $latestMovement = $latestLedger
+                                ? (($latestLedger->qty_in > 0 ? '+'.number_format($latestLedger->qty_in) : '-'.number_format($latestLedger->qty_out)).' units · '.str_replace('_', ' ', $latestLedger->reason_code).' · '.$latestLedger->created_at->format('M d, Y h:i A').' · '.($latestLedger->user?->name ?? 'System'))
+                                : 'No inventory movements recorded';
                             $detailData = [
                                 'id' => $product->product_id,
                                 'sku' => $product->sku,
                                 'name' => $product->name,
                                 'category' => $product->category ?: 'Uncategorized',
+                                'shelfLocation' => $product->shelf_location ?: 'Not assigned',
+                                'manufacturer' => $product->manufacturer ?: 'Not provided',
+                                'manufacturerPartNumber' => $product->manufacturer_part_number ?: 'Not provided',
+                                'description' => $product->description ?: 'No description provided',
+                                'catalogStatus' => $product->is_active ? 'Active' : 'Inactive',
                                 'unitCost' => number_format($product->unit_cost, 2),
                                 'unitPrice' => number_format($product->unit_price, 2),
+                                'grossProfit' => ($grossProfit < 0 ? '-₱' : '₱').number_format(abs($grossProfit), 0),
                                 'stock' => number_format($product->current_stock),
                                 'reorder' => number_format($product->reorder_level),
-                                'margin' => number_format($margin, 1),
+                                'inventoryValue' => number_format($product->current_stock * (float) $product->unit_cost, 2),
                                 'status' => $status === 'healthy' ? 'In stock' : ($status === 'warning' ? 'Low stock' : 'Critical'),
+                                'unitsSold' => number_format((int) ($product->units_sold ?? 0)),
+                                'salesRevenue' => number_format((float) ($product->sales_revenue ?? 0), 2),
+                                'returnedUnits' => number_format((int) ($product->returned_units ?? 0)),
+                                'damagedUnits' => number_format((int) ($product->damaged_units ?? 0)),
+                                'promotion' => $promotionText,
+                                'supplierCount' => number_format($product->supplier_prices_count),
+                                'supplierPrices' => $supplierPriceText,
+                                'movementCount' => number_format($product->ledgers_count),
+                                'latestMovement' => $latestMovement,
                                 'created' => $product->created_at->format('M d, Y h:i A'),
                                 'updated' => $product->updated_at->format('M d, Y h:i A'),
                             ];
+                            $productDetailRecords[] = $detailData;
                         @endphp
                         <tr>
                             <td>#{{ $product->product_id }}</td>
                             <td><div class="product-cell"><span class="product-thumb">{{ strtoupper(substr($product->name, 0, 1)) }}</span><div><strong>{{ $product->name }}</strong><small>{{ $product->sku }}</small></div></div></td>
                             <td>{{ $product->category ?: 'Uncategorized' }}</td>
+                            <td><span class="shelf-location">{{ $product->shelf_location ?: 'Not assigned' }}</span></td>
                             <td>₱{{ number_format($product->unit_cost, 2) }}</td>
                             <td><strong>₱{{ number_format($product->unit_price, 2) }}</strong></td>
                             <td>{{ number_format($product->current_stock) }} units</td>
-                            <td><span class="margin-badge">{{ number_format($margin, 1) }}%</span></td>
+                            <td><span class="profit-badge">{{ $grossProfit < 0 ? '-₱' : '₱' }}{{ number_format(abs($grossProfit), 0) }}</span></td>
                             <td><span class="product-status {{ $status === 'healthy' ? 'active' : 'low' }}">{{ $status === 'healthy' ? 'In stock' : ($status === 'warning' ? 'Low stock' : 'Critical') }}</span></td>
-                            <td><button class="view-product" type="button" data-view-product data-product="{{ e(json_encode($detailData)) }}">View</button></td>
+                            <td><button class="view-product" type="button" popovertarget="product-details-{{ $product->product_id }}">View</button></td>
                         </tr>
                     @empty
-                        <tr><td colspan="9"><div class="empty-products"><span>⌕</span><strong>No products found</strong><small>Try another name, SKU, category, or filter.</small></div></td></tr>
+                        <tr><td colspan="10"><div class="empty-products"><span>⌕</span><strong>No products found</strong><small>Try another name, SKU, category, shelf, or filter.</small></div></td></tr>
                     @endforelse
                     </tbody>
                 </table>
@@ -106,20 +142,35 @@ $navigation = $isAdmin ? [
     </main>
 </div>
 
-<div class="product-details-backdrop" data-product-details hidden>
-    <div class="details-shade" data-close-details></div>
-    <section class="product-details" role="dialog" aria-modal="true" aria-labelledby="product-details-title">
-        <header><div><span class="section-kicker">READ-ONLY PRODUCT RECORD</span><h2 id="product-details-title" data-detail-name>Product Details</h2></div><button type="button" data-close-details aria-label="Close">×</button></header>
+@foreach($productDetailRecords as $detail)
+    <section class="product-details" id="product-details-{{ $detail['id'] }}" popover aria-labelledby="product-details-title-{{ $detail['id'] }}">
+        <header><div><span class="section-kicker">READ-ONLY PRODUCT RECORD</span><h2 id="product-details-title-{{ $detail['id'] }}">{{ $detail['name'] }}</h2></div><button type="button" popovertarget="product-details-{{ $detail['id'] }}" popovertargetaction="hide" aria-label="Close">×</button></header>
         <div class="details-grid">
-            <div><small>Product ID</small><strong data-detail="id"></strong></div><div><small>SKU</small><strong data-detail="sku"></strong></div>
-            <div><small>Category</small><strong data-detail="category"></strong></div><div><small>Status</small><strong data-detail="status"></strong></div>
-            <div><small>Unit Cost</small><strong data-detail="unitCost"></strong></div><div><small>Selling Price</small><strong data-detail="unitPrice"></strong></div>
-            <div><small>Current Stock</small><strong data-detail="stock"></strong></div><div><small>Reorder Level</small><strong data-detail="reorder"></strong></div>
-            <div><small>Margin</small><strong data-detail="margin"></strong></div><div><small>Created</small><strong data-detail="created"></strong></div>
-            <div class="wide"><small>Last Updated</small><strong data-detail="updated"></strong></div>
+            <h3 class="details-section">Product identification</h3>
+            <div><small>Product ID</small><strong>#{{ $detail['id'] }}</strong></div><div><small>SKU</small><strong>{{ $detail['sku'] }}</strong></div>
+            <div><small>Category</small><strong>{{ $detail['category'] }}</strong></div><div><small>Shelf Location</small><strong>{{ $detail['shelfLocation'] }}</strong></div>
+            <div><small>Manufacturer</small><strong>{{ $detail['manufacturer'] }}</strong></div><div><small>Manufacturer Part Number</small><strong>{{ $detail['manufacturerPartNumber'] }}</strong></div>
+            <div><small>Catalog Status</small><strong>{{ $detail['catalogStatus'] }}</strong></div><div><small>Stock Status</small><strong>{{ $detail['status'] }}</strong></div>
+            <div class="wide detail-description"><small>Description</small><strong>{{ $detail['description'] }}</strong></div>
+
+            <h3 class="details-section">Pricing and inventory</h3>
+            <div><small>Unit Cost</small><strong>₱{{ $detail['unitCost'] }}</strong></div><div><small>Selling Price</small><strong>₱{{ $detail['unitPrice'] }}</strong></div>
+            <div><small>Profit per Unit</small><strong>{{ $detail['grossProfit'] }}</strong></div>
+            <div><small>Current Stock</small><strong>{{ $detail['stock'] }} units</strong></div><div><small>Reorder Level</small><strong>{{ $detail['reorder'] }} units</strong></div>
+            <div><small>Current Inventory Value</small><strong>₱{{ $detail['inventoryValue'] }}</strong></div><div><small>Active Promotion</small><strong>{{ $detail['promotion'] }}</strong></div>
+
+            <h3 class="details-section">Recorded activity</h3>
+            <div><small>Units Sold</small><strong>{{ $detail['unitsSold'] }} units</strong></div><div><small>Recorded Sales Revenue</small><strong>₱{{ $detail['salesRevenue'] }}</strong></div>
+            <div><small>Returned Units</small><strong>{{ $detail['returnedUnits'] }} units</strong></div><div><small>Damaged Units</small><strong>{{ $detail['damagedUnits'] }} units</strong></div>
+            <div><small>Inventory Movement Records</small><strong>{{ $detail['movementCount'] }}</strong></div><div><small>Matched Suppliers</small><strong>{{ $detail['supplierCount'] }}</strong></div>
+            <div class="wide"><small>Latest Inventory Movement</small><strong>{{ $detail['latestMovement'] }}</strong></div>
+            <div class="wide detail-multiline"><small>Supplier Price Information</small><strong>{{ $detail['supplierPrices'] }}</strong></div>
+
+            <h3 class="details-section">Record history</h3>
+            <div><small>Created</small><strong>{{ $detail['created'] }}</strong></div><div><small>Last Updated</small><strong>{{ $detail['updated'] }}</strong></div>
         </div>
-        <footer><span>This page does not allow product changes.</span><button type="button" data-close-details>Close</button></footer>
+        <footer><span>This popup does not allow product changes.</span><button type="button" popovertarget="product-details-{{ $detail['id'] }}" popovertargetaction="hide">Close</button></footer>
     </section>
-</div>
+@endforeach
 </body>
 </html>

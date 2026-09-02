@@ -59,6 +59,7 @@ class PosCheckoutTest extends TestCase
 
         $response->assertCreated()
             ->assertJsonPath('total', 560)
+            ->assertJsonPath('receipt.labor', 0)
             ->assertJsonPath('receipt.number', 'POS-000001')
             ->assertJsonPath('receipt.cashier', $staff->name)
             ->assertJsonPath('receipt.items.0.name', 'Brake Pad')
@@ -80,7 +81,60 @@ class PosCheckoutTest extends TestCase
             ->get(route('staff.pos'))
             ->assertOk()
             ->assertSee('Checkout Log')
-            ->assertSee('POS-000001');
+            ->assertSee('POS-000001')
+            ->assertSee('Optional labor charge');
+    }
+
+    public function test_optional_labor_is_saved_and_added_after_merchandise_tax(): void
+    {
+        $staff = User::factory()->create(['role' => 'staff']);
+        $product = Product::create([
+            'sku' => 'LABOR-01',
+            'name' => 'Labor Test Part',
+            'unit_cost' => 40,
+            'unit_price' => 100,
+            'current_stock' => 3,
+        ]);
+
+        $response = $this->actingAs($staff)->postJson(route('staff.pos.checkout'), [
+            'labor_amount' => 250.50,
+            'items' => [['product_id' => $product->product_id, 'quantity' => 1]],
+        ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('receipt.subtotal', 100)
+            ->assertJsonPath('receipt.tax', 12)
+            ->assertJsonPath('receipt.labor', 250.5)
+            ->assertJsonPath('receipt.total', 362.5);
+
+        $sale = SalesTransaction::firstOrFail();
+        $this->assertSame('250.50', $sale->labor_amount);
+        $this->assertSame('362.50', $sale->total_sale_amount);
+
+        $this->actingAs($staff)
+            ->get(route('staff.pos.receipts.show', $sale))
+            ->assertOk()
+            ->assertSee('Labor')
+            ->assertSee('P250.50');
+    }
+
+    public function test_pos_rejects_a_negative_labor_charge(): void
+    {
+        $staff = User::factory()->create(['role' => 'staff']);
+        $product = Product::create([
+            'sku' => 'LABOR-NEG-01',
+            'name' => 'Negative Labor Test Part',
+            'unit_price' => 100,
+            'current_stock' => 1,
+        ]);
+
+        $this->actingAs($staff)->postJson(route('staff.pos.checkout'), [
+            'labor_amount' => -1,
+            'items' => [['product_id' => $product->product_id, 'quantity' => 1]],
+        ])->assertUnprocessable()->assertJsonValidationErrors('labor_amount');
+
+        $this->assertSame(0, SalesTransaction::count());
+        $this->assertSame(1, $product->fresh()->current_stock);
     }
 
     public function test_pos_displays_and_charges_the_admin_approved_promotional_price(): void
@@ -116,6 +170,62 @@ class PosCheckoutTest extends TestCase
         $this->assertSame('150.00', SalesItem::firstOrFail()->unit_sale_price);
     }
 
+    public function test_pos_displays_and_charges_a_selected_promo_bundle_item_at_zero_value(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $staff = User::factory()->create(['role' => 'staff']);
+        $freeProduct = Product::create([
+            'sku' => 'FREE-DEAD-01', 'name' => 'Free Dead Stock Part',
+            'unit_cost' => 40, 'unit_price' => 100, 'current_stock' => 3,
+        ]);
+        $companion = Product::create([
+            'sku' => 'BUNDLE-MAIN-01', 'name' => 'Bundle Main Product',
+            'unit_price' => 500, 'current_stock' => 5,
+        ]);
+        ProductPromotion::create([
+            'product_id' => $freeProduct->product_id,
+            'bundle_product_id' => $companion->product_id,
+            'applied_by' => $admin->id,
+            'action_type' => 'promo_bundle',
+            'discount_percent' => 100,
+            'original_price' => 100,
+            'promotional_price' => 0,
+            'status' => 'active',
+            'started_at' => now(),
+        ]);
+
+        $this->actingAs($staff)->get(route('staff.pos'))
+            ->assertOk()
+            ->assertViewHas('products', function ($products) use ($freeProduct, $companion) {
+                $item = $products->firstWhere('id', $freeProduct->product_id);
+
+                return $item['price'] === 0.0
+                    && $item['promotion']['bundleProduct']['id'] === $companion->product_id;
+            });
+
+        $this->actingAs($staff)->postJson(route('staff.pos.checkout'), [
+            'items' => [['product_id' => $freeProduct->product_id, 'quantity' => 1]],
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors('items');
+
+        $response = $this->actingAs($staff)->postJson(route('staff.pos.checkout'), [
+            'items' => [
+                ['product_id' => $companion->product_id, 'quantity' => 1],
+                ['product_id' => $freeProduct->product_id, 'quantity' => 1],
+            ],
+        ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('receipt.subtotal', 500)
+            ->assertJsonPath('receipt.items.0.name', 'Bundle Main Product')
+            ->assertJsonPath('receipt.items.0.unit_price', 500)
+            ->assertJsonPath('receipt.items.1.name', 'Free Dead Stock Part')
+            ->assertJsonPath('receipt.items.1.unit_price', 0)
+            ->assertJsonPath('receipt.total', 560);
+
+        $this->assertSame(2, SalesItem::count());
+    }
+
     public function test_staff_can_hold_resume_and_complete_an_order(): void
     {
         $staff = User::factory()->create(['role' => 'staff']);
@@ -129,11 +239,14 @@ class PosCheckoutTest extends TestCase
         ]);
 
         $holdResponse = $this->actingAs($staff)->postJson(route('staff.pos.holds.store'), [
+            'labor_amount' => 75,
             'items' => [['product_id' => $product->product_id, 'quantity' => 2]],
         ]);
 
         $holdResponse->assertCreated()
             ->assertJsonPath('hold.number', 'HOLD-000001')
+            ->assertJsonPath('hold.labor', 75)
+            ->assertJsonPath('hold.total', 523)
             ->assertJsonPath('hold.items.0.name', 'Held Brake Pad');
 
         $heldOrder = HeldOrder::firstOrFail();
@@ -148,10 +261,14 @@ class PosCheckoutTest extends TestCase
 
         $checkoutResponse = $this->actingAs($staff)->postJson(route('staff.pos.checkout'), [
             'held_order_id' => $heldOrder->held_order_id,
+            'labor_amount' => 75,
             'items' => [['product_id' => $product->product_id, 'quantity' => 2]],
         ]);
 
-        $checkoutResponse->assertCreated()->assertJsonPath('receipt.number', 'POS-000001');
+        $checkoutResponse->assertCreated()
+            ->assertJsonPath('receipt.number', 'POS-000001')
+            ->assertJsonPath('receipt.labor', 75)
+            ->assertJsonPath('receipt.total', 523);
         $this->assertSame(3, $product->fresh()->current_stock);
         $this->assertSame('completed', $heldOrder->fresh()->status);
         $this->assertSame(SalesTransaction::firstOrFail()->sale_id, $heldOrder->fresh()->completed_sale_id);

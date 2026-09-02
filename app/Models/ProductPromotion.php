@@ -10,7 +10,7 @@ class ProductPromotion extends Model
     protected $primaryKey = 'product_promotion_id';
 
     protected $fillable = [
-        'product_id', 'applied_by', 'action_type', 'discount_percent',
+        'product_id', 'bundle_product_id', 'applied_by', 'action_type', 'discount_percent',
         'original_price', 'promotional_price', 'bundle_note', 'status',
         'started_at', 'ended_at',
     ];
@@ -34,6 +34,11 @@ class ProductPromotion extends Model
     public function administrator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'applied_by');
+    }
+
+    public function bundleProduct(): BelongsTo
+    {
+        return $this->belongsTo(Product::class, 'bundle_product_id', 'product_id');
     }
 
     public function getActionLabelAttribute(): string

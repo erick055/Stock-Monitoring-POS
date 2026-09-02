@@ -52,3 +52,26 @@
 @media(max-width:980px){.dead-stock-stats{grid-template-columns:1fr}.detail-card{flex-direction:column}.detail-metric{min-width:0}}
 @media(max-width:700px){.data-toolbar{grid-template-columns:1fr 1fr}.data-toolbar .compact-search{grid-column:1/-1}.compact-pagination{justify-content:space-between}}
 @media(max-width:520px){.action-row{flex-direction:column}.mini-action,.apply-button{width:100%}.data-toolbar{grid-template-columns:1fr}.data-toolbar .compact-search{grid-column:auto}.promotion-actions{grid-template-columns:1fr}}
+
+/* Recoverable dead-stock archive */
+.dead-stock-stats{grid-template-columns:repeat(4,1fr)}
+.archive-tabs{display:flex;gap:7px;margin:-2px 0 12px;padding-bottom:10px;border-bottom:1px solid var(--line)}
+.archive-tabs a{display:flex;align-items:center;gap:7px;padding:7px 11px;border:1px solid #34394a;border-radius:999px;color:#9ba0b0;font-size:8px}
+.archive-tabs a.active{border-color:#7443b8;background:#332050;color:#fff}
+.archive-tabs span{display:grid;place-items:center;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#202431;color:#c8ccd6;font-size:7px}
+.archive-details{margin-top:7px;min-width:250px}
+.archive-details summary{color:#aeb4c4;font-size:8px;font-weight:700;cursor:pointer}
+.archive-details[open]{padding:9px;border:1px solid #48364e;border-radius:8px;background:#131016}
+.archive-details form{display:grid;gap:7px;margin-top:8px}
+.archive-details label{display:grid;gap:4px;color:#a7a0aa;font-size:8px}
+.archive-details textarea{width:100%;padding:8px;border:1px solid #463b49;border-radius:6px;background:#0c0a0e;color:#fff;font:inherit;resize:vertical}
+.archive-details form>small{color:#8f8792;font-size:7px;line-height:1.4}
+.archive-details button,.archive-record button{min-height:32px;padding:7px 10px;border:1px solid #66516d;border-radius:6px;background:#312735;color:#e7dfe9;font-size:8px;cursor:pointer}
+.archive-record{display:grid;gap:6px;min-width:230px;padding:10px;border:1px solid #3e4655;border-radius:8px;background:#10131a}
+.archive-record strong{color:#d2d5dc;font-size:8px}
+.archive-record small{color:#858b99;font-size:8px}
+.archive-record p{margin:2px 0;padding:7px;border-radius:5px;background:#171b24;color:#bfc3ce;font-size:8px;line-height:1.4}
+.archive-record button{border-color:#4b756c;background:#17352e;color:#8be1ca}
+@media(max-width:1100px){.dead-stock-stats{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:520px){.dead-stock-stats{grid-template-columns:1fr}.archive-tabs{overflow-x:auto}}
+.promotion-actions{grid-template-columns:repeat(2,1fr)}

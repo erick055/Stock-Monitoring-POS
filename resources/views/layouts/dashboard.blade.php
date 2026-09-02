@@ -7,7 +7,7 @@
     @vite(['resources/css/dashboard.css', 'resources/css/responsive.css', 'resources/js/dashboard.js'])
 </head>
 <body>
-<div class="dashboard-shell" data-dashboard>
+<div class="dashboard-shell" data-dashboard data-refresh-ms="60000">
     <aside class="sidebar" data-sidebar>
         <div class="sidebar-brand"><span class="logo-mark">M</span><div><strong>MotoSync</strong><small>Pareng RJJ Motorcycle Parts</small></div></div>
         <nav class="nav-list" aria-label="{{ $dashboard['role_name'] }} navigation">
@@ -26,7 +26,15 @@
         <header class="topbar">
             <button class="menu-button" type="button" data-menu aria-label="Toggle navigation">&#9776;</button>
             <div><p class="welcome">Welcome back, {{ $dashboard['first_name'] }}</p><h1>{{ $dashboard['role_name'] }} Dashboard</h1><p>{{ $dashboard['description'] }}</p></div>
-            <div class="top-actions"><button type="button" aria-label="Notifications">&#9679;<span class="notification-dot"></span></button><span class="date">{{ now()->format('M d, Y') }}</span></div>
+            <div class="top-actions">
+                <span class="live-status"><i></i> Live <small>Updated {{ $dashboard['updated_at']->format('h:i A') }}</small></span>
+                <button type="button" data-dashboard-refresh aria-label="Refresh dashboard" title="Refresh live data">↻</button>
+                <a class="notification-button" href="{{ $dashboard['notification_url'] }}" aria-label="{{ $dashboard['notification_count'] }} dashboard notifications">
+                    !
+                    @if($dashboard['notification_count'] > 0)<span class="notification-dot"></span><b>{{ min(99, $dashboard['notification_count']) }}</b>@endif
+                </a>
+                <span class="date">{{ now()->format('M d, Y') }}</span>
+            </div>
         </header>
 
         <section class="stat-grid" aria-label="Dashboard summary">
@@ -46,19 +54,25 @@
 
         <div class="dashboard-lower">
             <section class="panel performance-panel">
-                <div class="section-heading"><div><span class="section-kicker">{{ $dashboard['chart_kicker'] }}</span><h2>{{ $dashboard['chart_title'] }}</h2></div><span class="period">This week&#8984;</span></div>
-                <div class="chart" aria-label="Sample weekly sales chart">
-                    @foreach([42,68,52,84,64,91,76] as $height)
-                        <div class="bar-column"><div class="bar-track"><span style="height: {{ $height }}%"></span></div><small>{{ ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][$loop->index] }}</small></div>
+                <div class="section-heading"><div><span class="section-kicker">{{ $dashboard['chart_kicker'] }}</span><h2>{{ $dashboard['chart_title'] }}</h2></div><span class="period">₱{{ number_format(collect($dashboard['chart'])->sum('value'), 2) }} total</span></div>
+                <div class="chart" aria-label="Real sales totals for the last seven days">
+                    @foreach($dashboard['chart'] as $day)
+                        <div class="bar-column" title="{{ $day['date'] }}: ₱{{ number_format($day['value'], 2) }}">
+                            <b class="bar-value">{{ $day['value'] > 0 ? '₱'.number_format($day['value'], 0) : '—' }}</b>
+                            <div class="bar-track"><span style="height: {{ $day['height'] }}%"></span></div>
+                            <small>{{ $day['label'] }}</small>
+                        </div>
                     @endforeach
                 </div>
             </section>
             <section class="panel activity-panel">
-                <div class="section-heading"><div><span class="section-kicker">LIVE UPDATES</span><h2>Recent Activity</h2></div><a href="#">View all</a></div>
+                <div class="section-heading"><div><span class="section-kicker">LIVE UPDATES</span><h2>Recent Activity</h2></div><span class="period">Latest records</span></div>
                 <div class="activity-list">
-                    @foreach($dashboard['activity'] as $item)
-                        <div class="activity-item"><span class="activity-icon {{ $item[0] }}">{{ $loop->iteration }}</span><div><strong>{{ $item[1] }}</strong><small>{{ $item[2] }}</small></div><time>{{ $loop->iteration * 7 }}m</time></div>
-                    @endforeach
+                    @forelse($dashboard['activity'] as $item)
+                        <a class="activity-item" href="{{ $item['url'] }}"><span class="activity-icon {{ $item['color'] }}">{{ $loop->iteration }}</span><div><strong>{{ $item['title'] }}</strong><small>{{ $item['detail'] }}</small></div><time>{{ $item['time'] }}</time></a>
+                    @empty
+                        <div class="activity-empty"><strong>No activity yet</strong><small>New sales and inventory records will appear here automatically.</small></div>
+                    @endforelse
                 </div>
             </section>
         </div>

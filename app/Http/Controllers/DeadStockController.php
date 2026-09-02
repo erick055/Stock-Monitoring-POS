@@ -19,13 +19,15 @@ class DeadStockController extends Controller
     {
         $search = trim((string) $request->query('search'));
         $classification = (string) $request->query('classification', 'all');
+        $status = in_array((string) $request->query('status', 'queue'), ['queue', 'archived'], true)
+            ? (string) $request->query('status', 'queue')
+            : 'queue';
         $perPage = in_array((int) $request->query('per_page', 25), [10, 25, 50, 100], true)
             ? (int) $request->query('per_page', 25)
             : 25;
         $products = Product::query()
-            ->with('activePromotion.administrator')
+            ->with(['activePromotion.administrator', 'activePromotion.bundleProduct', 'deadStockArchivedBy'])
             ->where('is_active', true)
-            ->where('current_stock', '>', 0)
             ->orderByDesc('current_stock')
             ->get();
 
@@ -43,22 +45,28 @@ class DeadStockController extends Controller
             ->sortByDesc('score')
             ->values();
 
-        $deadStockItems = $scoredProducts->filter(fn (array $item) => $item['classification'] === 'Dead Stock')->values();
-        $slowMovingItems = $scoredProducts->filter(fn (array $item) => $item['classification'] === 'Slow Moving')->values();
+        $queueProducts = $scoredProducts
+            ->filter(fn (array $item) => ! $item['is_archived'] && $item['stock'] > 0)
+            ->whereIn('classification', ['Dead Stock', 'Slow Moving'])
+            ->values();
+        $archivedProducts = $scoredProducts->filter(fn (array $item) => $item['is_archived'])->values();
+        $deadStockItems = $queueProducts->filter(fn (array $item) => $item['classification'] === 'Dead Stock')->values();
+        $slowMovingItems = $queueProducts->filter(fn (array $item) => $item['classification'] === 'Slow Moving')->values();
         $trappedCapital = $deadStockItems->sum('total_cost_raw') + $slowMovingItems->sum('total_cost_raw');
 
         $summary = [
             ['DEAD STOCK ITEM', number_format($deadStockItems->count()), 'AI score 70-100 / high risk', 'purple'],
             ['SLOW MOVING', number_format($slowMovingItems->count()), 'AI score 40-69 / monitor', 'violet'],
             ['TRAPPED CAPITAL', '₱' . number_format($trappedCapital, 2), 'Estimated value tied to idle stock', 'orange'],
+            ['ARCHIVED', number_format($archivedProducts->count()), 'Hidden from the active recovery queue', 'cyan'],
         ];
 
         $recommendations = $this->buildRecommendations($deadStockItems, $slowMovingItems);
 
-        $filteredRiskItems = $scoredProducts
-            ->whereIn('classification', ['Dead Stock', 'Slow Moving'])
+        $filteredRiskItems = ($status === 'archived' ? $archivedProducts : $queueProducts)
             ->when($classification === 'dead', fn ($items) => $items->where('classification', 'Dead Stock'))
             ->when($classification === 'slow', fn ($items) => $items->where('classification', 'Slow Moving'))
+            ->when($classification === 'healthy', fn ($items) => $items->where('classification', 'Healthy'))
             ->when($search, fn ($items) => $items->filter(fn (array $item) => str_contains(
                 mb_strtolower($item['name'].' '.$item['sku']),
                 mb_strtolower($search)
@@ -74,6 +82,12 @@ class DeadStockController extends Controller
             ['path' => $request->url(), 'query' => $request->query()]
         );
 
+        $bundleProducts = Product::query()
+            ->where('is_active', true)
+            ->where('current_stock', '>', 0)
+            ->orderBy('name')
+            ->get(['product_id', 'sku', 'name', 'current_stock']);
+
         return view('admin.dead-stock', compact(
             'summary',
             'deadStockItems',
@@ -83,16 +97,26 @@ class DeadStockController extends Controller
             'riskItems',
             'search',
             'classification',
-            'perPage'
+            'status',
+            'perPage',
+            'bundleProducts'
         ));
     }
 
     public function applyPromotion(Request $request, Product $product): RedirectResponse
     {
         $validated = $request->validate([
-            'action_type' => ['required', Rule::in(['discount', 'promo_bundle', 'clearance'])],
-            'discount_percent' => ['required', 'numeric', 'min:1', 'max:90'],
-            'bundle_note' => ['nullable', 'required_if:action_type,promo_bundle', 'string', 'max:160'],
+            'action_type' => ['required', Rule::in(['discount', 'promo_bundle'])],
+            'discount_percent' => ['nullable', 'required_unless:action_type,promo_bundle', 'numeric', 'min:1', 'max:90'],
+            'bundle_product_id' => [
+                'nullable',
+                'required_if:action_type,promo_bundle',
+                'integer',
+                Rule::exists('products', 'product_id')->where(fn ($query) => $query
+                    ->where('is_active', true)
+                    ->where('current_stock', '>', 0)),
+                Rule::notIn([$product->product_id]),
+            ],
         ]);
 
         $analysis = $this->scoreProduct(
@@ -110,8 +134,11 @@ class DeadStockController extends Controller
 
         $promotion = DB::transaction(function () use ($product, $request, $validated) {
             $lockedProduct = Product::query()->lockForUpdate()->findOrFail($product->product_id);
-            $discount = round((float) $validated['discount_percent'], 2);
-            $promotionalPrice = round((float) $lockedProduct->unit_price * (1 - ($discount / 100)), 2);
+            $isBundle = $validated['action_type'] === 'promo_bundle';
+            $discount = $isBundle ? 100 : round((float) $validated['discount_percent'], 2);
+            $promotionalPrice = $isBundle
+                ? 0
+                : round((float) $lockedProduct->unit_price * (1 - ($discount / 100)), 2);
 
             ProductPromotion::query()
                 ->where('product_id', $lockedProduct->product_id)
@@ -120,18 +147,21 @@ class DeadStockController extends Controller
 
             return ProductPromotion::create([
                 'product_id' => $lockedProduct->product_id,
+                'bundle_product_id' => $isBundle ? $validated['bundle_product_id'] : null,
                 'applied_by' => $request->user()->id,
                 'action_type' => $validated['action_type'],
                 'discount_percent' => $discount,
                 'original_price' => $lockedProduct->unit_price,
                 'promotional_price' => $promotionalPrice,
-                'bundle_note' => $validated['bundle_note'] ?? null,
+                'bundle_note' => null,
                 'status' => 'active',
                 'started_at' => now(),
             ]);
         });
 
-        return back()->with('success', "{$promotion->action_label} approved for {$product->name} at {$promotion->discount_percent}% off.");
+        return back()->with('success', $promotion->action_type === 'promo_bundle'
+            ? "Promo bundle approved. {$product->name} now appears as a free item in POS."
+            : "{$promotion->action_label} approved for {$product->name} at {$promotion->discount_percent}% off.");
     }
 
     public function endPromotion(Product $product): RedirectResponse
@@ -144,6 +174,53 @@ class DeadStockController extends Controller
         return back()->with('success', $ended
             ? "The active offer for {$product->name} was ended. The POS now uses its regular price."
             : "{$product->name} has no active offer to end.");
+    }
+
+    public function archive(Request $request, Product $product): RedirectResponse
+    {
+        $validated = $request->validate([
+            'archive_note' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        if ($product->dead_stock_archived_at) {
+            return back()->with('success', "{$product->name} is already archived.");
+        }
+
+        $analysis = $this->scoreProduct(
+            $product->load(['activePromotion.administrator', 'activePromotion.bundleProduct', 'deadStockArchivedBy']),
+            (int) ($this->soldUnitsByProduct(30)[$product->product_id] ?? 0),
+            (int) ($this->soldUnitsByProduct(90)[$product->product_id] ?? 0),
+            $this->latestSaleByProduct()[$product->product_id] ?? null
+        );
+
+        if (! in_array($analysis['classification'], ['Dead Stock', 'Slow Moving'], true)) {
+            throw ValidationException::withMessages([
+                'archive' => 'Only products currently classified as Dead Stock or Slow Moving can be archived from this page.',
+            ]);
+        }
+
+        $product->update([
+            'dead_stock_archived_at' => now(),
+            'dead_stock_archived_by' => $request->user()->id,
+            'dead_stock_archive_note' => trim((string) ($validated['archive_note'] ?? '')) ?: null,
+        ]);
+
+        return back()->with('success', "{$product->name} was archived from the active dead-stock queue. Inventory and POS availability were not changed.");
+    }
+
+    public function restore(Product $product): RedirectResponse
+    {
+        if (! $product->dead_stock_archived_at) {
+            return back()->with('success', "{$product->name} is already in the active queue.");
+        }
+
+        $product->update([
+            'dead_stock_archived_at' => null,
+            'dead_stock_archived_by' => null,
+            'dead_stock_archive_note' => null,
+        ]);
+
+        return redirect()->route('admin.dead-stock')->with('success', "{$product->name} was restored from the archive and will appear when it matches the active dead-stock queue rules.");
     }
 
     private function soldUnitsByProduct(int $days): array
@@ -234,11 +311,21 @@ class DeadStockController extends Controller
             'unit_price' => (float) $product->unit_price,
             'active_promotion' => $product->activePromotion ? [
                 'label' => $product->activePromotion->action_label,
+                'action_type' => $product->activePromotion->action_type,
                 'discount_percent' => (float) $product->activePromotion->discount_percent,
                 'promotional_price' => (float) $product->activePromotion->promotional_price,
                 'bundle_note' => $product->activePromotion->bundle_note,
+                'bundle_product' => $product->activePromotion->bundleProduct ? [
+                    'id' => $product->activePromotion->bundleProduct->product_id,
+                    'name' => $product->activePromotion->bundleProduct->name,
+                    'sku' => $product->activePromotion->bundleProduct->sku,
+                ] : null,
                 'administrator' => $product->activePromotion->administrator?->name ?? 'Administrator',
             ] : null,
+            'is_archived' => $product->dead_stock_archived_at !== null,
+            'archived_at' => $product->dead_stock_archived_at?->format('M d, Y h:i A'),
+            'archived_by' => $product->deadStockArchivedBy?->name ?? 'Administrator',
+            'archive_note' => $product->dead_stock_archive_note,
             'age' => $product->created_at?->diffForHumans(null, true) . ' in inventory',
             'last_sale' => $daysSinceLastSale === null ? 'No sale recorded' : "{$daysSinceLastSale} day(s) ago",
             'velocity' => number_format($monthlyUnits) . ' units / month',
@@ -251,7 +338,7 @@ class DeadStockController extends Controller
     private function recommendationFor(string $classification): string
     {
         return match ($classification) {
-            'Dead Stock' => 'Apply clearance discount, bundle with fast-moving items, and stop reordering.',
+            'Dead Stock' => 'Apply a targeted discount, bundle with fast-moving items, and stop reordering.',
             'Slow Moving' => 'Monitor weekly, review pricing, and improve shelf placement.',
             default => 'Continue normal monitoring.',
         };

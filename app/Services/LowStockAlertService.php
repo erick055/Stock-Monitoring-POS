@@ -8,6 +8,7 @@ use App\Models\StockAlertSetting;
 use App\Models\StockAlertState;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 use Throwable;
 
 class LowStockAlertService
@@ -48,27 +49,23 @@ class LowStockAlertService
             return 0;
         }
 
-        $message = sprintf(
-            '%s stock alert: %s (%s) has %d units remaining; reorder level is %d.',
-            strtoupper($severity),
-            $product->name,
-            $product->sku,
-            $product->current_stock,
-            $product->reorder_level,
-        );
-
         $sent = 0;
         if ($settings->email_enabled && $settings->notification_email) {
             $sent += $this->sendEmail(
                 $settings->notification_email,
-                "MotoSync {$severity} stock alert: {$product->sku}",
-                $message,
+                $this->immediateEmailSubject($product, $severity),
+                $this->immediateEmailMessage($product, $severity),
                 'immediate',
                 $product,
             );
         }
         if ($settings->sms_enabled && $settings->notification_phone) {
-            $sent += $this->sendSms($settings->notification_phone, $message, 'immediate', $product);
+            $sent += $this->sendSms(
+                $settings->notification_phone,
+                $this->immediateSmsMessage($product, $severity),
+                'immediate',
+                $product,
+            );
         }
 
         return $sent;
@@ -95,7 +92,7 @@ class LowStockAlertService
         $message = $this->dailySummaryMessage($products);
         $sent = $this->sendEmail(
             $settings->notification_email,
-            'MotoSync daily low-stock summary - '.now()->format('M d, Y'),
+            $this->dailySummarySubject($products),
             $message,
             'daily_summary',
         );
@@ -122,19 +119,134 @@ class LowStockAlertService
     private function dailySummaryMessage(Collection $products): string
     {
         if ($products->isEmpty()) {
-            return "MotoSync Daily Stock Summary\n\nNo low-stock products today.";
+            return implode("\n", [
+                'MotoSync Daily Inventory Summary',
+                now()->format('F d, Y · h:i A'),
+                '',
+                'Good news — no active products are currently within the low-stock warning range.',
+                '',
+                'No replenishment action is required at this time. Continue monitoring sales and incoming stock movements.',
+                '',
+                'This is an automated inventory notification from MotoSync.',
+            ]);
         }
 
-        $lines = $products->map(fn (Product $product) => sprintf(
-            '- [%s] %s (%s): %d units, reorder at %d',
-            strtoupper($this->severity($product)),
+        $outOfStock = $products->where('current_stock', 0)->count();
+        $critical = $products->filter(fn (Product $product) => $this->severity($product) === 'critical')->count();
+        $warning = $products->count() - $critical;
+        $lines = $products->values()->map(fn (Product $product, int $index) => sprintf(
+            '%d. [%s] %s (%s) | Stock: %d | Reorder: %d | Suggested restock: %d+',
+            $index + 1,
+            $this->statusLabel($product, $this->severity($product)),
             $product->name,
             $product->sku,
             $product->current_stock,
             $product->reorder_level,
+            $this->recommendedRestock($product),
         ));
 
-        return "MotoSync Daily Stock Summary\n".now()->format('M d, Y')."\n\n".$lines->join("\n");
+        return implode("\n", [
+            'MotoSync Daily Inventory Summary',
+            now()->format('F d, Y · h:i A'),
+            '',
+            'Priority overview',
+            "- {$products->count()} product(s) require attention",
+            "- {$critical} critical (including {$outOfStock} out of stock)",
+            "- {$warning} warning",
+            '',
+            'Products to review',
+            $lines->join("\n"),
+            '',
+            'Recommended next steps',
+            '1. Replenish out-of-stock and critical items first.',
+            '2. Confirm pending supplier deliveries before creating duplicate orders.',
+            '3. Review recent POS demand and adjust reorder levels where needed.',
+            '',
+            'Open MotoSync > Low Stock Alerts for the latest quantities and notification history.',
+            '',
+            'This is an automated inventory notification from MotoSync.',
+        ]);
+    }
+
+    private function immediateEmailSubject(Product $product, string $severity): string
+    {
+        return sprintf(
+            'MotoSync [%s] Inventory Alert — %s',
+            $this->statusLabel($product, $severity),
+            $product->sku,
+        );
+    }
+
+    private function immediateEmailMessage(Product $product, string $severity): string
+    {
+        $status = $this->statusLabel($product, $severity);
+        $restock = $this->recommendedRestock($product);
+        $action = match (true) {
+            $product->current_stock === 0 => "Restock at least {$restock} unit(s) before confirming new orders for this item.",
+            $severity === 'critical' => "Arrange replenishment now. Adding at least {$restock} unit(s) will move the item above its warning range.",
+            default => "Plan replenishment soon. Adding at least {$restock} unit(s) will move the item above its warning range.",
+        };
+
+        return implode("\n", [
+            'MotoSync Inventory Alert',
+            '',
+            "Status: {$status}",
+            "Product: {$product->name}",
+            "SKU: {$product->sku}",
+            "Current stock: {$product->current_stock} unit(s)",
+            "Reorder level: {$product->reorder_level} unit(s)",
+            "Suggested restock: {$restock}+ unit(s)",
+            '',
+            'Recommended action',
+            $action,
+            '',
+            'Open MotoSync > Low Stock Alerts to review demand, update alert settings, and document the next action.',
+            '',
+            'Alert generated: '.now()->format('F d, Y · h:i A'),
+            'This is an automated inventory notification from MotoSync.',
+        ]);
+    }
+
+    private function immediateSmsMessage(Product $product, string $severity): string
+    {
+        $productLabel = Str::limit("{$product->sku} {$product->name}", 48, '');
+        $message = sprintf(
+            'MotoSync %s | %s | Stock %d, reorder %d | Add %d+ units. Check Low Stock Alerts.',
+            $this->statusLabel($product, $severity),
+            $productLabel,
+            $product->current_stock,
+            $product->reorder_level,
+            $this->recommendedRestock($product),
+        );
+
+        return Str::limit($message, 155, '...');
+    }
+
+    private function dailySummarySubject(Collection $products): string
+    {
+        if ($products->isEmpty()) {
+            return 'MotoSync Daily Inventory Summary — No Low-Stock Items';
+        }
+
+        $critical = $products->filter(fn (Product $product) => $this->severity($product) === 'critical')->count();
+
+        return sprintf(
+            'MotoSync Daily Inventory Summary — %d Item(s) Need Attention, %d Critical',
+            $products->count(),
+            $critical,
+        );
+    }
+
+    private function statusLabel(Product $product, string $severity): string
+    {
+        return $product->current_stock === 0 ? 'OUT OF STOCK' : strtoupper($severity);
+    }
+
+    private function recommendedRestock(Product $product): int
+    {
+        $healthyTarget = max(1, ($product->reorder_level * 2) + 1);
+
+        return max(1, $healthyTarget - $product->current_stock);
     }
 
     private function sendEmail(string $recipient, string $subject, string $message, string $type, ?Product $product = null): int

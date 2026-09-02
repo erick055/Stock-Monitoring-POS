@@ -39,7 +39,13 @@ $navigation = [
             </div>
             <div class="header-tools">
                 <span class="period-select">Live POS Data</span>
-                <button class="more-button" type="button">&#8226;&#8226;&#8226;</button>
+                <div class="export-menu" data-export-menu>
+                    <button class="more-button" type="button" data-export-toggle aria-label="Export analytics data" aria-haspopup="menu" aria-expanded="false">&#8226;&#8226;&#8226;</button>
+                    <div class="export-options" data-export-options role="menu" hidden>
+                        <div class="export-options-heading"><span>EXPORT DATA</span><small>{{ $chartPeriodLabel }} sales view and whole analytics report</small></div>
+                        <a href="{{ route('admin.analytics.export', ['period' => $salesPeriod]) }}" role="menuitem"><span class="export-icon excel">XLS</span><span><strong>Excel workbook</strong><small>Download all analytics worksheets</small></span></a>
+                    </div>
+                </div>
             </div>
         </header>
 
@@ -47,7 +53,7 @@ $navigation = [
             <article class="stat-card purple"><div class="stat-head"><span>TOTAL SALES</span><span class="trend-dot"></span></div><strong>₱{{ number_format($summary['total_sales'], 2) }}</strong><small>From completed POS sales</small></article>
             <article class="stat-card violet"><div class="stat-head"><span>TRANSACTIONS</span><span class="trend-dot"></span></div><strong>{{ number_format($summary['transactions']) }}</strong><small>Paid receipts recorded</small></article>
             <article class="stat-card red"><div class="stat-head"><span>AVG. ORDER VALUE</span><span class="trend-dot"></span></div><strong>₱{{ number_format($summary['average_order_value'], 2) }}</strong><small>Average POS checkout</small></article>
-            <article class="stat-card cyan"><div class="stat-head"><span>PROFIT MARGIN</span><span class="trend-dot"></span></div><strong>{{ number_format($summary['profit_margin'], 1) }}%</strong><small>Based on product cost vs sales</small></article>
+            <article class="stat-card cyan"><div class="stat-head"><span>GROSS PROFIT</span><span class="trend-dot"></span></div><strong>{{ $summary['gross_profit'] < 0 ? '-₱' : '₱' }}{{ number_format(abs($summary['gross_profit']), 0) }}</strong><small>Sale price minus cost for units sold</small></article>
         </section>
 
         <section class="analytics-grid">
@@ -67,19 +73,70 @@ $navigation = [
 
             <article class="panel analytics-panel">
                 <div class="section-heading">
-                    <div><span class="section-kicker">WEEKLY VIEW</span><h2>Sales Day by Day</h2></div>
-                    <button type="button">&#8226;&#8226;&#8226;</button>
-                </div>
-                <div class="day-chart" data-day-chart>
-                    @foreach($weeklySales as $day)
-                        <div class="day-row">
-                            <span class="day-label">{{ $day['label'] }}</span>
-                            <div class="day-track" title="{{ $day['date'] }}"><i style="width: {{ $day['percent'] }}%"></i></div>
-                            <strong>₱{{ number_format($day['total'], 2) }}</strong>
+                    <div><span class="section-kicker">{{ strtoupper($chartPeriodLabel) }} VIEW</span><h2>{{ $salesPeriod === 'year' ? 'Sales Month by Month' : 'Sales Day by Day' }}</h2></div>
+                    <div class="chart-period-menu" data-chart-period-menu>
+                        <button class="chart-period-toggle" type="button" data-chart-period-toggle aria-label="Choose sales chart period" aria-haspopup="menu" aria-expanded="false">&#8226;&#8226;&#8226;</button>
+                        <div class="chart-period-options" data-chart-period-options role="menu" hidden>
+                            <a href="{{ route('admin.analytics', ['period' => 'week']) }}" role="menuitem" class="{{ $salesPeriod === 'week' ? 'is-active' : '' }}" @if($salesPeriod === 'week') aria-current="page" @endif><strong>Weekly view</strong><small>Current week by day</small></a>
+                            <a href="{{ route('admin.analytics', ['period' => 'month']) }}" role="menuitem" class="{{ $salesPeriod === 'month' ? 'is-active' : '' }}" @if($salesPeriod === 'month') aria-current="page" @endif><strong>Monthly view</strong><small>Current month by day</small></a>
+                            <a href="{{ route('admin.analytics', ['period' => 'year']) }}" role="menuitem" class="{{ $salesPeriod === 'year' ? 'is-active' : '' }}" @if($salesPeriod === 'year') aria-current="page" @endif><strong>Yearly view</strong><small>Current year by month</small></a>
                         </div>
+                    </div>
+                </div>
+                <div class="chart-insight" data-chart-insight aria-live="polite">
+                    <span>Select a day</span><strong>View its paid sales total</strong>
+                </div>
+                <div class="day-chart period-{{ $salesPeriod }}" data-day-chart role="group" aria-label="Interactive {{ strtolower($chartPeriodLabel) }} bar chart of paid sales" style="--chart-columns: {{ $weeklySales->count() }}">
+                    @foreach($weeklySales as $index => $day)
+                        @php($showAxisLabel = $salesPeriod !== 'month' || $index === 0 || ($index + 1) % 5 === 0 || $index + 1 === $weeklySales->count())
+                        <button
+                            class="day-column {{ $showAxisLabel ? 'show-axis-label' : '' }}"
+                            type="button"
+                            data-day-bar
+                            data-day="{{ $day['label'] }} · {{ $day['date'] }}"
+                            data-total="{{ $day['total'] }}"
+                            style="--bar-height: {{ $day['total'] > 0 ? max(8, $day['percent']) : 2 }}%; --bar-index: {{ $index }}"
+                            aria-label="{{ $day['label'] }}, {{ $day['date'] }}: ₱{{ number_format($day['total'], 2) }} in paid sales"
+                        >
+                            <strong class="day-value">₱{{ number_format($day['total'], 2) }}</strong>
+                            <span class="day-bar-track"><i></i></span>
+                            <span class="day-label">{{ $day['label'] }}</span>
+                            <small>{{ $day['date'] }}</small>
+                        </button>
                     @endforeach
                 </div>
             </article>
+        </section>
+
+        <section class="panel analytics-panel velocity-panel">
+            <div class="section-heading velocity-heading">
+                <div><span class="section-kicker">SELLING SPEED</span><h2>Fast-Moving Item Ranking</h2><small>Ranked by purchase frequency (60%) and units bought (40%).</small></div>
+                <span class="period">Last 30 days · paid receipts only</span>
+            </div>
+            <div class="velocity-table-wrap">
+                <table class="velocity-table">
+                    <thead>
+                        <tr><th>Rank</th><th>Product</th><th>Purchase frequency</th><th>Units bought</th><th>Buying amount</th><th>Selling pace</th><th>Speed score</th></tr>
+                    </thead>
+                    <tbody>
+                    @forelse($sellingSpeedRanking as $index => $item)
+                        <tr>
+                            <td><span class="rank-badge rank-{{ $index + 1 }}">#{{ $index + 1 }}</span></td>
+                            <td><strong>{{ $item->name }}</strong><small>{{ $item->sku }} · {{ $item->category ?: 'Uncategorized' }}</small></td>
+                            <td><strong>{{ number_format($item->purchase_frequency) }}</strong><small>{{ Str::plural('paid receipt', $item->purchase_frequency) }}</small></td>
+                            <td><strong>{{ number_format($item->units_sold) }}</strong><small>{{ number_format($item->units_per_purchase, 1) }} per purchase</small></td>
+                            <td><strong>₱{{ number_format($item->sales_total, 2) }}</strong><small>sales value</small></td>
+                            <td><strong>{{ number_format($item->units_per_day, 2) }}</strong><small>units per day</small></td>
+                            <td>
+                                <div class="speed-score"><span><strong>{{ $item->speed_score }}</strong>/100</span><i><b style="width: {{ $item->speed_score }}%"></b></i></div>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="7"><div class="empty-analytics">No paid product sales in the last 30 days. Rankings will appear after POS checkouts.</div></td></tr>
+                    @endforelse
+                    </tbody>
+                </table>
+            </div>
         </section>
 
         <section class="analytics-grid inventory-analytics-grid">

@@ -131,6 +131,116 @@ class SuppliersPageTest extends TestCase
         ]);
     }
 
+    public function test_import_smart_matches_by_supplier_sku_and_unique_product_name(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $skuMatch = Product::create([
+            'sku' => 'SUP-PLUG-01', 'name' => 'Different Catalog Name', 'unit_price' => 300,
+        ]);
+        $nameMatch = Product::create([
+            'sku' => 'LOCAL-CHAIN-01', 'name' => 'Premium Drive Chain', 'unit_price' => 900,
+        ]);
+        $csv = implode("\n", [
+            'supplier_sku,product_name,unit_price',
+            'sup-plug-01,Supplier Spark Plug,120',
+            'CHAIN-SUP-9,  Premium   Drive Chain  ,500',
+        ]);
+
+        $this->actingAs($admin)->post(route('admin.suppliers.imports.upload'), [
+            'supplier_name' => 'Smart Match Supplier',
+            'supplier_code' => 'SMART-MATCH',
+            'price_file' => UploadedFile::fake()->createWithContent('smart.csv', $csv),
+        ])->assertRedirect();
+
+        $import = SupplierImport::firstOrFail();
+        $this->assertSame($skuMatch->product_id, $import->rows()->where('supplier_sku', 'sup-plug-01')->value('product_id'));
+        $this->assertSame($nameMatch->product_id, $import->rows()->where('supplier_sku', 'CHAIN-SUP-9')->value('product_id'));
+
+        $this->actingAs($admin)->post(route('admin.suppliers.imports.approve', $import))->assertRedirect();
+        $this->assertSame($skuMatch->product_id, SupplierPrice::where('supplier_sku', 'sup-plug-01')->value('product_id'));
+        $this->assertSame($nameMatch->product_id, SupplierPrice::where('supplier_sku', 'CHAIN-SUP-9')->value('product_id'));
+    }
+
+    public function test_owner_can_match_a_supplier_price_and_apply_only_its_unit_cost(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $product = Product::create([
+            'sku' => 'MATCH-01', 'name' => 'Match Target', 'unit_cost' => 100,
+            'unit_price' => 250, 'current_stock' => 8,
+        ]);
+        $price = $this->createSupplierPrice('SUP-MATCH-01', 'Supplier Match Target', 145.50);
+
+        $this->actingAs($admin)->get(route('admin.suppliers'))
+            ->assertOk()
+            ->assertSee('<strong>Supplier Match Target</strong>', false)
+            ->assertSee('Catalog Apply Supplier · Supplier SKU: SUP-MATCH-01')
+            ->assertSee('Match or add this item to Products')
+            ->assertSee('Create in Products');
+
+        $this->actingAs($admin)
+            ->patch(route('admin.suppliers.prices.match', $price), ['product_id' => $product->product_id])
+            ->assertSessionHas('success');
+        $this->assertSame($product->product_id, $price->fresh()->product_id);
+
+        $this->actingAs($admin)->get(route('admin.suppliers'))
+            ->assertOk()
+            ->assertSee('Apply supplier cost');
+
+        $this->actingAs($admin)
+            ->patch(route('admin.suppliers.prices.apply-cost', $price))
+            ->assertSessionHas('success');
+
+        $product->refresh();
+        $this->assertSame('145.50', $product->unit_cost);
+        $this->assertSame('250.00', $product->unit_price);
+        $this->assertSame(8, $product->current_stock);
+    }
+
+    public function test_owner_can_create_a_zero_stock_catalog_product_from_an_unmatched_supplier_price(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $price = $this->createSupplierPrice('NEW-SUP-01', 'Imported Brake Lever', 180.25, 75);
+
+        $this->actingAs($admin)
+            ->post(route('admin.suppliers.prices.create-product', $price), [
+                'sku' => 'BRK-LEVER-NEW',
+                'selling_price' => 295,
+                'category' => 'Brake Parts',
+                'shelf_location' => 'Aisle C Shelf 2',
+                'reorder_level' => 6,
+            ])
+            ->assertSessionHas('success');
+
+        $product = Product::where('sku', 'BRK-LEVER-NEW')->firstOrFail();
+        $this->assertSame('Imported Brake Lever', $product->name);
+        $this->assertSame('180.25', $product->unit_cost);
+        $this->assertSame('295.00', $product->unit_price);
+        $this->assertSame(0, $product->current_stock);
+        $this->assertSame('Aisle C Shelf 2', $product->shelf_location);
+        $this->assertSame($product->product_id, $price->fresh()->product_id);
+        $this->assertDatabaseHas('inventory_ledgers', [
+            'product_id' => $product->product_id,
+            'qty_in' => 0,
+            'qty_out' => 0,
+            'reason_code' => 'SUPPLIER_IMPORT',
+        ]);
+    }
+
+    public function test_staff_cannot_match_or_apply_supplier_catalog_items(): void
+    {
+        $staff = User::factory()->create(['role' => 'staff']);
+        $product = Product::create(['sku' => 'NO-STAFF', 'name' => 'Protected Product']);
+        $price = $this->createSupplierPrice('NO-STAFF-SUP', 'Protected Supplier Product', 50);
+
+        $this->actingAs($staff)->patch(route('admin.suppliers.prices.match', $price), [
+            'product_id' => $product->product_id,
+        ])->assertForbidden();
+        $this->actingAs($staff)->patch(route('admin.suppliers.prices.apply-cost', $price))->assertForbidden();
+        $this->actingAs($staff)->post(route('admin.suppliers.prices.create-product', $price), [
+            'sku' => 'FORBIDDEN', 'selling_price' => 100, 'reorder_level' => 5,
+        ])->assertForbidden();
+    }
+
     public function test_admin_can_delete_all_supplier_data_and_import_again_without_affecting_inventory(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);
@@ -149,7 +259,12 @@ class SuppliersPageTest extends TestCase
         $this->actingAs($admin)->post(route('admin.suppliers.imports.approve', $import))->assertRedirect();
 
         $this->actingAs($admin)
-            ->delete(route('admin.suppliers.purge'), ['confirmation_text' => 'DELETE'])
+            ->get(route('admin.suppliers'))
+            ->assertSee('Confirm with your account password')
+            ->assertDontSee('Type <b>DELETE</b>', false);
+
+        $this->actingAs($admin)
+            ->delete(route('admin.suppliers.purge'), ['password' => 'password'])
             ->assertRedirect(route('admin.suppliers'))
             ->assertSessionHas('success');
 
@@ -171,17 +286,19 @@ class SuppliersPageTest extends TestCase
         $this->assertSame('pending', SupplierImport::firstOrFail()->status);
     }
 
-    public function test_supplier_data_delete_requires_exact_confirmation_and_admin_role(): void
+    public function test_supplier_data_delete_requires_current_admin_password_and_admin_role(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);
         $staff = User::factory()->create(['role' => 'staff']);
+        $supplier = Supplier::create(['name' => 'Protected Supplier', 'code' => 'PROTECTED', 'is_active' => true]);
 
         $this->actingAs($admin)
-            ->delete(route('admin.suppliers.purge'), ['confirmation_text' => 'delete'])
-            ->assertSessionHasErrors('confirmation_text');
+            ->delete(route('admin.suppliers.purge'), ['password' => 'wrong-password'])
+            ->assertSessionHasErrors('password');
+        $this->assertDatabaseHas('suppliers', ['supplier_id' => $supplier->supplier_id]);
 
         $this->actingAs($staff)
-            ->delete(route('admin.suppliers.purge'), ['confirmation_text' => 'DELETE'])
+            ->delete(route('admin.suppliers.purge'), ['password' => 'password'])
             ->assertForbidden();
     }
 
@@ -201,5 +318,26 @@ class SuppliersPageTest extends TestCase
         $response = $this->get('/admin/suppliers');
 
         $response->assertRedirect('/');
+    }
+
+    private function createSupplierPrice(string $supplierSku, string $productName, float $unitPrice, ?int $available = null): SupplierPrice
+    {
+        $supplier = Supplier::create([
+            'name' => 'Catalog Apply Supplier',
+            'code' => 'CATALOG-'.strtoupper(substr(md5($supplierSku), 0, 8)),
+            'is_active' => true,
+        ]);
+
+        return SupplierPrice::create([
+            'supplier_id' => $supplier->supplier_id,
+            'supplier_sku' => $supplierSku,
+            'product_name' => $productName,
+            'currency' => 'PHP',
+            'unit_price' => $unitPrice,
+            'available_quantity' => $available,
+            'source_type' => 'spreadsheet',
+            'source_filename' => 'catalog.csv',
+            'last_updated_at' => now(),
+        ]);
     }
 }

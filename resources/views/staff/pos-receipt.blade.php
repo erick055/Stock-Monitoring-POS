@@ -49,6 +49,9 @@
     <section class="receipt-totals">
         <div class="receipt-total-row"><span>Subtotal</span><span>P{{ number_format($sale->subtotal, 2) }}</span></div>
         <div class="receipt-total-row"><span>Tax (12%)</span><span>P{{ number_format($sale->tax_amount, 2) }}</span></div>
+        @if((float) $sale->labor_amount > 0)
+            <div class="receipt-total-row"><span>Labor</span><span>P{{ number_format($sale->labor_amount, 2) }}</span></div>
+        @endif
         <div class="receipt-total-row receipt-grand-total"><span>Total paid</span><span>P{{ number_format($sale->total_sale_amount, 2) }}</span></div>
     </section>
 

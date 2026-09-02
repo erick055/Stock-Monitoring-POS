@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Models\Product;
 use App\Models\SupplierImport;
 use DateTimeInterface;
 use InvalidArgumentException;
@@ -18,6 +17,8 @@ class SupplierSpreadsheetImporter
         'supplier_sku', 'product_name', 'internal_sku', 'currency', 'unit_price',
         'available_quantity', 'minimum_order_quantity', 'lead_time_days', 'effective_date',
     ];
+
+    public function __construct(private readonly SupplierProductMatcher $productMatcher) {}
 
     public function stage(SupplierImport $import, string $path, string $extension): void
     {
@@ -65,15 +66,17 @@ class SupplierSpreadsheetImporter
                     }
                     $seenSupplierSkus[$supplierSkuKey] = true;
 
-                    $product = filled($data['internal_sku'])
-                        ? Product::query()->where('sku', $data['internal_sku'])->first()
-                        : null;
+                    $product = $this->productMatcher->match(
+                        $data['internal_sku'],
+                        $data['supplier_sku'],
+                        $data['product_name'],
+                    );
 
                     $import->rows()->create([
                         'row_number' => $rowIndex,
                         'supplier_sku' => $data['supplier_sku'],
                         'product_name' => $data['product_name'],
-                        'internal_sku' => $data['internal_sku'] ?: null,
+                        'internal_sku' => $product?->sku ?? ($data['internal_sku'] ?: null),
                         'product_id' => $product?->product_id,
                         'currency' => strtoupper($data['currency'] ?: 'PHP'),
                         'unit_price' => is_numeric($data['unit_price']) ? $data['unit_price'] : 0,

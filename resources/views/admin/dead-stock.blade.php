@@ -49,15 +49,25 @@ $navigation = [
         </section>
 
         <section class="panel detail-panel risk-inventory-panel">
+            <datalist id="bundle-product-options">
+                @foreach($bundleProducts as $bundleProduct)
+                    <option value="{{ $bundleProduct->sku }} — {{ $bundleProduct->name }}" data-product-id="{{ $bundleProduct->product_id }}">{{ $bundleProduct->current_stock }} in stock</option>
+                @endforeach
+            </datalist>
             <div class="section-heading">
-                <div><span class="section-kicker">AI RECOVERY QUEUE</span><h2>Inventory Unlikely to Sell Soon</h2><small>{{ number_format($riskItems->total()) }} matching products. AI suggests; only an administrator can approve an offer.</small></div>
+                <div><span class="section-kicker">{{ $status === 'archived' ? 'ARCHIVE' : 'AI RECOVERY QUEUE' }}</span><h2>{{ $status === 'archived' ? 'Archived Dead-Stock Items' : 'Inventory Unlikely to Sell Soon' }}</h2><small>{{ number_format($riskItems->total()) }} matching products. {{ $status === 'archived' ? 'Archived records remain in inventory and can be restored.' : 'AI suggests; only an administrator can approve an offer.' }}</small></div>
             </div>
+            <nav class="archive-tabs" aria-label="Dead stock queue views">
+                <a class="{{ $status === 'queue' ? 'active' : '' }}" href="{{ route('admin.dead-stock') }}">Active queue</a>
+                <a class="{{ $status === 'archived' ? 'active' : '' }}" href="{{ route('admin.dead-stock', ['status' => 'archived']) }}">Archived <span>{{ $summary[3][1] }}</span></a>
+            </nav>
             <form class="data-toolbar" method="GET" action="{{ route('admin.dead-stock') }}">
+                <input type="hidden" name="status" value="{{ $status }}">
                 <label class="compact-search"><span>Search</span><input name="search" value="{{ $search }}" placeholder="Product or SKU"></label>
-                <label><span>Risk</span><select name="classification"><option value="all" @selected($classification === 'all')>All risks</option><option value="dead" @selected($classification === 'dead')>Dead stock</option><option value="slow" @selected($classification === 'slow')>Slow moving</option></select></label>
+                <label><span>Risk</span><select name="classification"><option value="all" @selected($classification === 'all')>All risks</option><option value="dead" @selected($classification === 'dead')>Dead stock</option><option value="slow" @selected($classification === 'slow')>Slow moving</option>@if($status === 'archived')<option value="healthy" @selected($classification === 'healthy')>Now healthy</option>@endif</select></label>
                 <label><span>Rows</span><select name="per_page">@foreach([10,25,50,100] as $size)<option value="{{ $size }}" @selected($perPage === $size)>{{ $size }}</option>@endforeach</select></label>
                 <button type="submit">Apply</button>
-                @if($search || $classification !== 'all' || $perPage !== 25)<a href="{{ route('admin.dead-stock') }}">Reset</a>@endif
+                @if($search || $classification !== 'all' || $perPage !== 25)<a href="{{ route('admin.dead-stock', $status === 'archived' ? ['status' => 'archived'] : []) }}">Reset</a>@endif
             </form>
             <div class="table-wrap risk-table">
                 <table>
@@ -80,12 +90,24 @@ $navigation = [
                                 </details>
                             </td>
                             <td>
+                                @if($status === 'archived')
+                                    <div class="archive-record">
+                                        <strong>Archived {{ $item['archived_at'] }}</strong>
+                                        <small>By {{ $item['archived_by'] }}</small>
+                                        @if($item['archive_note'])<p>{{ $item['archive_note'] }}</p>@endif
+                                        <form method="POST" action="{{ route('admin.dead-stock.restore', $item['product_id']) }}" data-restore-dead-stock>
+                                            @csrf @method('PATCH')
+                                            <button type="submit">Restore to active queue</button>
+                                        </form>
+                                    </div>
+                                @else
                                 <details class="promotion-details" @if($item['active_promotion']) open @endif>
                                     <summary>{{ $item['active_promotion'] ? 'Active offer' : 'Choose action' }}</summary>
                                     @if($item['active_promotion'])
                                         <div class="active-promotion">
-                                            <strong>{{ $item['active_promotion']['label'] }} · {{ number_format($item['active_promotion']['discount_percent'], 2) }}% off</strong>
+                                            <strong>{{ $item['active_promotion']['label'] }}{{ $item['active_promotion']['action_type'] === 'promo_bundle' ? ' · Free in POS' : ' · '.number_format($item['active_promotion']['discount_percent'], 2).'% off' }}</strong>
                                             <span>₱{{ number_format($item['unit_price'], 2) }} → ₱{{ number_format($item['active_promotion']['promotional_price'], 2) }}</span>
+                                            @if($item['active_promotion']['bundle_product'])<small>Bundle with {{ $item['active_promotion']['bundle_product']['name'] }} ({{ $item['active_promotion']['bundle_product']['sku'] }})</small>@endif
                                             @if($item['active_promotion']['bundle_note'])<small>{{ $item['active_promotion']['bundle_note'] }}</small>@endif
                                             <small>Approved by {{ $item['active_promotion']['administrator'] }}</small>
                                             <form method="POST" action="{{ route('admin.dead-stock.promotions.end', $item['product_id']) }}" data-end-promotion>
@@ -100,23 +122,34 @@ $navigation = [
                                         <div class="promotion-actions" role="group" aria-label="Choose promotion for {{ $item['name'] }}">
                                             <button class="selected" type="button" data-promotion-action="discount">Discount</button>
                                             <button type="button" data-promotion-action="promo_bundle">Promo bundle</button>
-                                            <button type="button" data-promotion-action="clearance">Clearance sale</button>
                                         </div>
-                                        <label>Discount percentage
+                                        <label data-discount-field>Discount percentage
                                             <span class="discount-input"><input name="discount_percent" type="number" min="1" max="90" step="0.01" value="{{ $item['active_promotion']['discount_percent'] ?? 10 }}" required><b>%</b></span>
                                         </label>
-                                        <label data-bundle-field hidden>Bundle details
-                                            <input name="bundle_note" type="text" maxlength="160" placeholder="Example: Buy with oil filter">
+                                        <label data-bundle-field hidden>Search bundle product
+                                            <input type="search" list="bundle-product-options" autocomplete="off" placeholder="Type product name or SKU" data-bundle-search>
+                                            <input name="bundle_product_id" type="hidden" data-bundle-product-id>
+                                            <small>Select an exact inventory product from the suggestions.</small>
                                         </label>
                                         <p class="price-preview" data-price-preview data-base-price="{{ $item['unit_price'] }}">Regular ₱{{ number_format($item['unit_price'], 2) }}</p>
                                         <button class="approve-promotion" type="submit">Approve selected action</button>
                                         <small>Nothing changes until you press approve.</small>
                                     </form>
                                 </details>
+                                <details class="archive-details">
+                                    <summary>Archive item</summary>
+                                    <form method="POST" action="{{ route('admin.dead-stock.archive', $item['product_id']) }}" data-archive-dead-stock>
+                                        @csrf @method('PATCH')
+                                        <label>Archive note <small>Optional</small><textarea name="archive_note" rows="2" maxlength="500" placeholder="Why is this item being archived?"></textarea></label>
+                                        <small>This only hides the item from this queue. Inventory and POS are unchanged.</small>
+                                        <button type="submit">Archive from queue</button>
+                                    </form>
+                                </details>
+                                @endif
                             </td>
                         </tr>
                     @empty
-                        <tr><td colspan="9" class="empty-table">No products match the selected risk filters.</td></tr>
+                        <tr><td colspan="9" class="empty-table">{{ $status === 'archived' ? 'No archived products match the selected filters.' : 'No products match the selected risk filters.' }}</td></tr>
                     @endforelse
                     </tbody>
                 </table>

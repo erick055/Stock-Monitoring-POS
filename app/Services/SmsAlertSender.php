@@ -14,8 +14,7 @@ class SmsAlertSender
 
         if ($driver === 'log') {
             Log::info('Stock alert SMS', ['to' => $to, 'message' => $message]);
-
-            return;
+            throw new RuntimeException('SMS was not delivered because the application is in local log mode. Configure Twilio for phone delivery.');
         }
 
         if ($driver !== 'twilio') {

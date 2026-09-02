@@ -4,6 +4,7 @@ return [
     'api_key' => env('OPENAI_API_KEY'),
     'model' => env('OPENAI_MODEL', 'gpt-5.6-luna'),
     'base_url' => env('OPENAI_BASE_URL', 'https://api.openai.com/v1'),
+    'ca_bundle' => env('OPENAI_CA_BUNDLE', storage_path('certs/cacert.pem')),
     'timeout' => (int) env('OPENAI_TIMEOUT', 30),
     'max_products' => (int) env('OPENAI_MAX_COMPATIBILITY_PRODUCTS', 10),
     'max_recommendations' => (int) env('OPENAI_MAX_COMPATIBILITY_RECOMMENDATIONS', 5),

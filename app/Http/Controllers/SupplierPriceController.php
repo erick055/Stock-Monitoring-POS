@@ -2,9 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\InventoryLedger;
+use App\Models\Product;
 use App\Models\Supplier;
 use App\Models\SupplierImport;
+use App\Models\SupplierImportRow;
 use App\Models\SupplierPrice;
+use App\Services\SupplierProductMatcher;
 use App\Services\SupplierSpreadsheetImporter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -12,6 +16,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 use InvalidArgumentException;
 
@@ -24,6 +29,11 @@ class SupplierPriceController extends Controller
             ->latest('last_updated_at')
             ->get();
 
+        $catalogProducts = Product::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['product_id', 'sku', 'name', 'unit_cost']);
+
         $imports = SupplierImport::query()
             ->with(['supplier', 'rows'])
             ->latest()
@@ -33,7 +43,7 @@ class SupplierPriceController extends Controller
         $selectedImport = null;
         if ($request->filled('import')) {
             $selectedImport = SupplierImport::query()
-                ->with(['supplier', 'rows'])
+                ->with(['supplier', 'rows.product'])
                 ->findOrFail($request->integer('import'));
         }
 
@@ -44,7 +54,7 @@ class SupplierPriceController extends Controller
             'stale' => $prices->filter(fn ($price) => $price->last_updated_at->lt(now()->subDays(30)))->count(),
         ];
 
-        return view('admin.suppliers', compact('prices', 'imports', 'selectedImport', 'summary'));
+        return view('admin.suppliers', compact('prices', 'imports', 'selectedImport', 'summary', 'catalogProducts'));
     }
 
     public function upload(Request $request, SupplierSpreadsheetImporter $importer): RedirectResponse
@@ -80,17 +90,27 @@ class SupplierPriceController extends Controller
             ->with('success', 'Spreadsheet staged. Review the rows before approval.');
     }
 
-    public function approve(Request $request, SupplierImport $supplierImport): RedirectResponse
+    public function approve(Request $request, SupplierImport $supplierImport, SupplierProductMatcher $productMatcher): RedirectResponse
     {
         abort_unless($supplierImport->status === 'pending', 409, 'This import has already been processed.');
         if ($supplierImport->error_count > 0) {
             return back()->withErrors(['import' => 'Correct the spreadsheet errors and upload a new file before approval.']);
         }
 
-        DB::transaction(function () use ($request, $supplierImport) {
+        DB::transaction(function () use ($request, $supplierImport, $productMatcher) {
             $supplierImport->load('rows');
 
             foreach ($supplierImport->rows as $row) {
+                if (! $row->product_id) {
+                    $matchedProduct = $productMatcher->match($row->internal_sku, $row->supplier_sku, $row->product_name);
+                    if ($matchedProduct) {
+                        $row->update([
+                            'product_id' => $matchedProduct->product_id,
+                            'internal_sku' => $matchedProduct->sku,
+                        ]);
+                    }
+                }
+
                 $price = SupplierPrice::query()->firstOrNew([
                     'supplier_id' => $supplierImport->supplier_id,
                     'supplier_sku' => $row->supplier_sku,
@@ -130,6 +150,89 @@ class SupplierPriceController extends Controller
         return redirect()->route('admin.suppliers')->with('success', 'Supplier prices published successfully.');
     }
 
+    public function matchProduct(Request $request, SupplierPrice $supplierPrice): RedirectResponse
+    {
+        $validated = $request->validate([
+            'product_id' => ['required', Rule::exists('products', 'product_id')->where('is_active', true)],
+        ]);
+
+        $product = Product::query()->findOrFail($validated['product_id']);
+        $supplierPrice->update(['product_id' => $product->product_id]);
+        $this->syncImportRowMatches($supplierPrice, $product);
+
+        return back()->with('success', "{$supplierPrice->product_name} is now matched to {$product->sku} — {$product->name}.");
+    }
+
+    public function applyCost(SupplierPrice $supplierPrice): RedirectResponse
+    {
+        $this->ensurePesoPrice($supplierPrice);
+
+        $product = DB::transaction(function () use ($supplierPrice) {
+            $product = Product::query()->lockForUpdate()->find($supplierPrice->product_id);
+            if (! $product) {
+                throw ValidationException::withMessages([
+                    'product_id' => 'Match this supplier item to a product before applying its cost.',
+                ]);
+            }
+
+            $product->update(['unit_cost' => $supplierPrice->unit_price]);
+
+            return $product;
+        });
+
+        return back()->with('success', "Supplier cost applied to {$product->sku}. Selling price and inventory quantity were not changed.");
+    }
+
+    public function createProduct(Request $request, SupplierPrice $supplierPrice): RedirectResponse
+    {
+        $this->ensurePesoPrice($supplierPrice);
+
+        if ($supplierPrice->product_id) {
+            throw ValidationException::withMessages([
+                'product_id' => 'This supplier item is already matched. Use Apply supplier cost or change its catalog match.',
+            ]);
+        }
+
+        $validated = $request->validate([
+            'sku' => ['required', 'string', 'max:100', 'unique:products,sku'],
+            'selling_price' => ['required', 'numeric', 'min:0'],
+            'category' => ['nullable', 'string', 'max:100'],
+            'shelf_location' => ['nullable', 'string', 'max:100'],
+            'reorder_level' => ['required', 'integer', 'min:0'],
+        ]);
+
+        $product = DB::transaction(function () use ($validated, $supplierPrice, $request) {
+            $product = Product::create([
+                'sku' => trim($validated['sku']),
+                'name' => $supplierPrice->product_name,
+                'description' => "Created from {$supplierPrice->supplier->name} supplier price {$supplierPrice->supplier_sku}.",
+                'category' => $this->nullableCleanString($validated['category'] ?? null),
+                'shelf_location' => $this->nullableCleanString($validated['shelf_location'] ?? null),
+                'unit_cost' => $supplierPrice->unit_price,
+                'unit_price' => $validated['selling_price'],
+                'current_stock' => 0,
+                'reorder_level' => $validated['reorder_level'],
+                'is_active' => true,
+            ]);
+
+            InventoryLedger::create([
+                'product_id' => $product->product_id,
+                'user_id' => $request->user()->id,
+                'qty_in' => 0,
+                'qty_out' => 0,
+                'reason_code' => 'SUPPLIER_IMPORT',
+                'logs' => "Product created from supplier price {$supplierPrice->supplier_sku}. Supplier availability was not added to store inventory.",
+            ]);
+
+            $supplierPrice->update(['product_id' => $product->product_id]);
+            $this->syncImportRowMatches($supplierPrice, $product);
+
+            return $product;
+        });
+
+        return back()->with('success', "{$product->sku} was added to Products with zero store stock and matched to this supplier price.");
+    }
+
     public function reject(SupplierImport $supplierImport): RedirectResponse
     {
         abort_unless($supplierImport->status === 'pending', 409, 'This import has already been processed.');
@@ -141,9 +244,9 @@ class SupplierPriceController extends Controller
     public function purge(Request $request): RedirectResponse
     {
         $request->validate([
-            'confirmation_text' => ['required', Rule::in(['DELETE'])],
+            'password' => ['required', 'string', 'current_password'],
         ], [
-            'confirmation_text.in' => 'Type DELETE exactly to confirm removal of all supplier price data.',
+            'password.current_password' => 'The account password is incorrect. No supplier data was deleted.',
         ]);
 
         $counts = DB::transaction(function () {
@@ -173,5 +276,32 @@ class SupplierPriceController extends Controller
             'success',
             "Supplier price data cleared: {$counts['suppliers']} suppliers, {$counts['prices']} published prices, and {$counts['imports']} imports removed. You can now import a new price list."
         );
+    }
+
+    private function syncImportRowMatches(SupplierPrice $supplierPrice, Product $product): void
+    {
+        SupplierImportRow::query()
+            ->where('supplier_sku', $supplierPrice->supplier_sku)
+            ->whereHas('import', fn ($query) => $query->where('supplier_id', $supplierPrice->supplier_id))
+            ->update([
+                'product_id' => $product->product_id,
+                'internal_sku' => $product->sku,
+            ]);
+    }
+
+    private function ensurePesoPrice(SupplierPrice $supplierPrice): void
+    {
+        if (strtoupper($supplierPrice->currency) !== 'PHP') {
+            throw ValidationException::withMessages([
+                'currency' => 'Only PHP supplier prices can be applied to product costs. Convert the price to PHP before applying it.',
+            ]);
+        }
+    }
+
+    private function nullableCleanString(?string $value): ?string
+    {
+        $value = trim(preg_replace('/\s+/u', ' ', (string) $value));
+
+        return $value !== '' ? $value : null;
     }
 }

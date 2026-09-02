@@ -18,6 +18,7 @@ class SalesTransaction extends Model
         'customer_id',
         'subtotal',
         'tax_amount',
+        'labor_amount',
         'total_sale_amount',
         'payment_status',
         'payment_method',
@@ -29,6 +30,7 @@ class SalesTransaction extends Model
         return [
             'subtotal' => 'decimal:2',
             'tax_amount' => 'decimal:2',
+            'labor_amount' => 'decimal:2',
             'total_sale_amount' => 'decimal:2',
             'sale_date' => 'datetime',
         ];

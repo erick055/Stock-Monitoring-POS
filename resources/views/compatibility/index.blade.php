@@ -5,7 +5,7 @@ $navigation = $isAdmin ? [
     ['⌁','Analytics','/admin/analytics'], ['!','Low Stock Alerts','/admin/low-stocks'], ['◎','Dead Stock','/admin/deadstock'],
     ['◇','Returns & Damages','/admin/returns'], ['♙','Supplier Price','/admin/suppliers'], ['⚙','Part Compatibility','#'],
 ] : [
-    ['⌂','Dashboard','/staff/dashboard'], ['▣','Stock Management','/staff/stock-management'], ['□','Products','/staff/products'],
+    ['⌂','Dashboard','/staff/dashboard'], ['□','Products','/staff/products'],
     ['▤','POS Checkout','/staff/pos'], ['◇','Return & Damage','/staff/returns'], ['⚙','Part Compatibility','#'],
 ];
 $aiRoute = $isAdmin ? route('admin.compatibility.ai') : route('staff.compatibility.ai');

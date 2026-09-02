@@ -97,7 +97,7 @@ class LowStocksController extends Controller
         $deliveries = StockAlertDelivery::query()->latest()->limit(20)->get();
         $smsStatus = config('services.sms.driver') === 'twilio'
             ? (config('services.sms.twilio.account_sid') && config('services.sms.twilio.auth_token') && config('services.sms.twilio.from') ? 'Twilio configured' : 'Twilio credentials missing')
-            : 'Local log mode';
+            : 'Not configured — local log only, no phone delivery';
 
         return view('admin.low-stocks', compact(
             'summary', 'activeAlerts', 'fastMoving', 'settings', 'deliveries', 'smsStatus',
@@ -123,7 +123,9 @@ class LowStocksController extends Controller
 
     public function runNow(LowStockAlertService $alerts): RedirectResponse
     {
-        $sent = $alerts->checkAll();
+        // This is an explicit delivery test initiated by an administrator.
+        // Scheduled and inventory-triggered checks remain deduplicated.
+        $sent = $alerts->checkAll(force: true);
 
         return back()->with('success', "Stock alert check completed. {$sent} new notification(s) sent.");
     }

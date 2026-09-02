@@ -39,7 +39,10 @@
                 <input type="password" name="password_confirmation" autocomplete="new-password" placeholder="Repeat your password">
             </label>
             <p class="password-hint" data-password-hint hidden>Use at least 12 characters with uppercase, lowercase, a number, and a symbol.</p>
-            <label class="remember-field" data-remember-field><input type="checkbox" name="remember" value="1"> Remember me</label>
+            <label class="remember-field" data-remember-field>
+                <input type="hidden" name="remember" value="0">
+                <input type="checkbox" name="remember" value="1" checked> Keep me signed in on this browser
+            </label>
             <button class="primary-button" type="submit" data-submit-label>Log in</button>
             <p class="switch-copy"><span data-switch-text>Need a staff account?</span> <button type="button" data-switch-mode>Create one</button></p>
         </form>

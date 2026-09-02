@@ -12,6 +12,9 @@
 .form-grid .wide{grid-column:1/-1}
 .form-grid input,.form-grid select{width:100%;padding:10px 11px;border:1px solid #3d2d63;border-radius:8px;background:#0c0e16;color:#f7f7fb;font-size:10px;outline:0}
 .form-grid input:focus,.form-grid select:focus{border-color:#8b56df;box-shadow:0 0 0 2px rgba(139,86,223,.16)}
+.receipt-preview{display:flex;align-items:center;gap:8px 14px;flex-wrap:wrap;padding:10px 11px;border:1px solid #2e3243;border-radius:8px;background:#121520;color:#aeb3c2;font-size:9px}
+.receipt-preview strong{color:#d8bcff;font-size:10px}
+.inventory-note{margin:-3px 0 13px;padding:9px 10px;border-left:2px solid #8b56df;background:rgba(139,86,223,.08);color:#aeb3c2;font-size:9px;line-height:1.5}
 .returns-notice{margin-bottom:14px;padding:12px 14px;border-radius:9px;font-size:10px}
 .returns-notice.success{border:1px solid #28734d;background:#102018;color:#72e0bf}
 .returns-notice.error{border:1px solid #8d2133;background:#211017;color:#ff8e99}

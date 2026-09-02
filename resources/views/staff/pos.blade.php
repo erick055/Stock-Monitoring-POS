@@ -1,6 +1,6 @@
 @php
 $navigation = [
-    ['⌂','Dashboard','/staff/dashboard'], ['▣','Stock Management','/staff/stock-management'], ['□','Products','/staff/products'],
+    ['⌂','Dashboard','/staff/dashboard'], ['□','Products','/staff/products'],
     ['▤','POS Checkout','#'], ['◇','Return & Damage','/staff/returns'], ['⚙','Part Compatibility','/staff/compatibility'],
 ];
 @endphp
@@ -19,7 +19,7 @@ $navigation = [
         <div class="sidebar-brand"><span class="logo-mark">M</span><div><strong>MotoSync</strong><small>Pareng RJJ Motorcycle Parts</small></div></div>
         <nav class="nav-list" aria-label="Staff navigation">
             @foreach($navigation as $index => $item)
-                <a class="nav-link {{ $index === 3 ? 'active' : '' }}" href="{{ $item[2] === '#' ? '#' : url($item[2]) }}"><span>{{ $item[0] }}</span><span>{{ $item[1] }}</span></a>
+                <a class="nav-link {{ $index === 2 ? 'active' : '' }}" href="{{ $item[2] === '#' ? '#' : url($item[2]) }}"><span>{{ $item[0] }}</span><span>{{ $item[1] }}</span></a>
             @endforeach
         </nav>
         <div class="sidebar-user">
@@ -44,7 +44,7 @@ $navigation = [
                     </div>
                     <label class="pos-search">
                         <span>⌕</span>
-                        <input type="search" placeholder="Search parts, SKUs, or services..." data-pos-search>
+                        <input type="search" placeholder="Search parts, SKUs, categories, or shelves..." data-pos-search>
                     </label>
                 </div>
 
@@ -74,9 +74,19 @@ $navigation = [
                     <div class="empty-cart">Cart is empty.<br>Select items to begin.</div>
                 </div>
 
+                <label class="labor-field">
+                    <span>Labor charge <small>Optional</small></span>
+                    <div class="labor-input-wrap">
+                        <span>P</span>
+                        <input type="number" min="0" max="9999999999.99" step="0.01" inputmode="decimal" placeholder="0.00" data-labor-amount aria-label="Optional labor charge">
+                    </div>
+                    <small>Added after merchandise tax and recorded on the receipt.</small>
+                </label>
+
                 <div class="cart-summary">
                     <div class="summary-row"><span>Subtotal</span><span data-subtotal>P0.00</span></div>
                     <div class="summary-row"><span>Tax (12%)</span><span data-tax>P0.00</span></div>
+                    <div class="summary-row"><span>Labor</span><span data-labor-total>P0.00</span></div>
                     <div class="summary-row total"><span>Total</span><span data-total>P0.00</span></div>
                 </div>
 
@@ -166,6 +176,7 @@ $navigation = [
             <div class="receipt-preview-totals">
                 <div><span>Subtotal</span><strong data-receipt-subtotal></strong></div>
                 <div><span>Tax (12%)</span><strong data-receipt-tax></strong></div>
+                <div data-receipt-labor-row><span>Labor</span><strong data-receipt-labor></strong></div>
                 <div class="receipt-preview-total"><span>Total paid</span><strong data-receipt-total></strong></div>
             </div>
         </div>

@@ -1,15 +1,11 @@
 @php
-$isAdmin = auth()->user()->role === 'admin';
-$navigation = $isAdmin ? [
+$navigation = [
     ['⌂','Dashboard','/admin/dashboard'], ['▣','Stock Management','#'], ['□','Products','/admin/products'],
     ['⌁','Analytics','/admin/analytics'], ['!','Low Stock Alerts','/admin/low-stocks'], ['@','Dead Stock','/admin/deadstock'],
     ['◇','Returns & Damages','/admin/returns'], ['♙','Supplier Price','/admin/suppliers'], ['⚙','Part Compatibility','/admin/compatibility'],
-] : [
-    ['⌂','Dashboard','/staff/dashboard'], ['▣','Stock Management','#'], ['□','Products','/staff/products'],
-    ['▤','POS Checkout','/staff/pos'], ['◇','Return & Damage','/staff/returns'], ['⚙','Part Compatibility','/staff/compatibility'],
 ];
-$productStoreRoute = $isAdmin ? route('admin.inventory.products.store') : route('staff.inventory.products.store');
-$movementStoreRoute = $isAdmin ? route('admin.inventory.movements.store') : route('staff.inventory.movements.store');
+$productStoreRoute = route('admin.inventory.products.store');
+$movementStoreRoute = route('admin.inventory.movements.store');
 @endphp
 <!DOCTYPE html>
 <html lang="en">
@@ -23,14 +19,14 @@ $movementStoreRoute = $isAdmin ? route('admin.inventory.movements.store') : rout
 <div class="dashboard-shell stock-shell">
     <aside class="sidebar" data-sidebar>
         <div class="sidebar-brand"><span class="logo-mark">M</span><div><strong>MotoSync</strong><small>Pareng RJJ Motorcycle Parts</small></div></div>
-        <nav class="nav-list" aria-label="{{ $isAdmin ? 'Administrator' : 'Staff' }} navigation">
+        <nav class="nav-list" aria-label="Administrator navigation">
             @foreach($navigation as $index => $item)
                 <a class="nav-link {{ $index === 1 ? 'active' : '' }}" href="{{ $item[2] === '#' ? '#' : url($item[2]) }}"><span>{{ $item[0] }}</span><span>{{ $item[1] }}</span></a>
             @endforeach
         </nav>
         <div class="sidebar-user">
             <span class="avatar">{{ strtoupper(substr(auth()->user()->name, 0, 2)) }}</span>
-            <div><strong>{{ auth()->user()->name }}</strong><small>{{ $isAdmin ? 'Administrator' : 'Staff' }}</small></div>
+            <div><strong>{{ auth()->user()->name }}</strong><small>Administrator</small></div>
             <form method="POST" action="{{ route('logout') }}">@csrf<button class="logout-button" type="submit" title="Log out">&#8618;</button></form>
         </div>
     </aside>
@@ -40,7 +36,7 @@ $movementStoreRoute = $isAdmin ? route('admin.inventory.movements.store') : rout
             <button class="menu-button" type="button" data-menu aria-label="Toggle navigation">&#9776;</button>
             <div><p class="welcome">INVENTORY CONTROL</p><h1>Stock Management</h1><p>Monitor inventory levels and record every stock movement.</p></div>
             <form class="header-tools" method="GET">
-                <label class="search-box"><span>⌕</span><input type="search" name="search" value="{{ $search }}" placeholder="Search SKU or product"></label>
+                <label class="search-box"><span>⌕</span><input type="search" name="search" value="{{ $search }}" placeholder="Search SKU, product, or shelf"></label>
                 <input type="hidden" name="status" value="{{ $status }}">
                 <button class="search-button" type="submit">Search</button>
             </form>
@@ -68,20 +64,38 @@ $movementStoreRoute = $isAdmin ? route('admin.inventory.movements.store') : rout
             </div>
             <div class="table-wrap">
                 <table>
-                    <thead><tr><th>Product ID</th><th>Product</th><th>Category</th><th>Current stock</th><th>Reorder level</th><th>Unit cost</th><th>Status</th></tr></thead>
+                    <thead><tr><th>Product ID</th><th>Product</th><th>Category</th><th>Shelf location</th><th>Current stock</th><th>Reorder level</th><th>Unit cost</th><th>Status</th><th>Actions</th></tr></thead>
                     <tbody>
                     @forelse($products as $product)
                         <tr>
                             <td>#{{ $product->product_id }}</td>
                             <td><strong>{{ $product->name }}</strong><small>{{ $product->sku }}</small></td>
                             <td>{{ $product->category ?: 'Uncategorized' }}</td>
+                            <td>
+                                <form class="shelf-location-form" method="POST" action="{{ route('admin.inventory.products.shelf-location', $product) }}">
+                                    @csrf @method('PATCH')
+                                    <input name="shelf_location" value="{{ $product->shelf_location }}" maxlength="100" aria-label="Shelf location for {{ $product->name }}" placeholder="Not assigned">
+                                    <button type="submit">Save</button>
+                                </form>
+                            </td>
                             <td><div class="stock-level"><span>{{ number_format($product->current_stock) }} units</span><div><i style="width:{{ min(100, $product->reorder_level ? ($product->current_stock / ($product->reorder_level * 3)) * 100 : 100) }}%"></i></div></div></td>
                             <td>{{ number_format($product->reorder_level) }}</td>
                             <td>₱{{ number_format($product->unit_cost, 2) }}</td>
                             <td><span class="status-badge {{ $product->stock_status }}">{{ $product->stock_status === 'warning' ? 'Low stock' : ucfirst($product->stock_status) }}</span></td>
+                            <td>
+                                <button
+                                    class="delete-product-button"
+                                    type="button"
+                                    data-delete-product
+                                    data-delete-action="{{ route('admin.inventory.products.destroy', $product) }}"
+                                    data-product-name="{{ $product->name }}"
+                                    data-product-sku="{{ $product->sku }}"
+                                    data-product-stock="{{ $product->current_stock }}"
+                                >Delete</button>
+                            </td>
                         </tr>
                     @empty
-                        <tr><td colspan="7" class="empty-cell">No products found. Add your first product to begin.</td></tr>
+                        <tr><td colspan="9" class="empty-cell">No products found. Add your first product to begin.</td></tr>
                     @endforelse
                     </tbody>
                 </table>
@@ -89,25 +103,75 @@ $movementStoreRoute = $isAdmin ? route('admin.inventory.movements.store') : rout
         </section>
 
         <section class="panel adjustment-panel">
-            <div class="section-heading"><div><span class="section-kicker">QUICK ENTRY</span><h2>Stock Adjustment</h2></div></div>
-            <div class="adjustment-grid">
-                @foreach([
-                    ['in','↓','Stock In','Receive delivered inventory','Record stock in'],
-                    ['out','↑','Stock Out','Record released inventory','Record stock out'],
-                    ['adjustment','±','Stock Adjustment','Use positive or negative quantity','Save adjustment'],
-                ] as [$type,$icon,$title,$help,$button])
-                <form class="adjustment-card" method="POST" action="{{ $movementStoreRoute }}">
-                    @csrf
-                    <input type="hidden" name="movement_type" value="{{ $type }}">
-                    <div class="adjustment-title"><span class="movement-icon {{ $type === 'adjustment' ? 'adjust' : $type }}">{{ $icon }}</span><div><strong>{{ $title }}</strong><small>{{ $help }}</small></div></div>
-                    <label>Product<select name="product_id" required><option value="">Select product</option>@foreach($allProducts as $product)<option value="{{ $product->product_id }}">{{ $product->sku }} — {{ $product->name }} ({{ $product->current_stock }})</option>@endforeach</select></label>
-                    <label>Quantity<input name="quantity" type="number" {{ $type === 'adjustment' ? '' : 'min=1' }} placeholder="{{ $type === 'adjustment' ? 'Example: -2 or 5' : 'Enter quantity' }}" required></label>
-                    <label>Reason code<select name="reason_code" required><option value="">Select reason</option>@if($type === 'in')<option value="PURCHASE_RECEIPT">Purchase receipt</option><option value="RETURN_TO_STOCK">Customer return</option>@elseif($type === 'out')<option value="SALE">Sale</option><option value="DAMAGED">Damaged goods</option><option value="SUPPLIER_RETURN">Supplier return</option>@else<option value="PHYSICAL_COUNT">Physical count</option><option value="DATA_CORRECTION">Data correction</option>@endif</select></label>
-                    <label>Log / notes<textarea name="logs" rows="2" placeholder="Optional movement details"></textarea></label>
-                    <button type="submit" @disabled($allProducts->isEmpty())>{{ $button }}</button>
-                </form>
-                @endforeach
+            <div class="section-heading movement-heading">
+                <div><span class="section-kicker">INVENTORY ENTRY</span><h2>Record Stock Movement</h2><small>Use one form for received stock, released stock, or inventory corrections.</small></div>
             </div>
+            <form class="movement-form" method="POST" action="{{ $movementStoreRoute }}" data-movement-form>
+                @csrf
+                <div class="movement-guidance" data-movement-guidance role="status">
+                    <strong data-guidance-title>Stock In adds units to the selected product.</strong>
+                    <span data-guidance-text>Use this for supplier deliveries, customer returns accepted back into stock, or recovered inventory.</span>
+                </div>
+
+                <div class="movement-fields">
+                    <label>1. Movement type
+                        <select name="movement_type" required data-movement-type>
+                            <option value="in" @selected(old('movement_type', 'in') === 'in')>Stock In — add inventory</option>
+                            <option value="out" @selected(old('movement_type') === 'out')>Stock Out — remove inventory</option>
+                            <option value="adjustment" @selected(old('movement_type') === 'adjustment')>Adjustment — correct inventory count</option>
+                        </select>
+                        <small>Choose what should happen to the selected product's balance.</small>
+                    </label>
+                    <label>2. Product
+                        <select name="product_id" required data-movement-product>
+                            <option value="">Select product</option>
+                            @foreach($allProducts as $product)
+                                <option value="{{ $product->product_id }}" data-stock="{{ $product->current_stock }}" @selected((string) old('product_id') === (string) $product->product_id)>{{ $product->sku }} — {{ $product->name }} ({{ $product->current_stock }} currently)</option>
+                            @endforeach
+                        </select>
+                    </label>
+                    <label><span data-quantity-label>3. Quantity received</span>
+                        <input name="quantity" value="{{ old('quantity') }}" type="number" min="1" placeholder="Enter a positive quantity" required data-movement-quantity>
+                        <small data-quantity-help>Entered units will be added to current stock.</small>
+                    </label>
+                    <label>4. Reason
+                        <select name="reason_code" required data-movement-reason data-old-reason="{{ old('reason_code') }}">
+                            <option value="">Select reason</option>
+                            <option value="PURCHASE_RECEIPT" data-types="in">Supplier delivery / purchase receipt</option>
+                            <option value="RETURN_TO_STOCK" data-types="in">Customer return accepted to stock</option>
+                            <option value="RECOVERED_STOCK" data-types="in">Recovered or previously unrecorded stock</option>
+                            <option value="SALE" data-types="out">Manual sale or release</option>
+                            <option value="DAMAGED" data-types="out">Damaged or unusable goods</option>
+                            <option value="SUPPLIER_RETURN" data-types="out">Returned to supplier</option>
+                            <option value="INTERNAL_USE" data-types="out">Internal or shop use</option>
+                            <option value="PHYSICAL_COUNT" data-types="adjustment">Physical count correction</option>
+                            <option value="DATA_CORRECTION" data-types="adjustment">Encoding or data correction</option>
+                            <option value="SHRINKAGE" data-types="adjustment">Loss, shrinkage, or discrepancy</option>
+                        </select>
+                    </label>
+                    <label>5. Reference number <small>Optional</small>
+                        <input name="reference" value="{{ old('reference') }}" maxlength="100" placeholder="Invoice, delivery receipt, sale, or memo no.">
+                    </label>
+                    <label><span data-counterparty-label>6. Supplier / source</span> <small>Optional</small>
+                        <input name="counterparty" value="{{ old('counterparty') }}" maxlength="150" placeholder="Who supplied or received the items" data-counterparty-input>
+                    </label>
+                    <label class="field-wide">7. Movement details <small>Optional</small>
+                        <textarea name="logs" rows="3" maxlength="1000" placeholder="Add condition, purpose, authorization, count findings, or other useful documentation">{{ old('logs') }}</textarea>
+                    </label>
+                </div>
+
+                <div class="movement-audit-note">
+                    <span>Recorded by <strong>{{ auth()->user()->name }}</strong></span>
+                    <span>Date and time are saved automatically when submitted.</span>
+                </div>
+
+                <div class="movement-result" aria-live="polite">
+                    <span><small>Current stock</small><strong data-current-stock>—</strong></span>
+                    <span><small>Movement</small><strong data-stock-change>—</strong></span>
+                    <span><small>Resulting stock</small><strong data-resulting-stock>—</strong></span>
+                </div>
+                <button class="movement-submit" type="submit" @disabled($allProducts->isEmpty()) data-movement-submit>Record stock in</button>
+            </form>
         </section>
 
         <section class="panel ledger-panel">
@@ -138,6 +202,7 @@ $movementStoreRoute = $isAdmin ? route('admin.inventory.movements.store') : rout
                 <label>SKU<input name="sku" value="{{ old('sku') }}" maxlength="100" required></label>
                 <label>Product name<input name="name" value="{{ old('name') }}" maxlength="255" required></label>
                 <label>Category<input name="category" value="{{ old('category') }}" maxlength="100" placeholder="e.g. Lubricants"></label>
+                <label>Shelf location<input name="shelf_location" value="{{ old('shelf_location') }}" maxlength="100" placeholder="e.g. Aisle A · Shelf 03 · Bin 2"></label>
                 <label>Manufacturer<input name="manufacturer" value="{{ old('manufacturer') }}" maxlength="150" placeholder="e.g. Honda, NGK, DID"></label>
                 <label>Manufacturer part number<input name="manufacturer_part_number" value="{{ old('manufacturer_part_number') }}" maxlength="150" placeholder="Official part number"></label>
                 <label>Opening Qty In<input name="qty_in" value="{{ old('qty_in', 0) }}" type="number" min="0" required></label>
@@ -149,6 +214,36 @@ $movementStoreRoute = $isAdmin ? route('admin.inventory.movements.store') : rout
             <label>Manufacturer description<textarea name="description" rows="2" maxlength="5000" placeholder="Official product description">{{ old('description') }}</textarea></label>
             <label>Inventory log<textarea name="logs" rows="3" maxlength="1000" placeholder="Describe when or why this product was added">{{ old('logs') }}</textarea></label>
             <div class="modal-actions"><button type="button" class="secondary-button" data-close-product>Cancel</button><button type="submit" class="primary-button">Add product and ledger entry</button></div>
+        </form>
+    </section>
+</div>
+
+<div class="stock-modal" data-delete-product-modal hidden>
+    <div class="modal-backdrop" data-close-delete-product></div>
+    <section class="modal-card delete-product-card" role="dialog" aria-modal="true" aria-labelledby="delete-product-title">
+        <div class="modal-header">
+            <div><span class="section-kicker danger-kicker">REMOVE PRODUCT</span><h2 id="delete-product-title">Delete Product</h2></div>
+            <button type="button" data-close-delete-product aria-label="Close">&times;</button>
+        </div>
+        <div class="delete-product-summary">
+            <strong data-delete-product-name>Select a product</strong>
+            <span data-delete-product-stock></span>
+            <p>This removes the product from the active catalog. Existing sales and inventory history will be kept for reports and documentation.</p>
+        </div>
+        <p class="delete-product-warning" data-delete-product-warning hidden>This product still has stock. Record a stock-out or adjustment to zero before deleting it.</p>
+        <form method="POST" action="" class="product-form delete-product-form" data-delete-product-form>
+            @csrf
+            @method('DELETE')
+            <label>Reason for deletion
+                <textarea name="deletion_reason" rows="3" maxlength="255" placeholder="Example: Discontinued product or duplicate record" required></textarea>
+            </label>
+            <label>Confirm with your account password
+                <input name="password" type="password" autocomplete="current-password" required>
+            </label>
+            <div class="modal-actions">
+                <button type="button" class="secondary-button" data-close-delete-product>Cancel</button>
+                <button type="submit" class="danger-button" data-delete-product-submit>Delete product</button>
+            </div>
         </form>
     </section>
 </div>

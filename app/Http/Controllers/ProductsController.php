@@ -26,10 +26,21 @@ class ProductsController extends Controller
 
         $baseQuery = Product::query()->where('is_active', true);
         $products = (clone $baseQuery)
+            ->with([
+                'activePromotion.bundleProduct',
+                'supplierPrices.supplier',
+                'latestLedger.user',
+            ])
+            ->withCount(['ledgers', 'supplierPrices'])
+            ->withSum('saleItems as units_sold', 'quantity')
+            ->withSum('saleItems as sales_revenue', 'line_total')
+            ->withSum('customerReturns as returned_units', 'quantity')
+            ->withSum('damagedGoods as damaged_units', 'quantity')
             ->when($search, fn ($query) => $query->where(function ($query) use ($search) {
                 $query->where('sku', 'like', "%{$search}%")
                     ->orWhere('name', 'like', "%{$search}%")
-                    ->orWhere('category', 'like', "%{$search}%");
+                    ->orWhere('category', 'like', "%{$search}%")
+                    ->orWhere('shelf_location', 'like', "%{$search}%");
             }))
             ->when($category, fn ($query) => $query->where('category', $category))
             ->orderBy($sortColumn, $sortDirection)
@@ -39,13 +50,13 @@ class ProductsController extends Controller
         $allProducts = (clone $baseQuery)->get();
         $categories = (clone $baseQuery)->whereNotNull('category')->where('category', '<>', '')
             ->distinct()->orderBy('category')->pluck('category');
-        $averageMargin = $allProducts->filter(fn ($product) => (float) $product->unit_price > 0)
-            ->avg(fn ($product) => (((float) $product->unit_price - (float) $product->unit_cost) / (float) $product->unit_price) * 100) ?? 0;
+        $averageProfit = $allProducts
+            ->avg(fn ($product) => (float) $product->unit_price - (float) $product->unit_cost) ?? 0;
 
         $summary = [
             'total_products' => $allProducts->count(),
             'categories' => $categories->count(),
-            'average_margin' => $averageMargin,
+            'average_profit' => $averageProfit,
             'total_value' => $allProducts->sum(fn ($product) => $product->current_stock * (float) $product->unit_cost),
         ];
 

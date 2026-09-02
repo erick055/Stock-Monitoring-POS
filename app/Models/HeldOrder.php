@@ -12,6 +12,7 @@ class HeldOrder extends Model
 
     protected $fillable = [
         'staff_id',
+        'labor_amount',
         'completed_sale_id',
         'status',
         'held_at',
@@ -21,6 +22,7 @@ class HeldOrder extends Model
     protected function casts(): array
     {
         return [
+            'labor_amount' => 'decimal:2',
             'held_at' => 'datetime',
             'resolved_at' => 'datetime',
         ];
