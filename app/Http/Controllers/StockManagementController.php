@@ -6,6 +6,7 @@ use App\Models\InventoryLedger;
 use App\Models\Product;
 use App\Models\ProductPromotion;
 use App\Services\LowStockAlertService;
+use App\Services\ProductDuplicateGuard;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -19,8 +20,24 @@ class StockManagementController extends Controller
     {
         $search = trim((string) $request->query('search'));
         $status = (string) $request->query('status', 'all');
+        $sort = (string) $request->query('sort', 'name');
+
+        $sorts = [
+            'name' => ['name', 'asc'],
+            'name_desc' => ['name', 'desc'],
+            'newest' => ['created_at', 'desc'],
+            'stock_high' => ['current_stock', 'desc'],
+            'stock_low' => ['current_stock', 'asc'],
+            'cost_high' => ['unit_cost', 'desc'],
+            'cost_low' => ['unit_cost', 'asc'],
+        ];
+        if (! array_key_exists($sort, $sorts)) {
+            $sort = 'name';
+        }
+        [$sortColumn, $sortDirection] = $sorts[$sort];
 
         $products = Product::query()
+            ->with('activePromotion')
             ->where('is_active', true)
             ->when($search, fn ($query) => $query->where(function ($query) use ($search) {
                 $query->where('sku', 'like', "%{$search}%")
@@ -28,7 +45,8 @@ class StockManagementController extends Controller
                     ->orWhere('category', 'like', "%{$search}%")
                     ->orWhere('shelf_location', 'like', "%{$search}%");
             }))
-            ->orderBy('name')
+            ->orderBy($sortColumn, $sortDirection)
+            ->orderBy('product_id')
             ->get()
             ->when($status !== 'all', fn ($items) => $items->filter(fn ($product) => $product->stock_status === $status)->values());
 
@@ -49,18 +67,23 @@ class StockManagementController extends Controller
             'stock_value' => $allProducts->sum(fn ($product) => $product->current_stock * (float) $product->unit_cost),
         ];
 
-        return view('admin.stock-management', compact('products', 'allProducts', 'ledgers', 'summary', 'search', 'status'));
+        return view('admin.stock-management', compact('products', 'allProducts', 'ledgers', 'summary', 'search', 'status', 'sort'));
     }
 
-    public function storeProduct(Request $request, LowStockAlertService $alerts): RedirectResponse
+    public function storeProduct(Request $request, LowStockAlertService $alerts, ProductDuplicateGuard $duplicates): RedirectResponse
     {
+        $request->merge([
+            'sku' => trim((string) $request->input('sku')),
+            'name' => preg_replace('/\s+/u', ' ', trim((string) $request->input('name'))),
+        ]);
+
         $validated = $request->validate([
-            'sku' => ['required', 'string', 'max:100', 'unique:products,sku'],
+            'sku' => ['required', 'string', 'max:100'],
             'name' => ['required', 'string', 'max:255'],
             'category' => ['nullable', 'string', 'max:100'],
             'shelf_location' => ['nullable', 'string', 'max:100'],
             'manufacturer' => ['nullable', 'string', 'max:150'],
-            'manufacturer_part_number' => ['nullable', 'string', 'max:150'],
+            'manufacturer_part_number' => ['required', 'string', 'max:150'],
             'description' => ['nullable', 'string', 'max:5000'],
             'unit_cost' => ['required', 'numeric', 'min:0'],
             'unit_price' => ['required', 'numeric', 'min:0'],
@@ -70,33 +93,37 @@ class StockManagementController extends Controller
             'logs' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        $category = preg_replace('/\s+/u', ' ', trim((string) ($validated['category'] ?? '')));
+        $validated['category'] = $this->normalizedCategory($validated['category'] ?? null);
+        $validated['shelf_location'] = $this->nullableCleanString($validated['shelf_location'] ?? null);
+        $validated['manufacturer'] = $this->nullableCleanString($validated['manufacturer'] ?? null);
+        $validated['manufacturer_part_number'] = $this->nullableCleanString($validated['manufacturer_part_number'] ?? null);
+        $inactiveProduct = $duplicates->findInactiveBySku($validated['sku']);
+        $duplicates->assertUnique($validated, $inactiveProduct);
 
-        if ($category !== '') {
-            $existingCategory = Product::query()
-                ->whereNotNull('category')
-                ->distinct()
-                ->get(['category'])
-                ->first(fn (Product $product) => mb_strtolower(trim($product->category), 'UTF-8') === mb_strtolower($category, 'UTF-8'))
-                ?->category;
-
-            $validated['category'] = $existingCategory ?: $category;
-        } else {
-            $validated['category'] = null;
-        }
-
-        $shelfLocation = preg_replace('/\s+/u', ' ', trim((string) ($validated['shelf_location'] ?? '')));
-        $validated['shelf_location'] = $shelfLocation !== '' ? $shelfLocation : null;
-
-        $product = DB::transaction(function () use ($validated, $request) {
-            $product = Product::create([
+        $product = DB::transaction(function () use ($validated, $request, $inactiveProduct) {
+            $attributes = [
                 ...collect($validated)->only([
                     'sku', 'name', 'manufacturer', 'manufacturer_part_number', 'category', 'shelf_location',
-                    'description', 'unit_cost', 'unit_price',
-                    'reorder_level',
+                    'description', 'unit_cost', 'unit_price', 'reorder_level',
                 ])->all(),
                 'current_stock' => $validated['qty_in'],
-            ]);
+                'is_active' => true,
+                'dead_stock_archived_at' => null,
+                'dead_stock_archived_by' => null,
+                'dead_stock_archive_note' => null,
+            ];
+
+            if ($inactiveProduct) {
+                $product = Product::query()->lockForUpdate()->findOrFail($inactiveProduct->product_id);
+                if ($product->is_active || (int) $product->current_stock !== 0) {
+                    throw ValidationException::withMessages([
+                        'sku' => 'This deleted SKU cannot be restored because its record is active or still has stock.',
+                    ]);
+                }
+                $product->update($attributes);
+            } else {
+                $product = Product::create($attributes);
+            }
 
             InventoryLedger::create([
                 'product_id' => $product->product_id,
@@ -104,7 +131,9 @@ class StockManagementController extends Controller
                 'qty_in' => $validated['qty_in'],
                 'qty_out' => 0,
                 'reason_code' => $validated['reason_code'],
-                'logs' => ($validated['logs'] ?? null) ?: 'Product added to inventory.',
+                'logs' => ($validated['logs'] ?? null) ?: ($inactiveProduct
+                    ? 'Previously deleted product restored to the active catalog with new opening inventory.'
+                    : 'Product added to inventory.'),
             ]);
 
             return $product;
@@ -112,7 +141,89 @@ class StockManagementController extends Controller
 
         $alerts->checkProduct($product);
 
-        return back()->with('success', 'Product and opening inventory were added successfully.');
+        return back()->with('success', $inactiveProduct
+            ? 'The previously deleted SKU was restored with the new product information and opening inventory.'
+            : 'Product and opening inventory were added successfully.');
+    }
+
+    public function updateProduct(Request $request, Product $product, LowStockAlertService $alerts, ProductDuplicateGuard $duplicates): RedirectResponse
+    {
+        abort_unless($product->is_active, 404);
+
+        $request->merge([
+            'sku' => trim((string) $request->input('sku')),
+            'name' => preg_replace('/\s+/u', ' ', trim((string) $request->input('name'))),
+        ]);
+
+        $validated = $request->validateWithBag('editProduct', [
+            'edit_product_id' => ['required', 'integer', Rule::in([$product->product_id])],
+            'sku' => ['required', 'string', 'max:100', Rule::unique('products', 'sku')->ignore($product->product_id, 'product_id')],
+            'name' => ['required', 'string', 'max:255'],
+            'category' => ['nullable', 'string', 'max:100'],
+            'shelf_location' => ['nullable', 'string', 'max:100'],
+            'manufacturer' => ['nullable', 'string', 'max:150'],
+            'manufacturer_part_number' => ['required', 'string', 'max:150'],
+            'description' => ['nullable', 'string', 'max:5000'],
+            'unit_cost' => ['required', 'numeric', 'min:0', 'max:9999999999.99'],
+            'unit_price' => ['required', 'numeric', 'min:0', 'max:9999999999.99'],
+            'reorder_level' => ['required', 'integer', 'min:0'],
+        ]);
+
+        $fields = [
+            'sku', 'name', 'manufacturer', 'manufacturer_part_number', 'category',
+            'shelf_location', 'description', 'unit_cost', 'unit_price', 'reorder_level',
+        ];
+        $updates = collect($validated)->only($fields)->all();
+        foreach (['sku', 'name', 'manufacturer', 'manufacturer_part_number', 'description'] as $field) {
+            $updates[$field] = $this->nullableCleanString($updates[$field] ?? null);
+        }
+        $updates['sku'] = $updates['sku'] ?? '';
+        $updates['name'] = $updates['name'] ?? '';
+        $updates['category'] = $this->normalizedCategory($validated['category'] ?? null, $product);
+        $updates['shelf_location'] = $this->nullableCleanString($validated['shelf_location'] ?? null);
+        $duplicates->assertUnique($updates, $product, 'editProduct');
+
+        $labels = [
+            'sku' => 'SKU', 'name' => 'name', 'manufacturer' => 'manufacturer',
+            'manufacturer_part_number' => 'manufacturer part number', 'category' => 'category',
+            'shelf_location' => 'shelf location', 'description' => 'description',
+            'unit_cost' => 'unit cost', 'unit_price' => 'selling price', 'reorder_level' => 'reorder level',
+        ];
+
+        $changed = DB::transaction(function () use ($product, $updates, $fields, $labels, $request) {
+            $product = Product::query()->lockForUpdate()->findOrFail($product->product_id);
+            $before = $product->only($fields);
+            $product->update($updates);
+
+            $changes = collect($fields)->filter(fn (string $field) => (string) ($before[$field] ?? '') !== (string) ($product->{$field} ?? ''));
+            if ($changes->isNotEmpty()) {
+                $details = $changes->map(fn (string $field) => $labels[$field].': '
+                    .$this->auditValue($before[$field] ?? null).' → '.$this->auditValue($product->{$field}))->join(' | ');
+
+                InventoryLedger::create([
+                    'product_id' => $product->product_id,
+                    'user_id' => $request->user()->id,
+                    'qty_in' => 0,
+                    'qty_out' => 0,
+                    'reason_code' => 'PRODUCT_UPDATED',
+                    'logs' => 'Product information updated. '.$details,
+                ]);
+
+                if ((string) ($before['sku'] ?? '') !== (string) $product->sku) {
+                    DB::table('supplier_import_rows')->where('product_id', $product->product_id)
+                        ->update(['internal_sku' => $product->sku, 'updated_at' => now()]);
+                }
+            }
+
+            return [$product->fresh(), $changes->count()];
+        });
+
+        [$updatedProduct, $changeCount] = $changed;
+        $alerts->checkProduct($updatedProduct);
+
+        return back()->with('success', $changeCount > 0
+            ? "{$updatedProduct->name} was updated successfully. {$changeCount} change(s) were documented."
+            : "No changes were needed for {$updatedProduct->name}.");
     }
 
     public function updateShelfLocation(Request $request, Product $product): RedirectResponse
@@ -127,6 +238,36 @@ class StockManagementController extends Controller
         return back()->with('success', $location !== ''
             ? "Shelf location for {$product->name} updated to {$location}."
             : "Shelf location for {$product->name} was cleared.");
+    }
+
+    private function normalizedCategory(?string $value, ?Product $except = null): ?string
+    {
+        $category = preg_replace('/\s+/u', ' ', trim((string) $value));
+        if ($category === '') {
+            return null;
+        }
+
+        return Product::query()
+            ->whereNotNull('category')
+            ->when($except, fn ($query) => $query->where('product_id', '!=', $except->product_id))
+            ->distinct()
+            ->get(['category'])
+            ->first(fn (Product $product) => mb_strtolower(trim($product->category), 'UTF-8') === mb_strtolower($category, 'UTF-8'))
+            ?->category ?? $category;
+    }
+
+    private function nullableCleanString(?string $value): ?string
+    {
+        $value = trim(preg_replace('/\s+/u', ' ', (string) $value));
+
+        return $value !== '' ? $value : null;
+    }
+
+    private function auditValue(mixed $value): string
+    {
+        $value = trim((string) ($value ?? ''));
+
+        return $value !== '' ? $value : 'empty';
     }
 
     public function destroyProduct(Request $request, Product $product): RedirectResponse

@@ -46,6 +46,7 @@ Route::middleware(['auth', 'verified', 'role:admin'])->group(function () {
     Route::get('/admin/dashboard', [DashboardController::class, 'admin'])->name('admin.dashboard');
     Route::get('/admin/inventory', [StockManagementController::class, 'index'])->name('admin.inventory');
     Route::post('/admin/inventory/products', [StockManagementController::class, 'storeProduct'])->name('admin.inventory.products.store');
+    Route::patch('/admin/inventory/products/{product}', [StockManagementController::class, 'updateProduct'])->name('admin.inventory.products.update');
     Route::patch('/admin/inventory/products/{product}/shelf-location', [StockManagementController::class, 'updateShelfLocation'])->name('admin.inventory.products.shelf-location');
     Route::delete('/admin/inventory/products/{product}', [StockManagementController::class, 'destroyProduct'])->middleware('throttle:5,1')->name('admin.inventory.products.destroy');
     Route::post('/admin/inventory/movements', [StockManagementController::class, 'storeMovement'])->name('admin.inventory.movements.store');
@@ -69,6 +70,7 @@ Route::middleware(['auth', 'verified', 'role:admin'])->group(function () {
     Route::post('/admin/suppliers/imports/{supplierImport}/approve', [SupplierPriceController::class, 'approve'])->name('admin.suppliers.imports.approve');
     Route::post('/admin/suppliers/imports/{supplierImport}/reject', [SupplierPriceController::class, 'reject'])->name('admin.suppliers.imports.reject');
     Route::patch('/admin/suppliers/prices/{supplierPrice}/match', [SupplierPriceController::class, 'matchProduct'])->name('admin.suppliers.prices.match');
+    Route::delete('/admin/suppliers/prices/{supplierPrice}/match', [SupplierPriceController::class, 'unmatchProduct'])->name('admin.suppliers.prices.unmatch');
     Route::patch('/admin/suppliers/prices/{supplierPrice}/apply-cost', [SupplierPriceController::class, 'applyCost'])->name('admin.suppliers.prices.apply-cost');
     Route::post('/admin/suppliers/prices/{supplierPrice}/create-product', [SupplierPriceController::class, 'createProduct'])->name('admin.suppliers.prices.create-product');
     Route::delete('/admin/suppliers/data', [SupplierPriceController::class, 'purge'])->middleware('throttle:5,1')->name('admin.suppliers.purge');

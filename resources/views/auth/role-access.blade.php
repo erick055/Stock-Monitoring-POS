@@ -10,6 +10,7 @@
 <main class="auth-shell" data-old-mode="{{ old('auth_mode', 'login') }}" data-base-url="{{ request()->getBaseUrl() }}" data-has-errors="{{ $errors->any() ? 'true' : 'false' }}">
     <a class="brand" href="{{ route('login') }}"><span>M</span> MotoSync</a>
     <section class="auth-card">
+        @if(session('status'))<div class="success-box" role="status">{{ session('status') }}</div>@endif
         @if($errors->any())
             <div class="error-box" role="alert"><strong>Please check your details.</strong><ul>@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>
         @endif
@@ -39,10 +40,7 @@
                 <input type="password" name="password_confirmation" autocomplete="new-password" placeholder="Repeat your password">
             </label>
             <p class="password-hint" data-password-hint hidden>Use at least 12 characters with uppercase, lowercase, a number, and a symbol.</p>
-            <label class="remember-field" data-remember-field>
-                <input type="hidden" name="remember" value="0">
-                <input type="checkbox" name="remember" value="1" checked> Keep me signed in on this browser
-            </label>
+            <p class="session-note">Inactive owner sessions expire after 60 minutes. Staff POS sessions expire after 30 days.</p>
             <button class="primary-button" type="submit" data-submit-label>Log in</button>
             <p class="switch-copy"><span data-switch-text>Need a staff account?</span> <button type="button" data-switch-mode>Create one</button></p>
         </form>

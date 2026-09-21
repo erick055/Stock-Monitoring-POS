@@ -16,6 +16,7 @@ export default defineConfig({
                 'resources/css/stock-management.css',
                 'resources/js/stock-management.js',
                 'resources/css/products.css',
+                'resources/css/sorting-controls.css',
                 'resources/js/products.js',
                 'resources/css/pos.css',
                 'resources/css/receipt.css',

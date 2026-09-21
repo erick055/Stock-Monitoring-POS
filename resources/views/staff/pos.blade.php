@@ -71,7 +71,7 @@ $navigation = [
                 </div>
 
                 <div class="cart-items" data-cart-items>
-                    <div class="empty-cart">Cart is empty.<br>Select items to begin.</div>
+                    <div class="empty-cart">No products selected.<br>Add a product or enter a labor charge.</div>
                 </div>
 
                 <label class="labor-field">
@@ -141,7 +141,7 @@ $navigation = [
                             <td><strong>POS-{{ str_pad($sale->sale_id, 6, '0', STR_PAD_LEFT) }}</strong></td>
                             <td>{{ $sale->sale_date->format('M d, Y h:i A') }}</td>
                             <td>{{ $sale->staff?->name ?? 'Former staff' }}</td>
-                            <td>{{ (int) $sale->units_count }} unit{{ (int) $sale->units_count === 1 ? '' : 's' }}</td>
+                            <td>{{ (int) $sale->units_count > 0 ? (int) $sale->units_count.' unit'.((int) $sale->units_count === 1 ? '' : 's') : 'Labor only' }}</td>
                             <td><span class="payment-pill">{{ ucfirst($sale->payment_method) }}</span></td>
                             <td><strong>P{{ number_format($sale->total_sale_amount, 2) }}</strong></td>
                             <td><a class="receipt-link" href="{{ route('staff.pos.receipts.show', $sale) }}" target="_blank" rel="noopener">View receipt</a></td>

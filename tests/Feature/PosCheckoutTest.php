@@ -118,6 +118,52 @@ class PosCheckoutTest extends TestCase
             ->assertSee('P250.50');
     }
 
+    public function test_staff_can_checkout_labor_only_without_buying_products(): void
+    {
+        $staff = User::factory()->create(['role' => 'staff']);
+
+        $response = $this->actingAs($staff)->postJson(route('staff.pos.checkout'), [
+            'labor_amount' => 450,
+        ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('receipt.number', 'POS-000001')
+            ->assertJsonPath('receipt.subtotal', 0)
+            ->assertJsonPath('receipt.tax', 0)
+            ->assertJsonPath('receipt.labor', 450)
+            ->assertJsonPath('receipt.total', 450)
+            ->assertJsonCount(0, 'receipt.items');
+
+        $sale = SalesTransaction::firstOrFail();
+        $this->assertSame('450.00', $sale->labor_amount);
+        $this->assertSame('450.00', $sale->total_sale_amount);
+        $this->assertDatabaseCount('sales_items', 0);
+        $this->assertDatabaseCount('inventory_ledgers', 0);
+
+        $this->actingAs($staff)->get(route('staff.pos.receipts.show', $sale))
+            ->assertOk()
+            ->assertSee('Labor / service only')
+            ->assertSee('No products purchased')
+            ->assertSee('P450.00');
+
+        $this->actingAs($staff)->get(route('staff.pos'))
+            ->assertOk()
+            ->assertSee('POS-000001')
+            ->assertSee('Labor only');
+    }
+
+    public function test_pos_rejects_checkout_without_products_or_labor(): void
+    {
+        $staff = User::factory()->create(['role' => 'staff']);
+
+        $this->actingAs($staff)->postJson(route('staff.pos.checkout'), [
+            'items' => [],
+            'labor_amount' => 0,
+        ])->assertUnprocessable()->assertJsonValidationErrors('checkout');
+
+        $this->assertDatabaseCount('sales_transactions', 0);
+    }
+
     public function test_pos_rejects_a_negative_labor_charge(): void
     {
         $staff = User::factory()->create(['role' => 'staff']);

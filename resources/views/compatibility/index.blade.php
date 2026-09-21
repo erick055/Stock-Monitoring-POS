@@ -9,6 +9,12 @@ $navigation = $isAdmin ? [
     ['▤','POS Checkout','/staff/pos'], ['◇','Return & Damage','/staff/returns'], ['⚙','Part Compatibility','#'],
 ];
 $aiRoute = $isAdmin ? route('admin.compatibility.ai') : route('staff.compatibility.ai');
+$statuses = [
+    'compatible' => ['symbol' => '✓', 'label' => 'Compatible', 'description' => 'AI found support for this motorcycle and part combination.'],
+    'possible' => ['symbol' => '~', 'label' => 'Possible', 'description' => 'A plausible fit, with an unresolved year, variant, or specification detail.'],
+    'unknown' => ['symbol' => '?', 'label' => 'Not enough information', 'description' => 'Available information is missing or conflicting; AI cannot determine fit.'],
+    'incompatible' => ['symbol' => '×', 'label' => 'Not compatible', 'description' => 'AI identified a specific fitment or specification mismatch.'],
+];
 @endphp
 <!DOCTYPE html>
 <html lang="en">
@@ -40,7 +46,7 @@ $aiRoute = $isAdmin ? route('admin.compatibility.ai') : route('staff.compatibili
             <div>
                 <p class="welcome">OPENAI-POWERED PART RESEARCH</p>
                 <h1>AI Motorcycle Parts Compatibility</h1>
-                <p>Enter a motorcycle and let AI research which products in your current inventory are likely to fit.</p>
+                <p>Find parts that fit, understand mismatches, and see the information behind each AI assessment.</p>
             </div>
         </header>
 
@@ -64,11 +70,21 @@ $aiRoute = $isAdmin ? route('admin.compatibility.ai') : route('staff.compatibili
                     <label>Year<input name="year" type="number" min="1950" max="{{ now()->year + 2 }}" value="{{ $vehicleInput['year'] }}" required placeholder="2025"></label>
                 </div>
                 <div class="checker-actions">
-                    <label>Part name, SKU, brand, or category (optional)<input name="part_search" type="search" value="{{ request('part_search') }}" placeholder="Leave blank to research all active products"></label>
+                    <label>Part name, SKU, brand, or category (optional)<input name="part_search" type="search" value="{{ request('part_search') }}" placeholder="e.g. brake pad, spark plug, or OEM number"></label>
                     <button class="search-action" type="submit">Ask AI for Recommendations</button>
                 </div>
             </form>
-            <p class="form-hint">Motorcycle searches and AI results are not saved in the database.</p>
+            <p class="form-hint">Add a part name or number for more focused results. Relevant motorcycle brand/model inventory is prioritized, and AI assesses up to {{ min(10, max(1, (int) config('openai.max_products', 10)), min(5, max(1, (int) config('openai.max_recommendations', 5)))) }} products per search.</p>
+            <p class="search-progress" role="status" data-search-progress hidden>AI is comparing motorcycle fitment and preparing your results. This may take a moment.</p>
+        </section>
+
+        <section class="panel fitment-legend" aria-label="Compatibility status legend">
+            <div class="section-heading"><div><span class="section-kicker">READ YOUR RESULTS</span><h2>Compatibility legend</h2></div><span class="legend-note">AI assessments</span></div>
+            <div class="legend-grid">
+                @foreach($statuses as $status => $info)
+                    <div class="legend-item status-{{ $status }}"><span class="status-symbol" aria-hidden="true">{{ $info['symbol'] }}</span><div><strong>{{ $info['label'] }}</strong><p>{{ $info['description'] }}</p></div></div>
+                @endforeach
+            </div>
         </section>
 
         @if($aiAdvice)
@@ -80,7 +96,11 @@ $aiRoute = $isAdmin ? route('admin.compatibility.ai') : route('staff.compatibili
 
             <div class="catalog-message {{ $aiAdvice['available'] ? 'matched' : 'unmatched' }}">
                 @if($aiAdvice['available'])
-                    <strong>AI recommendation:</strong> {{ $aiAdvice['summary'] }}
+                    <strong>AI assessment:</strong> {{ $aiAdvice['summary'] }}
+                    @if($candidateCount > 0)
+                        <p class="research-meta">{{ ($aiAdvice['web_searched'] ?? false) ? 'Web search + AI assessment' : 'AI knowledge assessment · No live web sources' }} · {{ $results->count() }} results from {{ $candidateCount }} assessed candidates / {{ $matchingCount }} matching inventory products.</p>
+                        @if($matchingCount > $candidateCount)<p class="research-meta">Showing a limited inventory selection. Add a specific part name or number to narrow your search.</p>@endif
+                    @endif
                 @else
                     {{ $aiAdvice['message'] }}
                 @endif
@@ -88,9 +108,9 @@ $aiRoute = $isAdmin ? route('admin.compatibility.ai') : route('staff.compatibili
 
             @if($aiAdvice['available'])
                 <section class="result-summary" aria-label="AI result summary">
-                    <article class="summary-recommended"><span>Recommended</span><strong>{{ $summary['recommended'] }}</strong></article>
                     <article class="summary-confirmed"><span>Compatible</span><strong>{{ $summary['compatible'] }}</strong></article>
-                    <article class="summary-possible"><span>Possible—verify</span><strong>{{ $summary['possible'] }}</strong></article>
+                    <article class="summary-possible"><span>Possible</span><strong>{{ $summary['possible'] }}</strong></article>
+                    <article class="summary-unverified"><span>Not enough information</span><strong>{{ $summary['unknown'] }}</strong></article>
                     <article class="summary-incompatible"><span>Not compatible</span><strong>{{ $summary['incompatible'] }}</strong></article>
                 </section>
 
@@ -98,10 +118,11 @@ $aiRoute = $isAdmin ? route('admin.compatibility.ai') : route('staff.compatibili
                     <div class="section-heading result-heading">
                         <div><span class="section-kicker">AI-ASSESSED INVENTORY</span><h2>Recommendations for this motorcycle</h2></div>
                         <div class="result-filters" aria-label="Filter results">
-                            <button class="filter-button active" type="button" data-result-filter="all">All</button>
+                            <button class="filter-button active" type="button" data-result-filter="all" aria-pressed="true">All</button>
                             <button class="filter-button" type="button" data-result-filter="recommended">Recommended</button>
                             <button class="filter-button" type="button" data-result-filter="compatible">Compatible</button>
                             <button class="filter-button" type="button" data-result-filter="possible">Possible</button>
+                            <button class="filter-button" type="button" data-result-filter="unknown">Not enough information</button>
                             <button class="filter-button" type="button" data-result-filter="incompatible">Not compatible</button>
                         </div>
                     </div>
@@ -114,15 +135,15 @@ $aiRoute = $isAdmin ? route('admin.compatibility.ai') : route('staff.compatibili
                                 <div class="result-card-header">
                                     <div>
                                         <span class="result-category">{{ $product->category ?: 'Uncategorized' }} · {{ $product->sku }}</span>
-                                        <h3>#{{ $assessment['rank'] }} · {{ $product->name }}</h3>
+                                        <h3>{{ $product->name }}</h3>
                                     </div>
-                                    <span class="result-badge">{{ $assessment['label'] }}</span>
+                                    <span class="result-badge"><span aria-hidden="true">{{ $statuses[$assessment['status']]['symbol'] }}</span> {{ $statuses[$assessment['status']]['label'] }}</span>
                                 </div>
-                                <div class="evidence-meter"><span style="width: {{ $assessment['confidence'] }}%"></span></div>
+                                <p class="part-identity">{{ $product->manufacturer ?: 'Manufacturer not listed' }} · Part no. {{ $product->manufacturer_part_number ?: 'Not listed' }}</p>
                                 <div class="result-evidence">
                                     <div><h4>Why AI gave this result</h4><p>{{ $assessment['reason'] }}</p></div>
-                                    @if($assessment['checks'] !== [])
-                                        <div><h4>Checks required</h4><ul>@foreach($assessment['checks'] as $check)<li>{{ $check }}</li>@endforeach</ul></div>
+                                    @if($assessment['details'] !== [])
+                                        <div><h4>Fitment details</h4><ul>@foreach($assessment['details'] as $detail)<li>{{ $detail }}</li>@endforeach</ul></div>
                                     @endif
                                 </div>
                                 @if($assessment['sources'] !== [])
@@ -132,7 +153,7 @@ $aiRoute = $isAdmin ? route('admin.compatibility.ai') : route('staff.compatibili
                                             @foreach($assessment['sources'] as $source)
                                                 <li>
                                                     @if(filter_var($source, FILTER_VALIDATE_URL) && in_array(parse_url($source, PHP_URL_SCHEME), ['http', 'https'], true))
-                                                        <a href="{{ $source }}" target="_blank" rel="noopener noreferrer">{{ $source }}</a>
+                                                        <a href="{{ $source }}" target="_blank" rel="noopener noreferrer" title="{{ $source }}">{{ parse_url($source, PHP_URL_HOST) }} ↗</a>
                                                     @else
                                                         {{ $source }}
                                                     @endif
@@ -140,9 +161,11 @@ $aiRoute = $isAdmin ? route('admin.compatibility.ai') : route('staff.compatibili
                                             @endforeach
                                         </ul>
                                     </div>
+                                @else
+                                    <p class="source-note">No retrieved web citation for this part.</p>
                                 @endif
                                 <footer>
-                                    <span>AI confidence: {{ $assessment['confidence'] }}%</span>
+                                    <span>AI fitment assessment</span>
                                     <span>{{ $product->current_stock > 0 ? $product->current_stock.' in stock' : 'Out of stock' }} · ₱{{ number_format((float) $product->unit_price, 2) }}</span>
                                 </footer>
                             </article>
@@ -150,20 +173,17 @@ $aiRoute = $isAdmin ? route('admin.compatibility.ai') : route('staff.compatibili
                             <div class="empty-state">AI did not return a recommendation for the matching inventory.</div>
                         @endforelse
                     </div>
-                    <div class="empty-state" data-filter-empty hidden>No results are available in this status.</div>
+                    <div class="empty-state" data-filter-empty role="status" hidden>No results are available in this status. Choose another filter.</div>
                 </section>
             @endif
         @else
             <section class="panel checker-empty">
                 <span class="checker-icon">AI</span>
                 <h2>Enter a motorcycle to begin</h2>
-                <p>The AI will research compatibility against active products in your inventory. No saved motorcycle or fitment database is used.</p>
+                <p>Enter the brand, model, and year above. Add a part number to get the most focused assessment.</p>
             </section>
         @endif
 
-        <section class="safety-note">
-            <strong>Safety rule:</strong> AI recommendations are decision support, not installation approval. Confirm safety-critical fitment with the manufacturer catalog or a qualified mechanic.
-        </section>
     </main>
 </div>
 </body>

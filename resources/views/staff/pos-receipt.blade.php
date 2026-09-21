@@ -33,6 +33,13 @@
         <tr><th>Qty</th><th>Item</th><th>Amount</th></tr>
         </thead>
         <tbody>
+        @if($sale->items->isEmpty())
+            <tr>
+                <td>1</td>
+                <td><span class="receipt-item-name">Labor / service only</span><span class="receipt-item-sku">No products purchased</span></td>
+                <td>P{{ number_format($sale->labor_amount, 2) }}</td>
+            </tr>
+        @endif
         @foreach($sale->items as $item)
             <tr>
                 <td>{{ $item->quantity }}</td>

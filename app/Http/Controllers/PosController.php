@@ -173,7 +173,7 @@ class PosController extends Controller
     public function store(Request $request, LowStockAlertService $alerts): JsonResponse
     {
         $validated = $request->validate([
-            'items' => ['required', 'array', 'min:1'],
+            'items' => ['nullable', 'array'],
             'items.*.product_id' => ['required', Rule::exists('products', 'product_id')->where('is_active', true)],
             'items.*.quantity' => ['required', 'integer', 'min:1'],
             'payment_method' => ['nullable', 'string', 'max:50'],
@@ -181,19 +181,32 @@ class PosController extends Controller
             'labor_amount' => ['nullable', 'numeric', 'min:0', 'max:9999999999.99'],
         ]);
 
-        $sale = DB::transaction(function () use ($validated, $request) {
+        $cartItems = $validated['items'] ?? [];
+        $laborAmount = round((float) ($validated['labor_amount'] ?? 0), 2);
+        if ($cartItems === [] && ! empty($validated['held_order_id'])) {
+            throw ValidationException::withMessages([
+                'items' => 'A held order must keep at least one product when it is completed.',
+            ]);
+        }
+        if ($cartItems === [] && $laborAmount <= 0) {
+            throw ValidationException::withMessages([
+                'checkout' => 'Add at least one product or enter a labor charge before checkout.',
+            ]);
+        }
+
+        $sale = DB::transaction(function () use ($validated, $cartItems, $laborAmount, $request) {
             $subtotal = 0;
             $saleItems = [];
             $heldOrder = null;
 
             $products = Product::query()
                 ->with('activePromotion')
-                ->whereIn('product_id', collect($validated['items'])->pluck('product_id'))
+                ->whereIn('product_id', collect($cartItems)->pluck('product_id'))
                 ->lockForUpdate()
                 ->get()
                 ->keyBy('product_id');
 
-            $this->ensureBundleComposition($products, $validated['items']);
+            $this->ensureBundleComposition($products, $cartItems);
 
             if (! empty($validated['held_order_id'])) {
                 $heldOrder = HeldOrder::query()->lockForUpdate()->findOrFail($validated['held_order_id']);
@@ -203,7 +216,7 @@ class PosController extends Controller
                 }
             }
 
-            foreach ($validated['items'] as $cartItem) {
+            foreach ($cartItems as $cartItem) {
                 $product = $products->get($cartItem['product_id']);
                 $quantity = (int) $cartItem['quantity'];
 
@@ -229,14 +242,13 @@ class PosController extends Controller
             }
 
             $tax = round($subtotal * 0.12, 2);
-            $labor = round((float) ($validated['labor_amount'] ?? 0), 2);
-            $total = round($subtotal + $tax + $labor, 2);
+            $total = round($subtotal + $tax + $laborAmount, 2);
 
             $sale = SalesTransaction::create([
                 'staff_id' => $request->user()->id,
                 'subtotal' => $subtotal,
                 'tax_amount' => $tax,
-                'labor_amount' => $labor,
+                'labor_amount' => $laborAmount,
                 'total_sale_amount' => $total,
                 'payment_status' => 'paid',
                 'payment_method' => $validated['payment_method'] ?? 'cash',

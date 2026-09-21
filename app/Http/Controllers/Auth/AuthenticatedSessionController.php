@@ -33,9 +33,7 @@ class AuthenticatedSessionController extends Controller
             ]);
         }
 
-        $remember = $request->boolean('remember');
-
-        if (! Auth::attempt($credentials, $remember)) {
+        if (! Auth::attempt($credentials, false)) {
             RateLimiter::hit($throttleKey, 60);
 
             throw ValidationException::withMessages(['email' => 'The provided credentials are incorrect.']);
@@ -43,6 +41,7 @@ class AuthenticatedSessionController extends Controller
 
         RateLimiter::clear($throttleKey);
         $request->session()->regenerate();
+        $request->session()->put('auth.last_activity_at', now()->timestamp);
 
         if (! in_array($request->user()->role, ['admin', 'staff'], true)) {
             Auth::logout();
@@ -52,7 +51,12 @@ class AuthenticatedSessionController extends Controller
             throw ValidationException::withMessages(['email' => 'This account is not authorized to access the application.']);
         }
 
-        return redirect()->intended(route($request->user()->role.'.dashboard'));
+        $response = redirect()->intended(route($request->user()->role.'.dashboard'));
+        if ($request->user()->getRememberToken()) {
+            Auth::guard()->getProvider()->updateRememberToken($request->user(), Str::random(60));
+        }
+
+        return $response->withoutCookie(Auth::guard()->getRecallerName());
     }
 
     public function destroy(Request $request): RedirectResponse

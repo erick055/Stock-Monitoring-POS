@@ -16,13 +16,18 @@ class ProductsController extends Controller
 
         $sorts = [
             'name' => ['name', 'asc'],
+            'name_desc' => ['name', 'desc'],
             'newest' => ['created_at', 'desc'],
+            'oldest' => ['created_at', 'asc'],
             'stock_high' => ['current_stock', 'desc'],
             'stock_low' => ['current_stock', 'asc'],
             'price_high' => ['unit_price', 'desc'],
             'price_low' => ['unit_price', 'asc'],
         ];
-        [$sortColumn, $sortDirection] = $sorts[$sort] ?? $sorts['name'];
+        if (! array_key_exists($sort, $sorts)) {
+            $sort = 'name';
+        }
+        [$sortColumn, $sortDirection] = $sorts[$sort];
 
         $baseQuery = Product::query()->where('is_active', true);
         $products = (clone $baseQuery)
@@ -44,6 +49,7 @@ class ProductsController extends Controller
             }))
             ->when($category, fn ($query) => $query->where('category', $category))
             ->orderBy($sortColumn, $sortDirection)
+            ->orderBy('product_id')
             ->paginate(10)
             ->withQueryString();
 

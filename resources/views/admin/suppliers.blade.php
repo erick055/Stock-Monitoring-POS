@@ -11,7 +11,7 @@ $navigation = [
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Supplier Price | MotoSync</title>
-    @vite(['resources/css/dashboard.css','resources/css/suppliers.css','resources/css/responsive.css','resources/js/dashboard.js','resources/js/suppliers.js'])
+    @vite(['resources/css/dashboard.css','resources/css/suppliers.css','resources/css/sorting-controls.css','resources/css/responsive.css','resources/js/dashboard.js','resources/js/suppliers.js'])
 </head>
 <body>
 <div class="dashboard-shell suppliers-shell">
@@ -51,20 +51,20 @@ $navigation = [
             <article class="stat-card red"><div class="stat-head"><span>STALE PRICES</span></div><strong>{{ $summary['stale'] }}</strong><small>Not updated for 30 days</small></article>
         </section>
 
-        @if($summary['suppliers'] || $summary['prices'] || $imports->isNotEmpty())
+        @if($summary['prices'])
             <details class="panel supplier-danger-zone">
-                <summary>Delete all supplier price data</summary>
+                <summary>Clear published supplier prices</summary>
                 <div class="danger-zone-content">
                     <div>
-                        <strong>Start supplier pricing from a clean slate</strong>
-                        <p>This permanently removes suppliers, published prices, price history, staged rows, and import history. Products, inventory quantities, product costs, sales, and POS records are not changed.</p>
+                        <strong>Start active supplier pricing from a clean slate</strong>
+                        <p>This clears published prices and deactivates their suppliers. Original import rows remain in the dated archive so you can review deleted prices later. Products, inventory quantities, product costs, sales, and POS records are unchanged.</p>
                     </div>
                     <form method="POST" action="{{ route('admin.suppliers.purge') }}" data-supplier-purge>
                         @csrf @method('DELETE')
                         <label>Confirm with your account password
                             <input name="password" type="password" autocomplete="current-password" placeholder="Enter your password" data-purge-password required>
                         </label>
-                        <button class="delete-all-button" type="submit" data-purge-button>Delete all supplier data</button>
+                        <button class="delete-all-button" type="submit" data-purge-button>Clear published prices</button>
                     </form>
                 </div>
             </details>
@@ -91,17 +91,40 @@ $navigation = [
             <p class="import-note">Matching checks internal SKU first, then supplier SKU, then a unique exact product name. Publishing does not change product costs or store inventory until the owner applies an item.</p>
         </section>
 
+        <section class="panel imports-panel" aria-labelledby="import-archive-title">
+            <div class="section-heading"><div><span class="section-kicker">IMPORT HISTORY</span><h2 id="import-archive-title">Imported price archive</h2></div></div>
+            <p class="archive-note">Choose an upload date and file to view its saved prices. Newest imports appear first.</p>
+            <form class="archive-filter" method="GET" action="{{ route('admin.suppliers') }}">
+                <input type="hidden" name="sort" value="{{ $sort }}">
+                <label for="archive-import">Import date / file
+                    <select id="archive-import" name="import" required @disabled($imports->isEmpty())>
+                        <option value="">{{ $imports->isEmpty() ? 'No imports available' : 'Select an import' }}</option>
+                        @foreach($imports->groupBy(fn ($import) => $import->created_at->format('M d, Y')) as $date => $datedImports)
+                            <optgroup label="{{ $date }}">
+                                @foreach($datedImports as $import)
+                                    <option value="{{ $import->supplier_import_id }}" @selected($selectedImport?->supplier_import_id === $import->supplier_import_id)>{{ $import->created_at->format('h:i A') }} · {{ $import->supplier->name }} · {{ $import->source_filename }} · {{ $import->archived_at ? 'Archived '.$import->status : ucfirst($import->status) }} · #{{ $import->supplier_import_id }}</option>
+                                @endforeach
+                            </optgroup>
+                        @endforeach
+                    </select>
+                </label>
+                <button class="apply-button" type="submit" @disabled($imports->isEmpty())>Fetch records</button>
+                @if($selectedImport)<a href="{{ route('admin.suppliers') }}">Close archive</a>@endif
+            </form>
+        </section>
+
         @if($selectedImport)
             <section class="panel preview-panel">
                 <div class="section-heading">
-                    <div><span class="section-kicker">STEP 2 · REVIEW</span><h2>{{ $selectedImport->supplier->name }} — {{ $selectedImport->source_filename }}</h2></div>
+                    <div><span class="section-kicker">{{ $selectedImport->status === 'pending' && ! $selectedImport->archived_at ? 'STEP 2 · REVIEW' : 'ARCHIVED IMPORT · READ ONLY' }}</span><h2>{{ $selectedImport->supplier->name }} — {{ $selectedImport->source_filename }}</h2></div>
                     <span class="import-status {{ $selectedImport->error_count ? 'has-errors' : 'ready' }}">{{ $selectedImport->valid_count }} valid · {{ $selectedImport->error_count }} errors</span>
                 </div>
+                <p class="archive-note">Uploaded {{ $selectedImport->created_at->format('M d, Y h:i A') }} · {{ $selectedImport->archived_at ? 'Archived '.strtolower($selectedImport->status) : ucfirst($selectedImport->status) }} · {{ $importRows->total() }} records. Prices below are from this import.</p>
                 <div class="supplier-table-wrap">
                     <table>
                         <thead><tr><th>Row</th><th>Supplier SKU</th><th>Product</th><th>MotoSync match</th><th>Price</th><th>Availability</th><th>Status</th></tr></thead>
                         <tbody>
-                        @foreach($selectedImport->rows as $row)
+                        @foreach($importRows as $row)
                             <tr class="{{ $row->validation_errors ? 'row-error' : '' }}">
                                 <td>{{ $row->row_number }}</td>
                                 <td>{{ $row->supplier_sku }}</td>
@@ -119,7 +142,7 @@ $navigation = [
                                     @if($row->validation_errors)
                                         <ul class="row-errors">@foreach($row->validation_errors as $error)<li>{{ $error }}</li>@endforeach</ul>
                                     @else
-                                        <span class="valid-label">Ready</span>
+                                        <span class="valid-label">{{ $selectedImport->status === 'pending' ? 'Ready' : ucfirst($selectedImport->status) }}</span>
                                     @endif
                                 </td>
                             </tr>
@@ -127,16 +150,40 @@ $navigation = [
                         </tbody>
                     </table>
                 </div>
+                <nav class="archive-pagination" aria-label="Import records pagination">
+                    <span>Showing {{ $importRows->firstItem() ?? 0 }}–{{ $importRows->lastItem() ?? 0 }} of {{ $importRows->total() }}</span>
+                    @if($importRows->previousPageUrl())<a href="{{ $importRows->previousPageUrl() }}">Previous</a>@endif
+                    @if($importRows->nextPageUrl())<a href="{{ $importRows->nextPageUrl() }}">Next</a>@endif
+                </nav>
+                @if($selectedImport->status === 'pending' && ! $selectedImport->archived_at)
                 <div class="approval-actions">
                     <form method="POST" action="{{ route('admin.suppliers.imports.reject', $selectedImport) }}">@csrf<button class="reject-button" type="submit">Reject import</button></form>
                     <form method="POST" action="{{ route('admin.suppliers.imports.approve', $selectedImport) }}">@csrf<button class="apply-button" type="submit" @disabled($selectedImport->error_count > 0)>Approve and publish prices</button></form>
                 </div>
+                @endif
             </section>
         @endif
 
         <section class="panel suppliers-panel">
             <div class="section-heading">
                 <div><span class="section-kicker">CURRENT DATA</span><h2>Published supplier prices</h2></div>
+                <form class="supplier-sort-form" method="GET" action="{{ route('admin.suppliers') }}">
+                    @if($selectedImport)<input type="hidden" name="import" value="{{ $selectedImport->supplier_import_id }}">@endif
+                    <label for="supplier-sort">Sort prices
+                        <select id="supplier-sort" name="sort">
+                            <option value="updated_desc" @selected($sort === 'updated_desc')>Recently updated</option>
+                            <option value="updated_asc" @selected($sort === 'updated_asc')>Oldest updated</option>
+                            <option value="product" @selected($sort === 'product')>Product A–Z</option>
+                            <option value="product_desc" @selected($sort === 'product_desc')>Product Z–A</option>
+                            <option value="supplier" @selected($sort === 'supplier')>Supplier</option>
+                            <option value="price_high" @selected($sort === 'price_high')>Price: high to low</option>
+                            <option value="price_low" @selected($sort === 'price_low')>Price: low to high</option>
+                            <option value="stock_high" @selected($sort === 'stock_high')>Supplier stock: high to low</option>
+                            <option value="stock_low" @selected($sort === 'stock_low')>Supplier stock: low to high</option>
+                        </select>
+                    </label>
+                    <button class="supplier-sort-button" type="submit">Sort</button>
+                </form>
             </div>
             <div class="pricing-list">
                 @forelse($prices as $price)
@@ -145,18 +192,59 @@ $navigation = [
                             ? (((float) $price->unit_price - (float) $price->previous_price) / (float) $price->previous_price) * 100
                             : null;
                         $isStale = $price->last_updated_at->lt(now()->subDays(30));
+                        $comparison = $price->comparisonWithProduct();
+                        $formatPesoCents = fn (int $cents) => ($cents < 0 ? '-₱' : '₱').number_format(abs($cents) / 100, 2);
+                        $costDifference = $comparison['cost_difference_cents'] ?? null;
+                        $projectedProfit = $comparison['projected_profit_cents'] ?? null;
+                        $isAutomaticSkuMatch = $price->product
+                            && mb_strtolower(trim($price->supplier_sku), 'UTF-8') === mb_strtolower(trim($price->product->sku), 'UTF-8');
                     @endphp
                     <article class="pricing-card">
                         <div class="supplier-line">
                             <strong>{{ $price->product_name }}</strong>
                             <small>{{ $price->supplier->name }} · Supplier SKU: {{ $price->supplier_sku }}</small>
-                            <em>{{ $price->product ? 'Matched: '.$price->product->sku : 'Unmatched supplier item' }}</em>
+                            <em class="{{ $price->product ? 'matched-text' : 'unmatched-text' }}">{{ $price->product ? '✓ '.($isAutomaticSkuMatch ? 'Automatically matched by SKU: ' : 'Matched to product ').$price->product->sku : 'Unmatched supplier item' }}</em>
                         </div>
-                        <div class="pricing-pill">{{ $price->currency }} {{ number_format((float) $price->unit_price, 2) }}<span>Current price</span></div>
-                        <div class="pricing-pill">{{ $price->previous_price ? $price->currency.' '.number_format((float) $price->previous_price, 2) : 'First import' }}<span>Previous price</span></div>
-                        <div class="pricing-pill accent">{{ $change === null ? 'New' : sprintf('%+.1f%%', $change) }}<span>Change</span></div>
+                        <div class="pricing-pill">{{ $price->currency }} {{ number_format((float) $price->unit_price, 2) }}<span>Supplier unit price</span></div>
+                        <div class="pricing-pill">{{ $price->previous_price ? $price->currency.' '.number_format((float) $price->previous_price, 2) : 'First import' }}<span>Previous supplier price</span></div>
+                        <div class="pricing-pill accent">{{ $change === null ? 'New' : sprintf('%+.1f%%', $change) }}<span>Supplier price change</span></div>
                         <div class="pricing-pill">{{ $price->available_quantity ?? 'Unknown' }}<span>Supplier stock</span></div>
                         <div class="pricing-pill {{ $isStale ? 'stale' : '' }}">{{ $isStale ? 'Stale' : $price->last_updated_at->diffForHumans() }}<span>Freshness</span></div>
+
+                        @if($price->product)
+                            <section class="price-match-panel matched" aria-label="Matched product price comparison">
+                                <header>
+                                    <div><span class="match-state">✓ PRODUCT MATCHED</span><strong>Supplier price compared with the recorded product cost</strong></div>
+                                    <small>The selling price is shown separately and is never treated as the supplier cost.</small>
+                                </header>
+                                <div class="price-comparison-grid">
+                                    <div><span>Product SKU</span><strong>{{ $price->product->sku }}</strong></div>
+                                    <div><span>Model / Product Name</span><strong>{{ $price->product->name }}</strong>@if($price->product->manufacturer_part_number)<small>Part no. {{ $price->product->manufacturer_part_number }}</small>@endif</div>
+                                    <div><span>Supplier Unit Price</span><strong>{{ $price->currency }} {{ number_format((float) $price->unit_price, 2) }}</strong></div>
+                                    <div><span>Product Unit Cost</span><strong>₱{{ number_format((float) $price->product->unit_cost, 2) }}</strong></div>
+                                    <div><span>Product Selling Price</span><strong>₱{{ number_format((float) $price->product->unit_price, 2) }}</strong></div>
+                                    <div class="{{ $costDifference === null ? 'comparison-warning' : ($costDifference > 0 ? 'comparison-higher' : ($costDifference < 0 ? 'comparison-lower' : 'comparison-equal')) }}">
+                                        <span>Cost Difference</span>
+                                        <strong>
+                                            @if($costDifference === null)
+                                                Currency conversion required
+                                            @elseif($costDifference === 0)
+                                                ₱0.00 · Same cost
+                                            @else
+                                                {{ $formatPesoCents($costDifference) }} · {{ $costDifference > 0 ? 'Supplier is higher' : 'Supplier is lower' }}
+                                            @endif
+                                        </strong>
+                                        @if($projectedProfit !== null)<small>Profit if applied: {{ $formatPesoCents($projectedProfit) }} per unit</small>@endif
+                                    </div>
+                                </div>
+                            </section>
+                        @else
+                            <section class="price-match-panel unmatched" aria-label="Unmatched supplier item">
+                                <span class="match-state">! NOT MATCHED</span>
+                                <strong>No product price comparison is available.</strong>
+                                <small>Match this supplier item to the correct SKU or create it in Products before comparing or applying its cost.</small>
+                            </section>
+                        @endif
                         <details class="catalog-sync">
                             <summary>{{ $price->product ? 'Manage product match and cost' : 'Match or add this item to Products' }}</summary>
                             <div class="catalog-sync-body">
@@ -165,16 +253,25 @@ $navigation = [
                                     <span>Supplier stock is informational and will never be added to store inventory automatically.</span>
                                 </div>
 
-                                <form class="match-product-form" method="POST" action="{{ route('admin.suppliers.prices.match', $price) }}" data-catalog-match-form>
-                                    @csrf @method('PATCH')
-                                    <label>Match an existing product
-                                        <input type="search" list="catalog-product-options" placeholder="Search SKU or product name" autocomplete="off" data-catalog-match-search required>
-                                        <input type="hidden" name="product_id" data-catalog-product-id>
-                                    </label>
-                                    <button class="match-button" type="submit">Save match</button>
-                                </form>
+                                @if(! $isAutomaticSkuMatch)
+                                    <form class="match-product-form" method="POST" action="{{ route('admin.suppliers.prices.match', $price) }}" data-catalog-match-form>
+                                        @csrf @method('PATCH')
+                                        <label>Match an existing product
+                                            <input type="search" list="catalog-product-options" placeholder="Search SKU or product name" autocomplete="off" data-catalog-match-search required>
+                                            <input type="hidden" name="product_id" data-catalog-product-id>
+                                        </label>
+                                        <button class="match-button" type="submit">Save match</button>
+                                    </form>
+                                @else
+                                    <div class="automatic-match-note"><strong>No manual matching needed</strong><span>The supplier SKU and product SKU are the same.</span></div>
+                                @endif
 
                                 @if($price->product)
+                                    <form class="unmatch-product-form" method="POST" action="{{ route('admin.suppliers.prices.unmatch', $price) }}" data-unmatch-product data-supplier-item="{{ $price->product_name }}" data-product-name="{{ $price->product->sku }} — {{ $price->product->name }}">
+                                        @csrf @method('DELETE')
+                                        <span><strong>Wrong product match?</strong><small>Remove only this connection. Product pricing and inventory will stay unchanged.</small></span>
+                                        <button class="unmatch-button" type="submit">Unmatch product</button>
+                                    </form>
                                     <form class="apply-cost-form" method="POST" action="{{ route('admin.suppliers.prices.apply-cost', $price) }}" data-apply-supplier-cost data-product-name="{{ $price->product->name }}" data-cost="{{ $price->currency }} {{ number_format((float) $price->unit_price, 2) }}">
                                         @csrf @method('PATCH')
                                         <div><small>Current product cost</small><strong>₱{{ number_format((float) $price->product->unit_cost, 2) }}</strong></div>
@@ -185,6 +282,7 @@ $navigation = [
                                     <form class="create-catalog-product" method="POST" action="{{ route('admin.suppliers.prices.create-product', $price) }}">
                                         @csrf
                                         <label>Product SKU<input name="sku" value="{{ $price->supplier_sku }}" maxlength="100" required></label>
+                                        <label>Manufacturer part number (required)<input name="manufacturer_part_number" maxlength="150" required placeholder="Official number from manufacturer or packaging"></label>
                                         <label>Selling price (₱)<input name="selling_price" type="number" min="0" step="0.01" placeholder="Set owner selling price" required></label>
                                         <label>Category<input name="category" maxlength="100" placeholder="e.g. Brake Parts"></label>
                                         <label>Shelf location<input name="shelf_location" maxlength="100" placeholder="e.g. Aisle B · Shelf 2"></label>
@@ -214,7 +312,7 @@ $navigation = [
         <section class="panel imports-panel">
             <div class="section-heading"><div><span class="section-kicker">AUDIT TRAIL</span><h2>Recent imports</h2></div></div>
             <div class="import-list">
-                @forelse($imports as $import)
+                @forelse($imports->take(10) as $import)
                     <a href="{{ route('admin.suppliers', ['import' => $import->supplier_import_id]) }}">
                         <strong>{{ $import->supplier->name }}</strong>
                         <span>{{ $import->source_filename }}</span>

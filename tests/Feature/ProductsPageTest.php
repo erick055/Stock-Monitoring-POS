@@ -82,6 +82,22 @@ class ProductsPageTest extends TestCase
             ->assertDontSee('Other Product');
     }
 
+    public function test_products_can_be_sorted_from_the_catalog_toolbar(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        Product::create(['sku' => 'SORT-LOW', 'name' => 'Low Stock Product', 'unit_price' => 100, 'current_stock' => 2]);
+        Product::create(['sku' => 'SORT-HIGH', 'name' => 'High Stock Product', 'unit_price' => 500, 'current_stock' => 25]);
+
+        $this->actingAs($admin)->get('/admin/products?sort=stock_high')
+            ->assertOk()
+            ->assertSee('Sort')
+            ->assertSeeInOrder(['High Stock Product', 'Low Stock Product']);
+
+        $this->actingAs($admin)->get('/admin/products?sort=name_desc')
+            ->assertOk()
+            ->assertSeeInOrder(['Low Stock Product', 'High Stock Product']);
+    }
+
     public function test_products_routes_do_not_accept_writes(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);

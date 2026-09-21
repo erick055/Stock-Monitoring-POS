@@ -11,6 +11,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->appendToGroup('web', [
+            \App\Http\Middleware\EnforceIdleSessionTimeout::class,
+        ]);
+
         $middleware->redirectUsersTo(function (\Illuminate\Http\Request $request): string {
             return match ($request->user()?->role) {
                 'admin' => route('admin.dashboard'),

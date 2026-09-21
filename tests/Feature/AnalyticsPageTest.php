@@ -104,19 +104,58 @@ class AnalyticsPageTest extends TestCase
         $this->actingAs($admin)->get('/admin/analytics?period=week')
             ->assertOk()
             ->assertSee('WEEKLY VIEW')
-            ->assertSee('Sales Day by Day');
+            ->assertSee('Sales Day by Day')
+            ->assertSee('Specific week');
 
         $monthly = $this->actingAs($admin)->get('/admin/analytics?period=month')
             ->assertOk()
             ->assertSee('MONTHLY VIEW')
-            ->assertSee('Sales Day by Day');
+            ->assertSee('Sales Day by Day')
+            ->assertSee('Specific month');
         $this->assertSame(now()->daysInMonth, substr_count($monthly->getContent(), 'data-day-bar'));
 
         $yearly = $this->actingAs($admin)->get('/admin/analytics?period=year')
             ->assertOk()
             ->assertSee('YEARLY VIEW')
-            ->assertSee('Sales Month by Month');
+            ->assertSee('Sales Month by Month')
+            ->assertSee('Specific year');
         $this->assertSame(12, substr_count($yearly->getContent(), 'data-day-bar'));
+    }
+
+    public function test_sales_chart_can_open_a_specific_week_month_and_year(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $staff = User::factory()->create(['role' => 'staff']);
+
+        foreach ([
+            ['date' => '2025-01-07 10:00:00', 'total' => 110],
+            ['date' => '2025-01-14 10:00:00', 'total' => 220],
+            ['date' => '2025-02-03 10:00:00', 'total' => 330],
+        ] as $record) {
+            SalesTransaction::create([
+                'staff_id' => $staff->id,
+                'subtotal' => $record['total'],
+                'tax_amount' => 0,
+                'total_sale_amount' => $record['total'],
+                'payment_status' => 'paid',
+                'sale_date' => $record['date'],
+            ]);
+        }
+
+        $week = $this->actingAs($admin)->get('/admin/analytics?period=week&range=2025-01-06');
+        $week->assertOk()->assertSee('JAN 06, 2025 – JAN 12, 2025')->assertSee('Jan 06 – Jan 12, 2025');
+        $this->assertCount(7, $week->viewData('weeklySales'));
+        $this->assertSame(110.0, (float) $week->viewData('weeklySales')->sum('total'));
+
+        $month = $this->actingAs($admin)->get('/admin/analytics?period=month&range=2025-01');
+        $month->assertOk()->assertSee('JANUARY 2025')->assertSee('February 2025');
+        $this->assertCount(31, $month->viewData('weeklySales'));
+        $this->assertSame(330.0, (float) $month->viewData('weeklySales')->sum('total'));
+
+        $year = $this->actingAs($admin)->get('/admin/analytics?period=year&range=2025');
+        $year->assertOk()->assertSee('YEARLY VIEW · 2025');
+        $this->assertCount(12, $year->viewData('weeklySales'));
+        $this->assertSame(660.0, (float) $year->viewData('weeklySales')->sum('total'));
     }
 
     public function test_admin_can_export_whole_analytics_as_excel(): void

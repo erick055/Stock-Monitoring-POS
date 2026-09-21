@@ -23,7 +23,7 @@ if (posApp) {
     const checkoutUrl = posApp.dataset.checkoutUrl;
     const holdUrl = posApp.dataset.holdUrl;
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
-    const emptyCartMarkup = 'Cart is empty.<br>Select items to begin.';
+    const emptyCartMarkup = 'No products selected.<br>Add a product or enter a labor charge.';
     let currentCategory = 'All';
     let cart = [];
     let activeHeldOrderId = null;
@@ -64,6 +64,16 @@ if (posApp) {
 
         const items = receiptModal.querySelector('[data-receipt-items]');
         items.innerHTML = '';
+        if (!receipt.items.length) {
+            const row = document.createElement('div');
+            row.className = 'receipt-preview-item labor-only-item';
+            const name = document.createElement('span');
+            name.textContent = 'Labor / service only';
+            const details = document.createElement('small');
+            details.textContent = 'No products purchased';
+            row.append(name, details);
+            items.appendChild(row);
+        }
         receipt.items.forEach((item) => {
             const row = document.createElement('div');
             row.className = 'receipt-preview-item';
@@ -88,11 +98,12 @@ if (posApp) {
         checkoutLogs.querySelector('[data-empty-log]')?.remove();
 
         const row = document.createElement('tr');
+        const unitCount = receipt.items.reduce((sum, item) => sum + item.quantity, 0);
         const values = [
             `#${receipt.number}`,
             receipt.date,
             receipt.cashier,
-            `${receipt.items.reduce((sum, item) => sum + item.quantity, 0)} units`,
+            unitCount > 0 ? `${unitCount} unit${unitCount === 1 ? '' : 's'}` : 'Labor only',
             receipt.payment_method,
             peso(receipt.total),
         ];
@@ -547,8 +558,8 @@ if (posApp) {
         if (event.key === 'Escape' && receiptModal && !receiptModal.hidden) closeReceipt();
     });
     posApp.querySelector('[data-process-payment]')?.addEventListener('click', async (event) => {
-        if (!cart.length) {
-            showToast('Cart is empty.');
+        if (!cart.length && laborAmount() <= 0) {
+            showToast('Add a product or enter a labor charge before checkout.');
             return;
         }
         const button = event.currentTarget;

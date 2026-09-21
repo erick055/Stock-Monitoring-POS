@@ -17,7 +17,7 @@ $productDetailRecords = [];
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Products | MotoSync</title>
-    @vite(['resources/css/dashboard.css','resources/css/products.css','resources/css/responsive.css','resources/js/dashboard.js','resources/js/products.js'])
+    @vite(['resources/css/dashboard.css','resources/css/products.css','resources/css/sorting-controls.css','resources/css/responsive.css','resources/js/dashboard.js','resources/js/products.js'])
 </head>
 <body>
 <div class="dashboard-shell products-shell">
@@ -55,7 +55,8 @@ $productDetailRecords = [];
                 <form class="toolbar-controls" method="GET" data-products-filter>
                     <label class="product-search"><span>⌕</span><input name="search" value="{{ $search }}" type="search" placeholder="Search name, SKU, category, shelf"></label>
                     <select name="category" aria-label="Filter by category" data-auto-submit><option value="">All categories</option>@foreach($categories as $item)<option value="{{ $item }}" @selected($category === $item)>{{ $item }}</option>@endforeach</select>
-                    <select name="sort" aria-label="Sort products" data-auto-submit><option value="name" @selected($sort === 'name')>Name A–Z</option><option value="newest" @selected($sort === 'newest')>Newest</option><option value="stock_high" @selected($sort === 'stock_high')>Stock: high to low</option><option value="stock_low" @selected($sort === 'stock_low')>Stock: low to high</option><option value="price_high" @selected($sort === 'price_high')>Price: high to low</option><option value="price_low" @selected($sort === 'price_low')>Price: low to high</option></select>
+                    <select name="sort" aria-label="Sort products"><option value="name" @selected($sort === 'name')>Name A–Z</option><option value="name_desc" @selected($sort === 'name_desc')>Name Z–A</option><option value="newest" @selected($sort === 'newest')>Newest added</option><option value="oldest" @selected($sort === 'oldest')>Oldest added</option><option value="stock_high" @selected($sort === 'stock_high')>Stock: high to low</option><option value="stock_low" @selected($sort === 'stock_low')>Stock: low to high</option><option value="price_high" @selected($sort === 'price_high')>Price: high to low</option><option value="price_low" @selected($sort === 'price_low')>Price: low to high</option></select>
+                    <button class="sort-button" type="submit">Sort</button>
                     <button class="filter-button" type="submit">Search</button>
                     @if($search || $category || $sort !== 'name')<a class="clear-filter" href="{{ request()->url() }}">Clear</a>@endif
                 </form>

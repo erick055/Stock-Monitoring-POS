@@ -66,12 +66,13 @@ class AuthenticationTest extends TestCase
         $this->assertAuthenticated();
     }
 
-    public function test_remembered_login_sets_a_persistent_browser_cookie(): void
+    public function test_login_does_not_create_a_persistent_remember_cookie(): void
     {
-        User::factory()->create([
+        $user = User::factory()->create([
             'email' => 'remember@example.com',
             'role' => 'admin',
             'password' => self::STRONG_PASSWORD,
+            'remember_token' => 'old-persistent-token',
         ]);
 
         $response = $this->post('/login', [
@@ -81,8 +82,67 @@ class AuthenticationTest extends TestCase
         ]);
 
         $response->assertRedirect(route('admin.dashboard'))
-            ->assertCookie(Auth::guard()->getRecallerName());
+            ->assertCookieExpired(Auth::guard()->getRecallerName())
+            ->assertSessionHas('auth.last_activity_at');
         $this->assertAuthenticated();
+        $this->assertNotSame('old-persistent-token', $user->fresh()->getRememberToken());
+        $this->assertSame(43200, config('session.lifetime'));
+        $this->assertSame(60, config('session.idle_timeout_by_role.admin'));
+        $this->assertSame(43200, config('session.idle_timeout_by_role.staff'));
+    }
+
+    public function test_user_is_logged_out_after_sixty_minutes_without_activity(): void
+    {
+        $user = User::factory()->create(['role' => 'admin']);
+
+        $this->actingAs($user)
+            ->withSession(['auth.last_activity_at' => now()->subMinutes(60)->timestamp])
+            ->get(route('admin.dashboard'))
+            ->assertRedirect(route('login'))
+            ->assertSessionHas('status', 'You were logged out after 60 minutes of inactivity. Please log in again.');
+
+        $this->assertGuest();
+    }
+
+    public function test_activity_before_sixty_minutes_keeps_the_user_logged_in(): void
+    {
+        $user = User::factory()->create(['role' => 'admin']);
+        $oldActivity = now()->subMinutes(59)->timestamp;
+
+        $this->actingAs($user)
+            ->withSession(['auth.last_activity_at' => $oldActivity])
+            ->get(route('admin.dashboard'))
+            ->assertOk()
+            ->assertSessionHas('auth.last_activity_at', fn ($timestamp) => $timestamp > $oldActivity);
+
+        $this->assertAuthenticatedAs($user);
+    }
+
+    public function test_staff_pos_session_remains_active_for_up_to_thirty_days(): void
+    {
+        $staff = User::factory()->create(['role' => 'staff']);
+        $oldActivity = now()->subDays(29)->timestamp;
+
+        $this->actingAs($staff)
+            ->withSession(['auth.last_activity_at' => $oldActivity])
+            ->get(route('staff.pos'))
+            ->assertOk()
+            ->assertSessionHas('auth.last_activity_at', fn ($timestamp) => $timestamp > $oldActivity);
+
+        $this->assertAuthenticatedAs($staff);
+    }
+
+    public function test_staff_is_logged_out_after_thirty_days_without_activity(): void
+    {
+        $staff = User::factory()->create(['role' => 'staff']);
+
+        $this->actingAs($staff)
+            ->withSession(['auth.last_activity_at' => now()->subDays(30)->timestamp])
+            ->get(route('staff.pos'))
+            ->assertRedirect(route('login'))
+            ->assertSessionHas('status', 'You were logged out after 30 days of inactivity. Please log in again.');
+
+        $this->assertGuest();
     }
 
     public function test_logged_in_browser_is_redirected_to_its_account_dashboard(): void

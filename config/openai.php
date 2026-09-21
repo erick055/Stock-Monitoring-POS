@@ -10,6 +10,6 @@ return [
     'max_recommendations' => (int) env('OPENAI_MAX_COMPATIBILITY_RECOMMENDATIONS', 5),
     'max_output_tokens' => (int) env('OPENAI_MAX_COMPATIBILITY_OUTPUT_TOKENS', 1200),
     'reasoning_effort' => env('OPENAI_COMPATIBILITY_REASONING_EFFORT', 'none'),
-    'web_search' => env('OPENAI_COMPATIBILITY_WEB_SEARCH', false),
+    'web_search' => env('OPENAI_COMPATIBILITY_WEB_SEARCH', true),
     'cache_hours' => (int) env('OPENAI_COMPATIBILITY_CACHE_HOURS', 24),
 ];

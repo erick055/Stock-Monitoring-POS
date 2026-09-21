@@ -32,7 +32,12 @@ return [
     |
     */
 
-    'lifetime' => (int) env('SESSION_LIFETIME', 120),
+    'lifetime' => (int) env('SESSION_LIFETIME', 43200),
+
+    'idle_timeout_by_role' => [
+        'admin' => (int) env('ADMIN_IDLE_TIMEOUT', 60),
+        'staff' => (int) env('STAFF_IDLE_TIMEOUT', 43200),
+    ],
 
     'expire_on_close' => env('SESSION_EXPIRE_ON_CLOSE', false),
 

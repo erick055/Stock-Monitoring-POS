@@ -35,15 +35,15 @@ $navigation = [
             <div>
                 <p class="welcome">CONNECTED TO POS</p>
                 <h1>Sales &amp; Analytics Dashboard</h1>
-                <p>Highest and lowest stock, sales, demand, best sellers, and weekly day-by-day performance.</p>
+                <p>Highest and lowest stock, sales, demand, best sellers, and selectable historical sales periods.</p>
             </div>
             <div class="header-tools">
                 <span class="period-select">Live POS Data</span>
                 <div class="export-menu" data-export-menu>
                     <button class="more-button" type="button" data-export-toggle aria-label="Export analytics data" aria-haspopup="menu" aria-expanded="false">&#8226;&#8226;&#8226;</button>
                     <div class="export-options" data-export-options role="menu" hidden>
-                        <div class="export-options-heading"><span>EXPORT DATA</span><small>{{ $chartPeriodLabel }} sales view and whole analytics report</small></div>
-                        <a href="{{ route('admin.analytics.export', ['period' => $salesPeriod]) }}" role="menuitem"><span class="export-icon excel">XLS</span><span><strong>Excel workbook</strong><small>Download all analytics worksheets</small></span></a>
+                        <div class="export-options-heading"><span>EXPORT DATA</span><small>{{ $chartPeriodLabel }} · {{ $chartRangeLabel }} and whole analytics report</small></div>
+                        <a href="{{ route('admin.analytics.export', ['period' => $salesPeriod, 'range' => $periodRanges[$salesPeriod]]) }}" role="menuitem"><span class="export-icon excel">XLS</span><span><strong>Excel workbook</strong><small>Download all analytics worksheets</small></span></a>
                     </div>
                 </div>
             </div>
@@ -73,16 +73,27 @@ $navigation = [
 
             <article class="panel analytics-panel">
                 <div class="section-heading">
-                    <div><span class="section-kicker">{{ strtoupper($chartPeriodLabel) }} VIEW</span><h2>{{ $salesPeriod === 'year' ? 'Sales Month by Month' : 'Sales Day by Day' }}</h2></div>
+                    <div><span class="section-kicker">{{ strtoupper($chartPeriodLabel) }} VIEW · {{ strtoupper($chartRangeLabel) }}</span><h2>{{ $salesPeriod === 'year' ? 'Sales Month by Month' : 'Sales Day by Day' }}</h2></div>
                     <div class="chart-period-menu" data-chart-period-menu>
                         <button class="chart-period-toggle" type="button" data-chart-period-toggle aria-label="Choose sales chart period" aria-haspopup="menu" aria-expanded="false">&#8226;&#8226;&#8226;</button>
                         <div class="chart-period-options" data-chart-period-options role="menu" hidden>
-                            <a href="{{ route('admin.analytics', ['period' => 'week']) }}" role="menuitem" class="{{ $salesPeriod === 'week' ? 'is-active' : '' }}" @if($salesPeriod === 'week') aria-current="page" @endif><strong>Weekly view</strong><small>Current week by day</small></a>
-                            <a href="{{ route('admin.analytics', ['period' => 'month']) }}" role="menuitem" class="{{ $salesPeriod === 'month' ? 'is-active' : '' }}" @if($salesPeriod === 'month') aria-current="page" @endif><strong>Monthly view</strong><small>Current month by day</small></a>
-                            <a href="{{ route('admin.analytics', ['period' => 'year']) }}" role="menuitem" class="{{ $salesPeriod === 'year' ? 'is-active' : '' }}" @if($salesPeriod === 'year') aria-current="page" @endif><strong>Yearly view</strong><small>Current year by month</small></a>
+                            <a href="{{ route('admin.analytics', ['period' => 'week', 'range' => $periodRanges['week']]) }}" role="menuitem" class="{{ $salesPeriod === 'week' ? 'is-active' : '' }}" @if($salesPeriod === 'week') aria-current="page" @endif><strong>Weekly view</strong><small>Choose a week · day by day</small></a>
+                            <a href="{{ route('admin.analytics', ['period' => 'month', 'range' => $periodRanges['month']]) }}" role="menuitem" class="{{ $salesPeriod === 'month' ? 'is-active' : '' }}" @if($salesPeriod === 'month') aria-current="page" @endif><strong>Monthly view</strong><small>Choose a month · day by day</small></a>
+                            <a href="{{ route('admin.analytics', ['period' => 'year', 'range' => $periodRanges['year']]) }}" role="menuitem" class="{{ $salesPeriod === 'year' ? 'is-active' : '' }}" @if($salesPeriod === 'year') aria-current="page" @endif><strong>Yearly view</strong><small>Choose a year · month by month</small></a>
                         </div>
                     </div>
                 </div>
+                <form class="chart-range-filter" method="GET" action="{{ route('admin.analytics') }}">
+                    <input type="hidden" name="period" value="{{ $salesPeriod }}">
+                    <label for="chart-range">Specific {{ $salesPeriod }}
+                        <select id="chart-range" name="range" data-chart-range>
+                            @foreach($chartRangeOptions as $option)
+                                <option value="{{ $option['value'] }}" @selected($option['value'] === $periodRanges[$salesPeriod])>{{ $option['label'] }}</option>
+                            @endforeach
+                        </select>
+                    </label>
+                    <button type="submit">View transactions</button>
+                </form>
                 <div class="chart-insight" data-chart-insight aria-live="polite">
                     <span>Select a day</span><strong>View its paid sales total</strong>
                 </div>

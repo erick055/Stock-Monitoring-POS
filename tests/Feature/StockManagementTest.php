@@ -26,6 +26,7 @@ class StockManagementTest extends TestCase
             ->assertSee('Stock In')
             ->assertSee('Stock Out')
             ->assertSee('Adjustment')
+            ->assertSee('Save product changes')
             ->assertSee('Reference number')
             ->assertSee('Resulting stock');
 
@@ -48,12 +49,29 @@ class StockManagementTest extends TestCase
         $this->get('/admin/inventory')->assertRedirect(route('login'));
     }
 
+    public function test_admin_can_sort_current_stock_records(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        Product::create(['sku' => 'STOCK-LOW', 'name' => 'Small Balance', 'unit_cost' => 50, 'current_stock' => 3]);
+        Product::create(['sku' => 'STOCK-HIGH', 'name' => 'Large Balance', 'unit_cost' => 500, 'current_stock' => 40]);
+
+        $this->actingAs($admin)->get('/admin/inventory?sort=stock_high')
+            ->assertOk()
+            ->assertSee('Sort')
+            ->assertSeeInOrder(['Large Balance', 'Small Balance']);
+
+        $this->actingAs($admin)->get('/admin/inventory?sort=cost_low')
+            ->assertOk()
+            ->assertSeeInOrder(['Small Balance', 'Large Balance']);
+    }
+
     public function test_admin_can_add_a_product_with_an_opening_ledger_entry(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);
 
         $this->actingAs($admin)->post(route('admin.inventory.products.store'), [
             'sku' => 'ENG-OIL-1L',
+            'manufacturer_part_number' => 'MPN-OIL-1L',
             'name' => 'Engine Oil 1L',
             'category' => 'Lubricants',
             'shelf_location' => 'Aisle A · Shelf 03',
@@ -67,6 +85,7 @@ class StockManagementTest extends TestCase
 
         $product = Product::where('sku', 'ENG-OIL-1L')->firstOrFail();
         $this->assertSame(25, $product->current_stock);
+        $this->assertSame('MPN-OIL-1L', $product->manufacturer_part_number);
         $this->assertSame('Aisle A · Shelf 03', $product->shelf_location);
         $this->assertDatabaseHas('inventory_ledgers', [
             'product_id' => $product->product_id,
@@ -74,6 +93,27 @@ class StockManagementTest extends TestCase
             'qty_out' => 0,
             'reason_code' => 'OPENING_STOCK',
         ]);
+    }
+
+    public function test_manufacturer_part_number_is_required_when_creating_or_editing_products(): void
+    {
+        $this->actingAs(User::factory()->create(['role' => 'admin']));
+        $product = Product::create(['sku' => 'LEGACY', 'name' => 'Legacy product', 'current_stock' => 4]);
+        $payload = ['sku' => 'NEW-PART', 'name' => 'New part', 'unit_cost' => 100, 'unit_price' => 150,
+            'reorder_level' => 2, 'qty_in' => 5, 'reason_code' => 'OPENING_STOCK'];
+
+        foreach ([[], ['manufacturer_part_number' => null], ['manufacturer_part_number' => '   ']] as $partNumber) {
+            $this->post(route('admin.inventory.products.store'), [...$payload, ...$partNumber])
+                ->assertSessionHasErrors('manufacturer_part_number');
+            $this->patch(route('admin.inventory.products.update', $product), [
+                ...$payload, ...$partNumber, 'edit_product_id' => $product->product_id,
+            ])->assertSessionHasErrors(['manufacturer_part_number'], null, 'editProduct');
+        }
+
+        $this->assertDatabaseCount('products', 1);
+        $this->assertDatabaseCount('inventory_ledgers', 0);
+        $this->assertSame('LEGACY', $product->fresh()->sku);
+        $this->assertSame(4, $product->fresh()->current_stock);
     }
 
     public function test_new_product_reuses_existing_category_regardless_of_capitalization(): void
@@ -86,6 +126,7 @@ class StockManagementTest extends TestCase
 
         $this->actingAs($admin)->post(route('admin.inventory.products.store'), [
             'sku' => 'BRK-NEW',
+            'manufacturer_part_number' => 'MPN-BRK-NEW',
             'name' => 'New Brake',
             'category' => '  brake   parts  ',
             'unit_cost' => 50,
@@ -96,6 +137,77 @@ class StockManagementTest extends TestCase
         ])->assertSessionHas('success');
 
         $this->assertSame('Brake Parts', Product::where('sku', 'BRK-NEW')->value('category'));
+    }
+
+    public function test_previously_deleted_sku_can_be_restored_from_stock_management(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $deletedProduct = Product::create([
+            'sku' => 'RESTORE-SKU-01',
+            'name' => 'Old Deleted Product',
+            'manufacturer_part_number' => 'OLD-PART-01',
+            'unit_cost' => 80,
+            'unit_price' => 120,
+            'current_stock' => 0,
+            'is_active' => false,
+        ]);
+
+        $this->actingAs($admin)->post(route('admin.inventory.products.store'), [
+            'sku' => 'restore-sku-01',
+            'name' => 'Restored Product Model',
+            'manufacturer' => 'Restored Brand',
+            'manufacturer_part_number' => 'NEW-PART-01',
+            'category' => 'Electrical',
+            'shelf_location' => 'Rack R-01',
+            'unit_cost' => 150,
+            'unit_price' => 225,
+            'reorder_level' => 4,
+            'qty_in' => 12,
+            'reason_code' => 'OPENING_STOCK',
+        ])->assertRedirect()->assertSessionHas('success');
+
+        $deletedProduct->refresh();
+        $this->assertDatabaseCount('products', 1);
+        $this->assertTrue($deletedProduct->is_active);
+        $this->assertSame('restore-sku-01', $deletedProduct->sku);
+        $this->assertSame('Restored Product Model', $deletedProduct->name);
+        $this->assertSame(12, $deletedProduct->current_stock);
+        $this->assertSame('150.00', $deletedProduct->unit_cost);
+        $this->assertDatabaseHas('inventory_ledgers', [
+            'product_id' => $deletedProduct->product_id,
+            'qty_in' => 12,
+            'reason_code' => 'OPENING_STOCK',
+        ]);
+    }
+
+    public function test_new_products_cannot_duplicate_sku_name_or_manufacturer_part_number(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        Product::create([
+            'sku' => 'BRK-001', 'name' => 'Front Brake Pad', 'manufacturer' => 'Honda',
+            'manufacturer_part_number' => 'HND-PAD-01', 'unit_price' => 500,
+        ]);
+        $base = [
+            'unit_cost' => 300, 'unit_price' => 500, 'reorder_level' => 2,
+            'qty_in' => 0, 'reason_code' => 'NEW_PRODUCT',
+            'manufacturer_part_number' => 'MPN-NEW',
+        ];
+
+        $this->actingAs($admin)->post(route('admin.inventory.products.store'), [
+            ...$base, 'sku' => ' brk-001 ', 'name' => 'Different Name',
+        ])->assertSessionHasErrors('sku');
+
+        $this->actingAs($admin)->post(route('admin.inventory.products.store'), [
+            ...$base, 'sku' => 'BRK-002', 'name' => ' front   brake pad ',
+        ])->assertSessionHasErrors('name');
+
+        $this->actingAs($admin)->post(route('admin.inventory.products.store'), [
+            ...$base, 'sku' => 'BRK-003', 'name' => 'Alternate Pad',
+            'manufacturer' => 'honda', 'manufacturer_part_number' => ' hnd-pad-01 ',
+        ])->assertSessionHasErrors('manufacturer_part_number');
+
+        $this->assertDatabaseCount('products', 1);
+        $this->assertDatabaseCount('inventory_ledgers', 0);
     }
 
     public function test_admin_can_assign_and_clear_an_existing_product_shelf_location(): void
@@ -123,6 +235,78 @@ class StockManagementTest extends TestCase
             ->patch(route('admin.inventory.products.shelf-location', $product), ['shelf_location' => ''])
             ->assertSessionHas('success');
         $this->assertNull($product->fresh()->shelf_location);
+    }
+
+    public function test_admin_can_edit_product_information_and_prices_without_changing_stock(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        Product::create([
+            'sku' => 'CATEGORY-01', 'name' => 'Category Reference', 'category' => 'Brake Parts',
+            'unit_price' => 100, 'current_stock' => 1,
+        ]);
+        $product = Product::create([
+            'sku' => 'EDIT-OLD', 'name' => 'Old Product Name', 'category' => 'Old Category',
+            'unit_cost' => 100, 'unit_price' => 150, 'current_stock' => 8, 'reorder_level' => 2,
+        ]);
+
+        $this->actingAs($admin)->patch(route('admin.inventory.products.update', $product), [
+            'edit_product_id' => $product->product_id,
+            'sku' => 'EDIT-NEW',
+            'name' => 'Updated Brake Pad',
+            'category' => ' brake   parts ',
+            'shelf_location' => ' Aisle D   Shelf 2 ',
+            'manufacturer' => 'Honda',
+            'manufacturer_part_number' => 'HND-100',
+            'description' => 'Updated specifications',
+            'unit_cost' => 125.50,
+            'unit_price' => 225.75,
+            'reorder_level' => 4,
+        ])->assertRedirect()->assertSessionHas('success');
+
+        $product->refresh();
+        $this->assertSame('EDIT-NEW', $product->sku);
+        $this->assertSame('Updated Brake Pad', $product->name);
+        $this->assertSame('Brake Parts', $product->category);
+        $this->assertSame('Aisle D Shelf 2', $product->shelf_location);
+        $this->assertSame('125.50', $product->unit_cost);
+        $this->assertSame('225.75', $product->unit_price);
+        $this->assertSame(4, $product->reorder_level);
+        $this->assertSame(8, $product->current_stock);
+        $this->assertDatabaseHas('inventory_ledgers', [
+            'product_id' => $product->product_id,
+            'qty_in' => 0,
+            'qty_out' => 0,
+            'reason_code' => 'PRODUCT_UPDATED',
+        ]);
+        $this->assertStringContainsString('selling price: 150.00 → 225.75', InventoryLedger::latest('ledger_id')->firstOrFail()->logs);
+    }
+
+    public function test_product_edit_rejects_a_duplicate_sku_and_staff_access(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $staff = User::factory()->create(['role' => 'staff']);
+        Product::create(['sku' => 'TAKEN-SKU', 'name' => 'Existing Product', 'unit_price' => 50]);
+        $product = Product::create(['sku' => 'EDITABLE-SKU', 'name' => 'Editable Product', 'unit_price' => 100]);
+        $payload = [
+            'edit_product_id' => $product->product_id,
+            'sku' => 'TAKEN-SKU', 'name' => 'Editable Product', 'unit_cost' => 25,
+            'manufacturer_part_number' => 'MPN-EDITABLE',
+            'unit_price' => 100, 'reorder_level' => 2,
+        ];
+
+        $this->actingAs($admin)->patch(route('admin.inventory.products.update', $product), $payload)
+            ->assertSessionHasErrors(['sku'], null, 'editProduct');
+        $this->assertSame('EDITABLE-SKU', $product->fresh()->sku);
+
+        $this->actingAs($admin)->patch(route('admin.inventory.products.update', $product), [
+            ...$payload, 'sku' => 'EDITABLE-SKU', 'name' => ' existing   product ',
+        ])->assertSessionHasErrors(['name'], null, 'editProduct');
+        $this->assertSame('Editable Product', $product->fresh()->name);
+
+        $this->actingAs($staff)->patch(route('admin.inventory.products.update', $product), [
+            ...$payload, 'sku' => 'STAFF-CHANGE',
+        ])->assertForbidden();
+        $this->assertSame('EDITABLE-SKU', $product->fresh()->sku);
     }
 
     public function test_admin_can_remove_a_zero_stock_product_while_preserving_its_history(): void

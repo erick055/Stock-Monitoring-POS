@@ -18,6 +18,8 @@ class CompatibilityController extends Controller
         ];
         $results = collect();
         $aiAdvice = null;
+        $candidateCount = 0;
+        $matchingCount = 0;
 
         if ($request->isMethod('post')) {
             $validated = $request->validate([
@@ -33,7 +35,14 @@ class CompatibilityController extends Controller
                 'year' => (string) $validated['year'],
             ];
             $search = trim((string) ($validated['part_search'] ?? ''));
-            $products = Product::query()
+            $brandTerm = mb_strtolower(trim($vehicleInput['brand']), 'UTF-8');
+            $modelTerm = mb_strtolower(trim($vehicleInput['model']), 'UTF-8');
+            $candidateLimit = min(
+                10,
+                max(1, (int) config('openai.max_products', 10)),
+                min(5, max(1, (int) config('openai.max_recommendations', 5))),
+            );
+            $query = Product::query()
                 ->where('is_active', true)
                 ->when($search !== '', function ($query) use ($search) {
                     $query->where(function ($nested) use ($search) {
@@ -43,11 +52,23 @@ class CompatibilityController extends Controller
                             ->orWhere('manufacturer', 'like', "%{$search}%")
                             ->orWhere('manufacturer_part_number', 'like', "%{$search}%");
                     });
-                })
+                });
+            $matchingCount = (clone $query)->count();
+            $products = $query
+                ->orderByRaw(
+                    "CASE
+                        WHEN LOWER(COALESCE(name, '')) LIKE ? OR LOWER(COALESCE(description, '')) LIKE ? THEN 0
+                        WHEN LOWER(TRIM(COALESCE(manufacturer, ''))) = ? THEN 1
+                        WHEN LOWER(COALESCE(name, '')) LIKE ? OR LOWER(COALESCE(sku, '')) LIKE ? THEN 2
+                        ELSE 3
+                    END",
+                    ["%{$modelTerm}%", "%{$modelTerm}%", $brandTerm, "%{$brandTerm}%", "%{$brandTerm}%"],
+                )
                 ->orderByDesc('current_stock')
                 ->orderBy('name')
-                ->limit(max(1, (int) config('openai.max_products', 10)))
+                ->limit($candidateLimit)
                 ->get();
+            $candidateCount = $products->count();
 
             if ($products->isEmpty()) {
                 $aiAdvice = ['available' => true, 'summary' => 'No active inventory products matched your part search.', 'recommendations' => []];
@@ -62,10 +83,7 @@ class CompatibilityController extends Controller
                             'product' => $product,
                             'assessment' => $recommendations->get($product->product_id),
                         ])
-                        ->sortBy(fn (array $result) => [
-                            $result['assessment']['rank'],
-                            -$result['assessment']['confidence'],
-                        ])->values();
+                        ->sortBy(fn (array $result) => array_search($result['assessment']['status'], ['compatible', 'possible', 'unknown', 'incompatible'], true))->values();
                 }
             }
         }
@@ -75,10 +93,11 @@ class CompatibilityController extends Controller
             'compatible' => $results->where('assessment.status', 'compatible')->count(),
             'possible' => $results->where('assessment.status', 'possible')->count(),
             'incompatible' => $results->where('assessment.status', 'incompatible')->count(),
+            'unknown' => $results->where('assessment.status', 'unknown')->count(),
         ];
 
         $view = auth()->user()->role === 'admin' ? 'admin.compatibility' : 'staff.compatibility';
 
-        return view($view, compact('vehicleInput', 'results', 'summary', 'aiAdvice'));
+        return view($view, compact('vehicleInput', 'results', 'summary', 'aiAdvice', 'candidateCount', 'matchingCount'));
     }
 }

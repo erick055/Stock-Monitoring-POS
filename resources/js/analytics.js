@@ -1,6 +1,9 @@
 const dayBars = [...document.querySelectorAll('[data-day-bar]')];
 const chartInsight = document.querySelector('[data-chart-insight]');
 const peso = new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' });
+const chartRange = document.querySelector('[data-chart-range]');
+
+chartRange?.addEventListener('change', () => chartRange.form?.requestSubmit());
 
 function selectDay(bar) {
     dayBars.forEach((item) => item.classList.toggle('is-selected', item === bar));

@@ -6,6 +6,9 @@ $navigation = [
 ];
 $productStoreRoute = route('admin.inventory.products.store');
 $movementStoreRoute = route('admin.inventory.movements.store');
+$editErrorProduct = $errors->getBag('editProduct')->any()
+    ? $allProducts->firstWhere('product_id', (int) old('edit_product_id'))
+    : null;
 @endphp
 <!DOCTYPE html>
 <html lang="en">
@@ -13,7 +16,7 @@ $movementStoreRoute = route('admin.inventory.movements.store');
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stock Management | MotoSync</title>
-    @vite(['resources/css/dashboard.css','resources/css/stock-management.css','resources/css/responsive.css','resources/js/dashboard.js','resources/js/stock-management.js'])
+    @vite(['resources/css/dashboard.css','resources/css/stock-management.css','resources/css/sorting-controls.css','resources/css/responsive.css','resources/js/dashboard.js','resources/js/stock-management.js'])
 </head>
 <body>
 <div class="dashboard-shell stock-shell">
@@ -38,6 +41,7 @@ $movementStoreRoute = route('admin.inventory.movements.store');
             <form class="header-tools" method="GET">
                 <label class="search-box"><span>⌕</span><input type="search" name="search" value="{{ $search }}" placeholder="Search SKU, product, or shelf"></label>
                 <input type="hidden" name="status" value="{{ $status }}">
+                <input type="hidden" name="sort" value="{{ $sort }}">
                 <button class="search-button" type="submit">Search</button>
             </form>
         </header>
@@ -45,6 +49,9 @@ $movementStoreRoute = route('admin.inventory.movements.store');
         @if(session('success'))<div class="flash-message success" role="status">{{ session('success') }}</div>@endif
         @if($errors->any())
             <div class="flash-message error" role="alert"><strong>Please fix the following:</strong><ul>@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>
+        @endif
+        @if($errors->getBag('editProduct')->any())
+            <div class="flash-message error" role="alert"><strong>The product was not updated:</strong><ul>@foreach($errors->getBag('editProduct')->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>
         @endif
 
         <section class="stat-grid stock-stats" aria-label="Stock summary">
@@ -58,13 +65,18 @@ $movementStoreRoute = route('admin.inventory.movements.store');
             <div class="section-heading inventory-heading">
                 <div><span class="section-kicker">PRODUCT BALANCES</span><h2>Current Stock Level</h2></div>
                 <div class="inventory-actions">
-                    <form method="GET" data-filter-form><input type="hidden" name="search" value="{{ $search }}"><select name="status" data-status-filter aria-label="Filter stock status"><option value="all" @selected($status === 'all')>All statuses</option><option value="healthy" @selected($status === 'healthy')>Healthy</option><option value="warning" @selected($status === 'warning')>Low stock</option><option value="critical" @selected($status === 'critical')>Critical</option></select></form>
+                    <form method="GET" data-filter-form>
+                        <input type="hidden" name="search" value="{{ $search }}">
+                        <select name="status" data-status-filter aria-label="Filter stock status"><option value="all" @selected($status === 'all')>All statuses</option><option value="healthy" @selected($status === 'healthy')>Healthy</option><option value="warning" @selected($status === 'warning')>Low stock</option><option value="critical" @selected($status === 'critical')>Critical</option></select>
+                        <select name="sort" aria-label="Sort stock"><option value="name" @selected($sort === 'name')>Name A–Z</option><option value="name_desc" @selected($sort === 'name_desc')>Name Z–A</option><option value="newest" @selected($sort === 'newest')>Newest added</option><option value="stock_high" @selected($sort === 'stock_high')>Stock: high to low</option><option value="stock_low" @selected($sort === 'stock_low')>Stock: low to high</option><option value="cost_high" @selected($sort === 'cost_high')>Cost: high to low</option><option value="cost_low" @selected($sort === 'cost_low')>Cost: low to high</option></select>
+                        <button class="sort-stock-button" type="submit">Sort</button>
+                    </form>
                     <button class="add-product" type="button" data-open-product>+ Add Product</button>
                 </div>
             </div>
             <div class="table-wrap">
                 <table>
-                    <thead><tr><th>Product ID</th><th>Product</th><th>Category</th><th>Shelf location</th><th>Current stock</th><th>Reorder level</th><th>Unit cost</th><th>Status</th><th>Actions</th></tr></thead>
+                    <thead><tr><th>Product ID</th><th>Product</th><th>Category</th><th>Shelf location</th><th>Current stock</th><th>Reorder level</th><th>Unit cost</th><th>Selling price</th><th>Status</th><th>Actions</th></tr></thead>
                     <tbody>
                     @forelse($products as $product)
                         <tr>
@@ -81,8 +93,28 @@ $movementStoreRoute = route('admin.inventory.movements.store');
                             <td><div class="stock-level"><span>{{ number_format($product->current_stock) }} units</span><div><i style="width:{{ min(100, $product->reorder_level ? ($product->current_stock / ($product->reorder_level * 3)) * 100 : 100) }}%"></i></div></div></td>
                             <td>{{ number_format($product->reorder_level) }}</td>
                             <td>₱{{ number_format($product->unit_cost, 2) }}</td>
+                            <td>₱{{ number_format($product->unit_price, 2) }}</td>
                             <td><span class="status-badge {{ $product->stock_status }}">{{ $product->stock_status === 'warning' ? 'Low stock' : ucfirst($product->stock_status) }}</span></td>
-                            <td>
+                            <td><div class="product-row-actions">
+                                <button
+                                    class="edit-product-button"
+                                    type="button"
+                                    data-edit-product
+                                    data-edit-action="{{ route('admin.inventory.products.update', $product) }}"
+                                    data-product-id="{{ $product->product_id }}"
+                                    data-product-sku="{{ $product->sku }}"
+                                    data-product-name="{{ $product->name }}"
+                                    data-product-category="{{ $product->category }}"
+                                    data-product-shelf-location="{{ $product->shelf_location }}"
+                                    data-product-manufacturer="{{ $product->manufacturer }}"
+                                    data-product-manufacturer-part-number="{{ $product->manufacturer_part_number }}"
+                                    data-product-description="{{ $product->description }}"
+                                    data-product-unit-cost="{{ $product->unit_cost }}"
+                                    data-product-unit-price="{{ $product->unit_price }}"
+                                    data-product-reorder-level="{{ $product->reorder_level }}"
+                                    data-product-stock="{{ $product->current_stock }}"
+                                    data-product-promotion="{{ $product->activePromotion?->action_label }}"
+                                >Edit</button>
                                 <button
                                     class="delete-product-button"
                                     type="button"
@@ -92,10 +124,10 @@ $movementStoreRoute = route('admin.inventory.movements.store');
                                     data-product-sku="{{ $product->sku }}"
                                     data-product-stock="{{ $product->current_stock }}"
                                 >Delete</button>
-                            </td>
+                            </div></td>
                         </tr>
                     @empty
-                        <tr><td colspan="9" class="empty-cell">No products found. Add your first product to begin.</td></tr>
+                        <tr><td colspan="10" class="empty-cell">No products found. Add your first product to begin.</td></tr>
                     @endforelse
                     </tbody>
                 </table>
@@ -192,7 +224,7 @@ $movementStoreRoute = route('admin.inventory.movements.store');
     </main>
 </div>
 
-<div class="stock-modal" data-product-modal data-open-on-error="{{ old('sku') ? 'true' : 'false' }}" hidden>
+<div class="stock-modal" data-product-modal data-open-on-error="{{ $errors->getBag('default')->any() && old('sku') ? 'true' : 'false' }}" hidden>
     <div class="modal-backdrop" data-close-product></div>
     <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="add-product-title">
         <div class="modal-header"><div><span class="section-kicker">NEW INVENTORY ITEM</span><h2 id="add-product-title">Add Product</h2></div><button type="button" data-close-product aria-label="Close">×</button></div>
@@ -204,7 +236,7 @@ $movementStoreRoute = route('admin.inventory.movements.store');
                 <label>Category<input name="category" value="{{ old('category') }}" maxlength="100" placeholder="e.g. Lubricants"></label>
                 <label>Shelf location<input name="shelf_location" value="{{ old('shelf_location') }}" maxlength="100" placeholder="e.g. Aisle A · Shelf 03 · Bin 2"></label>
                 <label>Manufacturer<input name="manufacturer" value="{{ old('manufacturer') }}" maxlength="150" placeholder="e.g. Honda, NGK, DID"></label>
-                <label>Manufacturer part number<input name="manufacturer_part_number" value="{{ old('manufacturer_part_number') }}" maxlength="150" placeholder="Official part number"></label>
+                <label>Manufacturer part number (required)<input name="manufacturer_part_number" value="{{ old('manufacturer_part_number') }}" maxlength="150" required placeholder="Official number from manufacturer or packaging"></label>
                 <label>Opening Qty In<input name="qty_in" value="{{ old('qty_in', 0) }}" type="number" min="0" required></label>
                 <label>Unit cost (₱)<input name="unit_cost" value="{{ old('unit_cost', 0) }}" type="number" min="0" step="0.01" required></label>
                 <label>Selling price (₱)<input name="unit_price" value="{{ old('unit_price', 0) }}" type="number" min="0" step="0.01" required></label>
@@ -214,6 +246,38 @@ $movementStoreRoute = route('admin.inventory.movements.store');
             <label>Manufacturer description<textarea name="description" rows="2" maxlength="5000" placeholder="Official product description">{{ old('description') }}</textarea></label>
             <label>Inventory log<textarea name="logs" rows="3" maxlength="1000" placeholder="Describe when or why this product was added">{{ old('logs') }}</textarea></label>
             <div class="modal-actions"><button type="button" class="secondary-button" data-close-product>Cancel</button><button type="submit" class="primary-button">Add product and ledger entry</button></div>
+        </form>
+    </section>
+</div>
+
+<div class="stock-modal" data-edit-product-modal data-open-on-error="{{ $editErrorProduct ? 'true' : 'false' }}" hidden>
+    <div class="modal-backdrop" data-close-edit-product></div>
+    <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="edit-product-title">
+        <div class="modal-header">
+            <div><span class="section-kicker">PRODUCT INFORMATION</span><h2 id="edit-product-title">Edit <span data-edit-product-title>{{ $editErrorProduct?->name }}</span></h2></div>
+            <button type="button" data-close-edit-product aria-label="Close">×</button>
+        </div>
+        @if($errors->getBag('editProduct')->any())
+            <div class="modal-form-errors" role="alert"><strong>Please correct:</strong><ul>@foreach($errors->getBag('editProduct')->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>
+        @endif
+        <form method="POST" action="{{ $editErrorProduct ? route('admin.inventory.products.update', $editErrorProduct) : '' }}" class="product-form" data-edit-product-form>
+            @csrf @method('PATCH')
+            <input type="hidden" name="edit_product_id" value="{{ old('edit_product_id', $editErrorProduct?->product_id) }}">
+            <div class="form-grid">
+                <label>SKU<input name="sku" value="{{ old('sku', $editErrorProduct?->sku) }}" maxlength="100" required></label>
+                <label>Product name<input name="name" value="{{ old('name', $editErrorProduct?->name) }}" maxlength="255" required></label>
+                <label>Category<input name="category" value="{{ old('category', $editErrorProduct?->category) }}" maxlength="100" placeholder="e.g. Lubricants"></label>
+                <label>Shelf location<input name="shelf_location" value="{{ old('shelf_location', $editErrorProduct?->shelf_location) }}" maxlength="100" placeholder="e.g. Aisle A · Shelf 03 · Bin 2"></label>
+                <label>Manufacturer<input name="manufacturer" value="{{ old('manufacturer', $editErrorProduct?->manufacturer) }}" maxlength="150" placeholder="e.g. Honda, NGK, DID"></label>
+                <label>Manufacturer part number (required)<input name="manufacturer_part_number" value="{{ old('manufacturer_part_number', $editErrorProduct?->manufacturer_part_number) }}" maxlength="150" required placeholder="Official number from manufacturer or packaging"></label>
+                <label>Unit cost (₱)<input name="unit_cost" value="{{ old('unit_cost', $editErrorProduct?->unit_cost) }}" type="number" min="0" max="9999999999.99" step="0.01" required></label>
+                <label>Selling price (₱)<input name="unit_price" value="{{ old('unit_price', $editErrorProduct?->unit_price) }}" type="number" min="0" max="9999999999.99" step="0.01" required></label>
+                <label>Reorder level<input name="reorder_level" value="{{ old('reorder_level', $editErrorProduct?->reorder_level) }}" type="number" min="0" required></label>
+                <div class="stock-readonly"><small>Current stock</small><strong data-edit-product-stock>{{ $editErrorProduct?->current_stock ?? 0 }} units</strong><span>Use Record Stock Movement to change this balance.</span></div>
+            </div>
+            <label>Product description<textarea name="description" rows="3" maxlength="5000" placeholder="Product specifications or useful details">{{ old('description', $editErrorProduct?->description) }}</textarea></label>
+            <p class="promotion-edit-note" data-edit-promotion-note hidden></p>
+            <div class="modal-actions"><button type="button" class="secondary-button" data-close-edit-product>Cancel</button><button type="submit" class="primary-button">Save product changes</button></div>
         </form>
     </section>
 </div>

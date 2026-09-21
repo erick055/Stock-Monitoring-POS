@@ -10,7 +10,7 @@ supplierFile?.addEventListener('change', () => {
 const supplierPurgeForm = document.querySelector('[data-supplier-purge]');
 
 supplierPurgeForm?.addEventListener('submit', (event) => {
-    if (!window.confirm('Permanently delete every supplier price, supplier, and import record? Products and inventory will remain.')) {
+    if (!window.confirm('Clear all published supplier prices? Original import rows will remain in the archive.')) {
         event.preventDefault();
     }
 });
@@ -43,6 +43,13 @@ document.querySelectorAll('[data-catalog-match-form]').forEach((form) => {
 document.querySelectorAll('[data-apply-supplier-cost]').forEach((form) => {
     form.addEventListener('submit', (event) => {
         const message = `Apply ${form.dataset.cost} as the unit cost for ${form.dataset.productName}? Selling price and inventory quantity will not change.`;
+        if (!window.confirm(message)) event.preventDefault();
+    });
+});
+
+document.querySelectorAll('[data-unmatch-product]').forEach((form) => {
+    form.addEventListener('submit', (event) => {
+        const message = `Unmatch ${form.dataset.supplierItem} from ${form.dataset.productName}? Product prices and inventory will not be changed.`;
         if (!window.confirm(message)) event.preventDefault();
     });
 });

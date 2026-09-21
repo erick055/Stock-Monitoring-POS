@@ -1,3 +1,5 @@
+import './required-fields';
+
 const shell = document.querySelector('.auth-shell');
 const accountForm = document.querySelector('[data-account-form]');
 
@@ -6,7 +8,6 @@ if (shell && accountForm) {
     const baseUrl = shell.dataset.baseUrl || '';
     const nameField = document.querySelector('[data-name-field]');
     const confirmField = document.querySelector('[data-confirm-field]');
-    const rememberField = document.querySelector('[data-remember-field]');
     const passwordHint = document.querySelector('[data-password-hint]');
     const passwordInput = accountForm.querySelector('[name="password"]');
 
@@ -27,7 +28,6 @@ if (shell && accountForm) {
         nameField.hidden = !isRegister;
         confirmField.hidden = !isRegister;
         passwordHint.hidden = !isRegister;
-        rememberField.hidden = isRegister;
         nameField.querySelector('input').required = isRegister;
         confirmField.querySelector('input').required = isRegister;
         passwordInput.autocomplete = isRegister ? 'new-password' : 'current-password';

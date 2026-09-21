@@ -11,13 +11,13 @@ class SupplierImport extends Model
     protected $primaryKey = 'supplier_import_id';
 
     protected $fillable = [
-        'supplier_id', 'source_filename', 'status', 'row_count', 'valid_count',
-        'error_count', 'uploaded_by', 'approved_by', 'approved_at',
+        'supplier_id', 'source_filename', 'file_hash', 'status', 'row_count', 'valid_count',
+        'error_count', 'uploaded_by', 'approved_by', 'approved_at', 'archived_at',
     ];
 
     protected function casts(): array
     {
-        return ['approved_at' => 'datetime'];
+        return ['approved_at' => 'datetime', 'archived_at' => 'datetime'];
     }
 
     public function supplier(): BelongsTo

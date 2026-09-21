@@ -28,7 +28,7 @@ class AnalyticsController extends Controller
         $data = $this->analyticsData($request);
         $data['generatedAt'] = now();
         $data['generatedBy'] = $request->user()->name;
-        $filename = 'motosync-analytics-'.Str::slug($data['chartPeriodLabel']).'-'.now()->format('Y-m-d-His');
+        $filename = 'motosync-analytics-'.Str::slug($data['chartPeriodLabel'].'-'.$data['chartRangeLabel']).'-'.now()->format('Y-m-d-His');
 
         return $this->spreadsheetExport($data, $filename);
     }
@@ -39,6 +39,7 @@ class AnalyticsController extends Controller
             ? $request->query('period')
             : 'week';
         $now = CarbonImmutable::now();
+        $chartAnchor = $this->chartAnchor($salesPeriod, (string) $request->query('range', ''), $now);
 
         $paidSales = SalesTransaction::query()->where('payment_status', 'paid');
         $totalSales = (float) (clone $paidSales)->sum('total_sale_amount');
@@ -122,10 +123,21 @@ class AnalyticsController extends Controller
         $lowestStock = Product::query()->where('is_active', true)->orderBy('current_stock')->limit(5)->get();
 
         [$chartStart, $chartEnd, $chartOffsets, $chartPeriodLabel] = match ($salesPeriod) {
-            'month' => [$now->startOfMonth(), $now->endOfMonth(), range(0, $now->daysInMonth - 1), 'Monthly'],
-            'year' => [$now->startOfYear(), $now->endOfYear(), range(0, 11), 'Yearly'],
-            default => [$now->startOfWeek(), $now->endOfWeek(), range(0, 6), 'Weekly'],
+            'month' => [$chartAnchor->startOfMonth(), $chartAnchor->endOfMonth(), range(0, $chartAnchor->daysInMonth - 1), 'Monthly'],
+            'year' => [$chartAnchor->startOfYear(), $chartAnchor->endOfYear(), range(0, 11), 'Yearly'],
+            default => [$chartAnchor->startOfWeek(), $chartAnchor->endOfWeek(), range(0, 6), 'Weekly'],
         };
+        $chartRangeLabel = match ($salesPeriod) {
+            'month' => $chartStart->format('F Y'),
+            'year' => $chartStart->format('Y'),
+            default => $chartStart->format('M d, Y').' – '.$chartEnd->format('M d, Y'),
+        };
+        $chartRangeOptions = $this->chartRangeOptions($salesPeriod, $chartAnchor, $now);
+        $periodRanges = [
+            'week' => $chartAnchor->startOfWeek()->format('Y-m-d'),
+            'month' => $chartAnchor->format('Y-m'),
+            'year' => $chartAnchor->format('Y'),
+        ];
 
         $chartRaw = SalesTransaction::query()
             ->select(['sale_date', 'total_sale_amount'])
@@ -172,8 +184,77 @@ class AnalyticsController extends Controller
             'weeklySales',
             'salesPeriod',
             'chartPeriodLabel',
+            'chartRangeLabel',
+            'chartRangeOptions',
+            'periodRanges',
             'stockFlow'
         );
+    }
+
+    private function chartAnchor(string $period, string $range, CarbonImmutable $fallback): CarbonImmutable
+    {
+        $parts = array_map('intval', explode('-', $range));
+
+        if ($period === 'week' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $range)
+            && checkdate($parts[1], $parts[2], $parts[0])) {
+            return CarbonImmutable::create($parts[0], $parts[1], $parts[2], 0, 0, 0);
+        }
+
+        if ($period === 'month' && preg_match('/^\d{4}-\d{2}$/', $range)
+            && isset($parts[1]) && checkdate($parts[1], 1, $parts[0])) {
+            return CarbonImmutable::create($parts[0], $parts[1], 1, 0, 0, 0);
+        }
+
+        if ($period === 'year' && preg_match('/^\d{4}$/', $range)
+            && $parts[0] >= 1900 && $parts[0] <= 2200) {
+            return CarbonImmutable::create($parts[0], 1, 1, 0, 0, 0);
+        }
+
+        return $fallback;
+    }
+
+    private function chartRangeOptions(string $period, CarbonImmutable $selected, CarbonImmutable $now)
+    {
+        $anchors = SalesTransaction::query()
+            ->where('payment_status', 'paid')
+            ->selectRaw('DATE(sale_date) as sale_day')
+            ->distinct()
+            ->pluck('sale_day')
+            ->filter()
+            ->map(fn (string $date) => $this->periodAnchor($period, CarbonImmutable::parse($date)));
+
+        return $anchors
+            ->push($this->periodAnchor($period, $now))
+            ->push($this->periodAnchor($period, $selected))
+            ->unique(fn (CarbonImmutable $date) => $this->periodValue($period, $date))
+            ->sortByDesc(fn (CarbonImmutable $date) => $date->timestamp)
+            ->values()
+            ->map(fn (CarbonImmutable $date) => [
+                'value' => $this->periodValue($period, $date),
+                'label' => match ($period) {
+                    'month' => $date->format('F Y'),
+                    'year' => $date->format('Y'),
+                    default => $date->format('M d').' – '.$date->endOfWeek()->format('M d, Y'),
+                },
+            ]);
+    }
+
+    private function periodAnchor(string $period, CarbonImmutable $date): CarbonImmutable
+    {
+        return match ($period) {
+            'month' => $date->startOfMonth(),
+            'year' => $date->startOfYear(),
+            default => $date->startOfWeek(),
+        };
+    }
+
+    private function periodValue(string $period, CarbonImmutable $date): string
+    {
+        return match ($period) {
+            'month' => $date->format('Y-m'),
+            'year' => $date->format('Y'),
+            default => $date->format('Y-m-d'),
+        };
     }
 
     private function spreadsheetExport(array $data, string $filename): BinaryFileResponse
@@ -194,7 +275,7 @@ class AnalyticsController extends Controller
         $overview->setColumnWidth(30, 1);
         $overview->setColumnWidth(24, 2);
         $writer->addRow(Row::fromValues(['MotoSync Analytics Report'], $titleStyle));
-        $writer->addRow(Row::fromValues(['Selected view', $data['chartPeriodLabel']]));
+        $writer->addRow(Row::fromValues(['Selected view', $data['chartPeriodLabel'].' · '.$data['chartRangeLabel']]));
         $writer->addRow(Row::fromValues(['Generated at', $data['generatedAt']->format('Y-m-d H:i:s')]));
         $writer->addRow(Row::fromValues(['Generated by', $data['generatedBy']]));
         $writer->addRow(Row::fromValues([]));

@@ -3,6 +3,15 @@ html{min-width:280px;-webkit-text-size-adjust:100%;text-size-adjust:100%}
 body{overflow-x:hidden}
 img,svg,video,canvas{max-width:100%;height:auto}
 button,input,select,textarea{max-width:100%}
+.required-field-marker{display:inline;color:#ff6578;font-size:1.1em;font-weight:900;line-height:1;text-shadow:0 0 8px rgba(255,70,92,.28)}
+.dashboard-main :where(input,select,textarea){font-size:11px!important}
+.dashboard-main :where(label,td){font-size:10px!important}
+.dashboard-main th{font-size:9px!important}
+.dashboard-main :where(p,small,.section-kicker,.form-hint,.import-note){font-size:9.5px!important;line-height:1.5}
+.dashboard-main button:not(.menu-button):not(.logout-button):not(.notification-button):not(.more-button):not(.qty-btn):not([aria-label]){font-size:10px!important}
+.account-form label{font-size:.88rem!important}
+.account-form input,.account-form button{font-size:.9rem!important}
+.password-hint,.session-note,.switch-copy{font-size:.78rem!important}
 .dashboard-main{width:100%;max-width:1800px;margin-inline:auto}
 .panel,.stat-card,.module-card,.result-card,.pricing-card,.detail-card,.case-card,.fast-card,.alert-card,.setting-card,.product-card{min-width:0}
 .table-wrap,.products-table-wrap,.supplier-table-wrap{width:100%;max-width:100%;overflow-x:auto;overscroll-behavior-inline:contain;-webkit-overflow-scrolling:touch;scrollbar-gutter:stable}

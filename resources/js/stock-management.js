@@ -26,6 +26,80 @@ document.addEventListener('keydown', (event) => {
 
 if (modal?.dataset.openOnError === 'true') openProductModal();
 
+const editModal = document.querySelector('[data-edit-product-modal]');
+const editForm = editModal?.querySelector('[data-edit-product-form]');
+const editTitle = editModal?.querySelector('[data-edit-product-title]');
+const editStock = editModal?.querySelector('[data-edit-product-stock]');
+const editPromotionNote = editModal?.querySelector('[data-edit-promotion-note]');
+
+function setEditValue(name, value) {
+    const field = editForm?.elements.namedItem(name);
+    if (field) field.value = value || '';
+}
+
+function showEditProductModal() {
+    if (!editModal) return;
+    editModal.hidden = false;
+    document.body.classList.add('modal-open');
+    window.setTimeout(() => editForm?.querySelector('input[name="sku"]')?.focus(), 0);
+}
+
+function openEditProductModal(button) {
+    if (!editModal || !editForm) return;
+
+    editForm.action = button.dataset.editAction;
+    setEditValue('edit_product_id', button.dataset.productId);
+    setEditValue('sku', button.dataset.productSku);
+    setEditValue('name', button.dataset.productName);
+    setEditValue('category', button.dataset.productCategory);
+    setEditValue('shelf_location', button.dataset.productShelfLocation);
+    setEditValue('manufacturer', button.dataset.productManufacturer);
+    setEditValue('manufacturer_part_number', button.dataset.productManufacturerPartNumber);
+    setEditValue('description', button.dataset.productDescription);
+    setEditValue('unit_cost', button.dataset.productUnitCost);
+    setEditValue('unit_price', button.dataset.productUnitPrice);
+    setEditValue('reorder_level', button.dataset.productReorderLevel);
+    editTitle.textContent = button.dataset.productName;
+    editStock.textContent = `${Number(button.dataset.productStock || 0).toLocaleString()} units`;
+    editModal.querySelector('.modal-form-errors')?.setAttribute('hidden', '');
+
+    const promotion = button.dataset.productPromotion;
+    editPromotionNote.hidden = !promotion;
+    editPromotionNote.textContent = promotion
+        ? `${promotion} is active. Its promotional price will continue to control the POS price until the promotion ends.`
+        : '';
+    showEditProductModal();
+}
+
+function closeEditProductModal() {
+    if (!editModal) return;
+    editModal.hidden = true;
+    document.body.classList.remove('modal-open');
+}
+
+document.querySelectorAll('[data-edit-product]').forEach((button) => {
+    button.addEventListener('click', () => openEditProductModal(button));
+});
+document.querySelectorAll('[data-close-edit-product]').forEach((button) => button.addEventListener('click', closeEditProductModal));
+document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && editModal && !editModal.hidden) closeEditProductModal();
+});
+
+if (editModal?.dataset.openOnError === 'true') {
+    const failedProductId = editForm?.elements.namedItem('edit_product_id')?.value;
+    const failedButton = document.querySelector(`[data-edit-product][data-product-id="${failedProductId}"]`);
+    if (failedButton) {
+        editTitle.textContent = failedButton.dataset.productName;
+        editStock.textContent = `${Number(failedButton.dataset.productStock || 0).toLocaleString()} units`;
+        const promotion = failedButton.dataset.productPromotion;
+        editPromotionNote.hidden = !promotion;
+        editPromotionNote.textContent = promotion
+            ? `${promotion} is active. Its promotional price will continue to control the POS price until the promotion ends.`
+            : '';
+    }
+    showEditProductModal();
+}
+
 const deleteModal = document.querySelector('[data-delete-product-modal]');
 const deleteForm = deleteModal?.querySelector('[data-delete-product-form]');
 const deleteName = deleteModal?.querySelector('[data-delete-product-name]');

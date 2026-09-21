@@ -535,6 +535,13 @@ body.modal-open { overflow: hidden; }
     font-size: 8px;
     cursor: pointer;
 }
+.product-row-actions{display:flex;align-items:center;gap:6px}
+.edit-product-button{padding:7px 10px;border:1px solid #7541c1;border-radius:6px;background:#32204e;color:#d9c5ff;font-size:8px;cursor:pointer}
+.edit-product-button:hover{background:#44266c}
+.stock-readonly{display:grid;align-content:center;gap:4px;padding:9px 10px;border:1px solid #34384a;border-radius:7px;background:#10131c}
+.stock-readonly small{color:#8f95a5;font-size:8px}.stock-readonly strong{color:#f0f1f5;font-size:11px}.stock-readonly span{color:#707687;font-size:7px;line-height:1.4}
+.promotion-edit-note{margin:12px 0 0;padding:10px 12px;border:1px solid #6d4a2c;border-radius:7px;background:#24180f;color:#ffc083;font-size:9px;line-height:1.5}
+.modal-form-errors{margin-bottom:14px;padding:10px 12px;border:1px solid #873443;border-radius:7px;background:#291219;color:#ff9baa;font-size:9px}.modal-form-errors ul{margin:5px 0 0;padding-left:17px}
 .delete-product-button:hover { background: rgba(255, 70, 92, .2); }
 .delete-product-card { width: min(520px, 100%); border-color: #71313c; }
 .danger-kicker { color: #ff7185; }

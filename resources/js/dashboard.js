@@ -1,3 +1,5 @@
+import './required-fields';
+
 const menu = document.querySelector('[data-menu]');
 const sidebar = document.querySelector('[data-sidebar]');
 
