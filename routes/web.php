@@ -2,6 +2,9 @@
 
 use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\Auth\LoginVerificationController;
+use App\Http\Controllers\Auth\NewPasswordController;
+use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\CompatibilityController;
 use App\Http\Controllers\DashboardController;
@@ -19,6 +22,19 @@ use Illuminate\Support\Facades\Route;
 Route::middleware('guest')->group(function () {
     Route::view('/', 'auth.role-access')->name('login');
     Route::post('/login', [AuthenticatedSessionController::class, 'store'])->name('login.store');
+    Route::get('/login/verify', [LoginVerificationController::class, 'create'])->name('login.verify');
+    Route::post('/login/verify', [LoginVerificationController::class, 'store'])->name('login.verify.store');
+    Route::post('/login/verify/resend', [LoginVerificationController::class, 'resend'])
+        ->middleware('throttle:3,10')
+        ->name('login.verify.resend');
+    Route::get('/forgot-password', [PasswordResetLinkController::class, 'create'])->name('password.request');
+    Route::post('/forgot-password', [PasswordResetLinkController::class, 'store'])
+        ->middleware('throttle:3,1')
+        ->name('password.email');
+    Route::get('/reset-password/{token}', [NewPasswordController::class, 'create'])->name('password.reset');
+    Route::post('/reset-password', [NewPasswordController::class, 'store'])
+        ->middleware('throttle:5,1')
+        ->name('password.update');
     Route::post('/register', [RegisteredUserController::class, 'store'])
         ->middleware('throttle:3,1')
         ->name('register.store');
@@ -73,6 +89,7 @@ Route::middleware(['auth', 'verified', 'role:admin'])->group(function () {
     Route::delete('/admin/suppliers/prices/{supplierPrice}/match', [SupplierPriceController::class, 'unmatchProduct'])->name('admin.suppliers.prices.unmatch');
     Route::patch('/admin/suppliers/prices/{supplierPrice}/apply-cost', [SupplierPriceController::class, 'applyCost'])->name('admin.suppliers.prices.apply-cost');
     Route::post('/admin/suppliers/prices/{supplierPrice}/create-product', [SupplierPriceController::class, 'createProduct'])->name('admin.suppliers.prices.create-product');
+    Route::post('/admin/suppliers/prices/bulk-create-products', [SupplierPriceController::class, 'bulkCreateProducts'])->name('admin.suppliers.prices.bulk-create-products');
     Route::delete('/admin/suppliers/data', [SupplierPriceController::class, 'purge'])->middleware('throttle:5,1')->name('admin.suppliers.purge');
     Route::get('/admin/compatibility', [CompatibilityController::class, 'index'])->name('admin.compatibility');
     Route::post('/admin/compatibility/ai-recommendations', [CompatibilityController::class, 'index'])->middleware('throttle:3,1')->name('admin.compatibility.ai');

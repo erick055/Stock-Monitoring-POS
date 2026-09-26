@@ -26,6 +26,22 @@ document.addEventListener('keydown', (event) => {
 
 if (modal?.dataset.openOnError === 'true') openProductModal();
 
+const categorySelect = modal?.querySelector('[data-category-select]');
+const newCategoryField = modal?.querySelector('[data-new-category-field]');
+const newCategoryInput = newCategoryField?.querySelector('input');
+
+function updateNewCategoryField() {
+    const addingCategory = categorySelect?.value === '__new__';
+    if (!newCategoryField || !newCategoryInput) return;
+    newCategoryField.hidden = !addingCategory;
+    newCategoryInput.disabled = !addingCategory;
+    newCategoryInput.required = addingCategory;
+    if (addingCategory) window.setTimeout(() => newCategoryInput.focus(), 0);
+}
+
+categorySelect?.addEventListener('change', updateNewCategoryField);
+updateNewCategoryField();
+
 const editModal = document.querySelector('[data-edit-product-modal]');
 const editForm = editModal?.querySelector('[data-edit-product-form]');
 const editTitle = editModal?.querySelector('[data-edit-product-title]');

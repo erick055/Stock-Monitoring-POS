@@ -35,6 +35,7 @@
                 Password
                 <input type="password" name="password" autocomplete="current-password" placeholder="Enter your password" required>
             </label>
+            <a class="forgot-link" href="{{ route('password.request') }}" data-login-only>Forgot password?</a>
             <label data-confirm-field hidden>
                 Confirm password
                 <input type="password" name="password_confirmation" autocomplete="new-password" placeholder="Repeat your password">

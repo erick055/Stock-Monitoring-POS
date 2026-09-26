@@ -6,6 +6,7 @@ use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -57,5 +58,10 @@ class User extends Authenticatable implements MustVerifyEmail
     public function salesTransactions(): HasMany
     {
         return $this->hasMany(SalesTransaction::class, 'staff_id');
+    }
+
+    public function loginVerificationCode(): HasOne
+    {
+        return $this->hasOne(LoginVerificationCode::class);
     }
 }

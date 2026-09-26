@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Mail\InventoryAlertMail;
 use App\Models\Product;
 use App\Models\StockAlertDelivery;
 use App\Models\StockAlertSetting;
@@ -252,7 +253,7 @@ class LowStockAlertService
     private function sendEmail(string $recipient, string $subject, string $message, string $type, ?Product $product = null): int
     {
         try {
-            Mail::raw($message, fn ($mail) => $mail->to($recipient)->subject($subject));
+            Mail::to($recipient)->send(new InventoryAlertMail($subject, $message));
             $this->recordDelivery($product, 'email', $type, 'sent', $recipient, $message);
 
             return 1;

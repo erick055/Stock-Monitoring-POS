@@ -328,6 +328,93 @@ class SupplierPriceController extends Controller
             : "{$product->sku} was added to Products with zero store stock and matched to this supplier price.");
     }
 
+    public function bulkCreateProducts(Request $request, ProductDuplicateGuard $duplicates): RedirectResponse
+    {
+        $validated = $request->validate([
+            'supplier_price_ids' => ['required', 'array', 'min:1', 'max:500'],
+            'supplier_price_ids.*' => ['integer', 'distinct', 'exists:supplier_prices,supplier_price_id'],
+            'markup_percent' => ['required', 'numeric', 'min:0', 'max:1000'],
+            'category' => ['nullable', 'string', 'max:100'],
+            'shelf_location' => ['nullable', 'string', 'max:100'],
+            'reorder_level' => ['required', 'integer', 'min:0'],
+        ]);
+
+        $prices = SupplierPrice::query()
+            ->with('supplier')
+            ->whereIn('supplier_price_id', $validated['supplier_price_ids'])
+            ->whereNull('product_id')
+            ->orderBy('supplier_price_id')
+            ->get();
+
+        if ($prices->count() !== count($validated['supplier_price_ids'])) {
+            throw ValidationException::withMessages([
+                'supplier_price_ids' => 'One or more selected supplier items are already matched or no longer available.',
+            ]);
+        }
+
+        foreach ($prices as $price) {
+            $this->ensurePesoPrice($price);
+        }
+
+        $created = DB::transaction(function () use ($prices, $validated, $request, $duplicates) {
+            $count = 0;
+            foreach ($prices as $price) {
+                $sku = trim($price->supplier_sku);
+                $inactiveProduct = $duplicates->findInactiveBySku($sku);
+                $duplicates->assertUnique([
+                    'sku' => $sku,
+                    'name' => $price->product_name,
+                    'manufacturer_part_number' => $sku,
+                ], $inactiveProduct, 'bulk_create');
+
+                $attributes = [
+                    'sku' => $sku,
+                    'name' => $price->product_name,
+                    'manufacturer_part_number' => $sku,
+                    'description' => "Bulk-created from {$price->supplier->name} supplier price {$price->supplier_sku}.",
+                    'category' => $this->nullableCleanString($validated['category'] ?? null),
+                    'shelf_location' => $this->nullableCleanString($validated['shelf_location'] ?? null),
+                    'unit_cost' => $price->unit_price,
+                    'unit_price' => round((float) $price->unit_price * (1 + ((float) $validated['markup_percent'] / 100)), 2),
+                    'current_stock' => 0,
+                    'reorder_level' => $validated['reorder_level'],
+                    'is_active' => true,
+                    'dead_stock_archived_at' => null,
+                    'dead_stock_archived_by' => null,
+                    'dead_stock_archive_note' => null,
+                ];
+
+                if ($inactiveProduct) {
+                    $product = Product::query()->lockForUpdate()->findOrFail($inactiveProduct->product_id);
+                    if ($product->is_active || (int) $product->current_stock !== 0) {
+                        throw ValidationException::withMessages([
+                            'supplier_price_ids' => "Deleted SKU {$sku} cannot be restored because it is active or still has stock.",
+                        ])->errorBag('bulk_create');
+                    }
+                    $product->update($attributes);
+                } else {
+                    $product = Product::create($attributes);
+                }
+
+                InventoryLedger::create([
+                    'product_id' => $product->product_id,
+                    'user_id' => $request->user()->id,
+                    'qty_in' => 0,
+                    'qty_out' => 0,
+                    'reason_code' => 'SUPPLIER_IMPORT',
+                    'logs' => "Product bulk-created from supplier price {$price->supplier_sku}. Supplier availability was not added to store inventory.",
+                ]);
+                $price->update(['product_id' => $product->product_id, 'auto_match_disabled' => false]);
+                $this->syncImportRowMatches($price, $product);
+                $count++;
+            }
+
+            return $count;
+        });
+
+        return back()->with('success', "{$created} supplier ".Str::plural('item', $created).' added to Products with zero store stock.');
+    }
+
     public function reject(SupplierImport $supplierImport): RedirectResponse
     {
         abort_unless($supplierImport->status === 'pending', 409, 'This import has already been processed.');

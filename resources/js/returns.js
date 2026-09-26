@@ -25,20 +25,34 @@ document.querySelectorAll('[data-receipt-form]').forEach((form) => {
     const preview = form.querySelector('[data-receipt-preview]');
     const quantity = form.querySelector('[data-item-quantity]');
     const refund = form.querySelector('[data-refund-amount]');
+    const refundValue = form.querySelector('[data-refund-value]');
 
     if (!search || !receiptId || !product || !preview || !quantity) return;
 
     const updateLimits = () => {
         const option = product.selectedOptions[0];
-        if (!option?.dataset.available) return;
+        if (!option?.dataset.available) {
+            if (refundValue) refundValue.hidden = true;
+            return;
+        }
 
         const available = Number(option.dataset.available);
+        const unitPrice = Number(option.dataset.unitPrice);
+        const selectedQuantity = Math.max(Number(quantity.value) || 1, 1);
+        const maximumRefund = unitPrice * selectedQuantity;
         quantity.max = String(available);
         quantity.setAttribute('aria-description', `Maximum ${available} item(s) from this receipt.`);
 
+        if (refundValue) {
+            refundValue.innerHTML = `
+                <span>Selected item value</span>
+                <strong>₱${unitPrice.toFixed(2)} each</strong>
+                <small>${selectedQuantity} × ₱${unitPrice.toFixed(2)} = <b>₱${maximumRefund.toFixed(2)}</b> maximum refundable value</small>
+            `;
+            refundValue.hidden = false;
+        }
+
         if (refund) {
-            const selectedQuantity = Math.max(Number(quantity.value) || 1, 1);
-            const maximumRefund = Number(option.dataset.unitPrice) * selectedQuantity;
             refund.max = maximumRefund.toFixed(2);
             refund.placeholder = `Up to ₱${maximumRefund.toFixed(2)}`;
         }
@@ -58,7 +72,7 @@ document.querySelectorAll('[data-receipt-form]').forEach((form) => {
         product.append(new Option('Select an item from this receipt', ''));
         receipt.items.forEach((item) => {
             const option = new Option(
-                `${item.sku} — ${item.name} (sold ${item.quantity_sold}, available ${item.available_quantity})`,
+                `${item.sku} — ${item.name} — ₱${Number(item.unit_price).toFixed(2)} each (available ${item.available_quantity})`,
                 item.product_id,
             );
             option.dataset.available = item.available_quantity;
@@ -66,15 +80,21 @@ document.querySelectorAll('[data-receipt-form]').forEach((form) => {
             product.append(option);
         });
         product.disabled = receipt.items.length === 0;
-        const receiptNumber = document.createElement('strong');
-        receiptNumber.textContent = receipt.number;
-        const receiptDate = document.createElement('span');
-        receiptDate.textContent = receipt.date;
-        const cashier = document.createElement('span');
-        cashier.textContent = `Cashier: ${receipt.cashier}`;
-        const total = document.createElement('span');
-        total.textContent = `Total: ₱${receipt.total}`;
-        preview.replaceChildren(receiptNumber, receiptDate, cashier, total);
+        const itemRows = receipt.items.map((item) => `
+            <div class="receipt-preview-item">
+                <div><strong>${escapeHtml(item.name)}</strong><small>${escapeHtml(item.sku)} · ${item.available_quantity} of ${item.quantity_sold} available</small></div>
+                <div class="receipt-item-value"><strong>₱${Number(item.unit_price).toFixed(2)}</strong><small>each · ₱${Number(item.available_value).toFixed(2)} available value</small></div>
+            </div>
+        `).join('');
+        preview.innerHTML = `
+            <div class="receipt-preview-header">
+                <strong>${escapeHtml(receipt.number)}</strong>
+                <span>${escapeHtml(receipt.date)}</span>
+                <span>Cashier: ${escapeHtml(receipt.cashier)}</span>
+                <span>Receipt total: ₱${escapeHtml(receipt.total)}</span>
+            </div>
+            <div class="receipt-preview-items">${itemRows}</div>
+        `;
         preview.hidden = false;
 
         const oldValue = product.dataset.oldValue;
@@ -107,6 +127,12 @@ document.querySelectorAll('[data-receipt-form]').forEach((form) => {
     const initialReceipt = receipts.find((receipt) => String(receipt.id) === receiptId.value);
     if (initialReceipt) showReceipt(initialReceipt);
 });
+
+function escapeHtml(value) {
+    const element = document.createElement('span');
+    element.textContent = String(value ?? '');
+    return element.innerHTML;
+}
 
 returnButtons.forEach((button) => {
     button.addEventListener('click', () => {

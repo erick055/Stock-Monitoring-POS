@@ -142,7 +142,9 @@ class SuppliersPageTest extends TestCase
             ->assertOk()
             ->assertSee('Premium Engine Oil')
             ->assertSee('OIL-001')
-            ->assertSee('Approve and publish prices');
+            ->assertSee('Review import decision')
+            ->assertSee('Accept and publish prices')
+            ->assertSee('Reject import');
 
         $this->actingAs($admin)
             ->post(route('admin.suppliers.imports.approve', $import))
@@ -348,6 +350,41 @@ class SuppliersPageTest extends TestCase
         ]);
     }
 
+    public function test_owner_can_bulk_create_selected_supplier_items_as_zero_stock_products(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $first = $this->createSupplierPrice('BULK-ONE', 'Bulk Product One', 100, 25);
+        $second = $this->createSupplierPrice('BULK-TWO', 'Bulk Product Two', 200, 30);
+
+        $this->actingAs($admin)->get(route('admin.suppliers'))
+            ->assertOk()
+            ->assertSee('Bulk add selected')
+            ->assertSee('Select all eligible')
+            ->assertSee('data-bulk-select-all', false)
+            ->assertSee('data-bulk-product-checkbox', false);
+
+        $this->actingAs($admin)
+            ->post(route('admin.suppliers.prices.bulk-create-products'), [
+                'supplier_price_ids' => [$first->supplier_price_id, $second->supplier_price_id],
+                'markup_percent' => 25,
+                'category' => 'Bulk Parts',
+                'shelf_location' => 'Bulk Rack',
+                'reorder_level' => 4,
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('success');
+
+        $one = Product::where('sku', 'BULK-ONE')->firstOrFail();
+        $two = Product::where('sku', 'BULK-TWO')->firstOrFail();
+        $this->assertSame('125.00', $one->unit_price);
+        $this->assertSame('250.00', $two->unit_price);
+        $this->assertSame(0, $one->current_stock);
+        $this->assertSame('BULK-ONE', $one->manufacturer_part_number);
+        $this->assertSame($one->product_id, $first->fresh()->product_id);
+        $this->assertSame($two->product_id, $second->fresh()->product_id);
+        $this->assertDatabaseCount('inventory_ledgers', 2);
+    }
+
     public function test_owner_can_restore_a_deleted_sku_from_supplier_price(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);
@@ -431,6 +468,9 @@ class SuppliersPageTest extends TestCase
         $this->actingAs($staff)->delete(route('admin.suppliers.prices.unmatch', $price))->assertForbidden();
         $this->actingAs($staff)->post(route('admin.suppliers.prices.create-product', $price), [
             'sku' => 'FORBIDDEN', 'selling_price' => 100, 'reorder_level' => 5,
+        ])->assertForbidden();
+        $this->actingAs($staff)->post(route('admin.suppliers.prices.bulk-create-products'), [
+            'supplier_price_ids' => [$price->supplier_price_id], 'markup_percent' => 30, 'reorder_level' => 5,
         ])->assertForbidden();
     }
 

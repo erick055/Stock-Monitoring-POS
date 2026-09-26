@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -33,30 +34,38 @@ class AuthenticatedSessionController extends Controller
             ]);
         }
 
-        if (! Auth::attempt($credentials, false)) {
+        $provider = Auth::guard()->getProvider();
+        $user = $provider->retrieveByCredentials($credentials);
+
+        if (! $user || ! $provider->validateCredentials($user, $credentials)) {
             RateLimiter::hit($throttleKey, 60);
 
             throw ValidationException::withMessages(['email' => 'The provided credentials are incorrect.']);
         }
 
         RateLimiter::clear($throttleKey);
-        $request->session()->regenerate();
-        $request->session()->put('auth.last_activity_at', now()->timestamp);
 
-        if (! in_array($request->user()->role, ['admin', 'staff'], true)) {
-            Auth::logout();
-            $request->session()->invalidate();
-            $request->session()->regenerateToken();
-
+        if (! $user instanceof User || ! in_array($user->role, ['admin', 'staff'], true)) {
             throw ValidationException::withMessages(['email' => 'This account is not authorized to access the application.']);
         }
 
-        $response = redirect()->intended(route($request->user()->role.'.dashboard'));
-        if ($request->user()->getRememberToken()) {
-            Auth::guard()->getProvider()->updateRememberToken($request->user(), Str::random(60));
+        try {
+            LoginVerificationController::issueCode($user);
+        } catch (\Throwable $exception) {
+            $user->loginVerificationCode()->delete();
+            report($exception);
+
+            throw ValidationException::withMessages([
+                'email' => 'We could not send your verification code. Please try again shortly.',
+            ]);
         }
 
-        return $response->withoutCookie(Auth::guard()->getRecallerName());
+        $request->session()->put([
+            'login_verification.user_id' => $user->id,
+            'login_verification.started_at' => now()->timestamp,
+        ]);
+
+        return redirect()->route('login.verify');
     }
 
     public function destroy(Request $request): RedirectResponse

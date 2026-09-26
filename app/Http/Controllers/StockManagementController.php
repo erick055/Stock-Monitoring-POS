@@ -51,6 +51,12 @@ class StockManagementController extends Controller
             ->when($status !== 'all', fn ($items) => $items->filter(fn ($product) => $product->stock_status === $status)->values());
 
         $allProducts = Product::query()->where('is_active', true)->orderBy('name')->get();
+        $categories = $allProducts
+            ->pluck('category')
+            ->filter(fn ($category) => trim((string) $category) !== '')
+            ->unique(fn ($category) => mb_strtolower(trim((string) $category), 'UTF-8'))
+            ->sort(fn ($left, $right) => strcasecmp((string) $left, (string) $right))
+            ->values();
         $ledgers = InventoryLedger::query()
             ->with(['product', 'user'])
             ->when($search, fn ($query) => $query->whereHas('product', function ($query) use ($search) {
@@ -67,7 +73,7 @@ class StockManagementController extends Controller
             'stock_value' => $allProducts->sum(fn ($product) => $product->current_stock * (float) $product->unit_cost),
         ];
 
-        return view('admin.stock-management', compact('products', 'allProducts', 'ledgers', 'summary', 'search', 'status', 'sort'));
+        return view('admin.stock-management', compact('products', 'allProducts', 'categories', 'ledgers', 'summary', 'search', 'status', 'sort'));
     }
 
     public function storeProduct(Request $request, LowStockAlertService $alerts, ProductDuplicateGuard $duplicates): RedirectResponse
@@ -81,6 +87,7 @@ class StockManagementController extends Controller
             'sku' => ['required', 'string', 'max:100'],
             'name' => ['required', 'string', 'max:255'],
             'category' => ['nullable', 'string', 'max:100'],
+            'new_category' => ['nullable', 'required_if:category,__new__', 'string', 'max:100'],
             'shelf_location' => ['nullable', 'string', 'max:100'],
             'manufacturer' => ['nullable', 'string', 'max:150'],
             'manufacturer_part_number' => ['required', 'string', 'max:150'],
@@ -93,7 +100,12 @@ class StockManagementController extends Controller
             'logs' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        $validated['category'] = $this->normalizedCategory($validated['category'] ?? null);
+        $validated['category'] = $this->normalizedCategory(
+            ($validated['category'] ?? null) === '__new__'
+                ? ($validated['new_category'] ?? null)
+                : ($validated['category'] ?? null),
+        );
+        unset($validated['new_category']);
         $validated['shelf_location'] = $this->nullableCleanString($validated['shelf_location'] ?? null);
         $validated['manufacturer'] = $this->nullableCleanString($validated['manufacturer'] ?? null);
         $validated['manufacturer_part_number'] = $this->nullableCleanString($validated['manufacturer_part_number'] ?? null);

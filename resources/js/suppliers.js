@@ -53,3 +53,74 @@ document.querySelectorAll('[data-unmatch-product]').forEach((form) => {
         if (!window.confirm(message)) event.preventDefault();
     });
 });
+
+const openModal = (modal) => {
+    if (!modal) return;
+    modal.hidden = false;
+    document.body.classList.add('supplier-modal-open');
+    modal.querySelector('button, input')?.focus();
+};
+
+const closeModal = (modal) => {
+    if (!modal) return;
+    modal.hidden = true;
+    if (!document.querySelector('.supplier-modal:not([hidden])')) document.body.classList.remove('supplier-modal-open');
+};
+
+document.querySelector('[data-open-import-decision]')?.addEventListener('click', () => {
+    openModal(document.querySelector('[data-import-decision-modal]'));
+});
+
+document.querySelectorAll('[data-close-modal]').forEach((button) => {
+    button.addEventListener('click', () => closeModal(button.closest('.supplier-modal')));
+});
+
+document.querySelectorAll('.supplier-modal').forEach((modal) => {
+    modal.addEventListener('click', (event) => {
+        if (event.target === modal) closeModal(modal);
+    });
+});
+
+document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') closeModal(document.querySelector('.supplier-modal:not([hidden])'));
+});
+
+const bulkCheckboxes = [...document.querySelectorAll('[data-bulk-product-checkbox]')];
+const bulkSelectAll = document.querySelector('[data-bulk-select-all]');
+const bulkButton = document.querySelector('[data-open-bulk-products]');
+const bulkCount = document.querySelector('[data-bulk-count]');
+const bulkModal = document.querySelector('[data-bulk-products-modal]');
+const bulkModalCount = bulkModal?.querySelector('[data-bulk-modal-count]');
+const bulkIds = bulkModal?.querySelector('[data-bulk-product-ids]');
+
+const selectedBulkIds = () => bulkCheckboxes.filter((checkbox) => checkbox.checked).map((checkbox) => checkbox.value);
+const syncBulkSelection = () => {
+    const count = selectedBulkIds().length;
+    if (bulkCount) bulkCount.textContent = String(count);
+    if (bulkButton) bulkButton.disabled = count === 0;
+    if (bulkSelectAll) {
+        bulkSelectAll.checked = bulkCheckboxes.length > 0 && count === bulkCheckboxes.length;
+        bulkSelectAll.indeterminate = count > 0 && count < bulkCheckboxes.length;
+    }
+};
+
+bulkCheckboxes.forEach((checkbox) => checkbox.addEventListener('change', syncBulkSelection));
+bulkSelectAll?.addEventListener('change', () => {
+    bulkCheckboxes.forEach((checkbox) => {
+        checkbox.checked = bulkSelectAll.checked;
+    });
+    syncBulkSelection();
+});
+bulkButton?.addEventListener('click', () => {
+    const ids = selectedBulkIds();
+    if (!ids.length || !bulkIds) return;
+    bulkIds.replaceChildren(...ids.map((id) => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'supplier_price_ids[]';
+        input.value = id;
+        return input;
+    }));
+    if (bulkModalCount) bulkModalCount.textContent = String(ids.length);
+    openModal(bulkModal);
+});

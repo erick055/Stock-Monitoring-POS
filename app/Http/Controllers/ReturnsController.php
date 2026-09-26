@@ -60,6 +60,8 @@ class ReturnsController extends Controller
                         'quantity_sold' => $sold,
                         'available_quantity' => max($sold - $used, 0),
                         'unit_price' => $sold > 0 ? round($total / $sold, 2) : 0,
+                        'line_value' => round($total, 2),
+                        'available_value' => round(($sold > 0 ? $total / $sold : 0) * max($sold - $used, 0), 2),
                     ];
                 })
                 ->filter(fn (array $item) => $item['available_quantity'] > 0)

@@ -95,9 +95,13 @@ class LowStocksController extends Controller
             $settings->update(['notification_email' => $request->user()->email]);
         }
         $deliveries = StockAlertDelivery::query()->latest()->limit(20)->get();
-        $smsStatus = config('services.sms.driver') === 'twilio'
-            ? (config('services.sms.twilio.account_sid') && config('services.sms.twilio.auth_token') && config('services.sms.twilio.from') ? 'Twilio configured' : 'Twilio credentials missing')
-            : 'Not configured — local log only, no phone delivery';
+        $smsStatus = match (config('services.sms.driver')) {
+            'twilio' => config('services.sms.twilio.account_sid') && config('services.sms.twilio.auth_token') && config('services.sms.twilio.from')
+                ? 'Twilio configured' : 'Twilio credentials missing',
+            'semaphore' => config('services.sms.semaphore.api_key') && config('services.sms.semaphore.sender_name')
+                ? 'Semaphore configured' : 'Semaphore credentials missing',
+            default => 'Not configured — local log only, no phone delivery',
+        };
 
         return view('admin.low-stocks', compact(
             'summary', 'activeAlerts', 'fastMoving', 'settings', 'deliveries', 'smsStatus',

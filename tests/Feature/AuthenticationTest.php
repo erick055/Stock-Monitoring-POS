@@ -3,10 +3,12 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Notifications\LoginVerificationCodeNotification;
 use Illuminate\Auth\Events\Verified;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\URL;
 use Tests\TestCase;
 
@@ -51,7 +53,8 @@ class AuthenticationTest extends TestCase
 
     public function test_login_uses_email_and_redirects_to_the_account_role_dashboard(): void
     {
-        User::factory()->create([
+        Notification::fake();
+        $user = User::factory()->create([
             'email' => 'staff@example.com',
             'role' => 'staff',
             'password' => self::STRONG_PASSWORD,
@@ -61,13 +64,23 @@ class AuthenticationTest extends TestCase
             'email' => 'STAFF@example.com ',
             'password' => self::STRONG_PASSWORD,
             'role' => 'admin',
-        ])->assertRedirect(route('staff.dashboard'));
+        ])->assertRedirect(route('login.verify'));
+
+        $this->assertGuest();
+
+        Notification::assertSentTo($user, LoginVerificationCodeNotification::class, function ($notification) {
+            $this->post(route('login.verify.store'), ['code' => $notification->code])
+                ->assertRedirect(route('staff.dashboard'));
+
+            return true;
+        });
 
         $this->assertAuthenticated();
     }
 
     public function test_login_does_not_create_a_persistent_remember_cookie(): void
     {
+        Notification::fake();
         $user = User::factory()->create([
             'email' => 'remember@example.com',
             'role' => 'admin',
@@ -75,11 +88,17 @@ class AuthenticationTest extends TestCase
             'remember_token' => 'old-persistent-token',
         ]);
 
-        $response = $this->post('/login', [
+        $this->post('/login', [
             'email' => 'remember@example.com',
             'password' => self::STRONG_PASSWORD,
             'remember' => '1',
-        ]);
+        ])->assertRedirect(route('login.verify'));
+
+        Notification::assertSentTo($user, LoginVerificationCodeNotification::class, function ($notification) use (&$response) {
+            $response = $this->post(route('login.verify.store'), ['code' => $notification->code]);
+
+            return true;
+        });
 
         $response->assertRedirect(route('admin.dashboard'))
             ->assertCookieExpired(Auth::guard()->getRecallerName())
@@ -89,6 +108,64 @@ class AuthenticationTest extends TestCase
         $this->assertSame(43200, config('session.lifetime'));
         $this->assertSame(60, config('session.idle_timeout_by_role.admin'));
         $this->assertSame(43200, config('session.idle_timeout_by_role.staff'));
+    }
+
+    public function test_login_code_is_single_use(): void
+    {
+        Notification::fake();
+        $user = User::factory()->create(['email' => 'secure@example.com', 'password' => self::STRONG_PASSWORD]);
+
+        $this->post('/login', ['email' => $user->email, 'password' => self::STRONG_PASSWORD]);
+
+        Notification::assertSentTo($user, LoginVerificationCodeNotification::class, function ($notification) use ($user) {
+            $this->post(route('login.verify.store'), ['code' => $notification->code])->assertRedirect();
+            $this->post(route('logout'));
+            $this->withSession([
+                'login_verification.user_id' => $user->id,
+                'login_verification.started_at' => now()->timestamp,
+            ])->post(route('login.verify.store'), ['code' => $notification->code])
+                ->assertRedirect(route('login'));
+
+            return true;
+        });
+    }
+
+    public function test_five_incorrect_login_codes_cancel_the_pending_login(): void
+    {
+        Notification::fake();
+        $user = User::factory()->create(['email' => 'secure@example.com', 'password' => self::STRONG_PASSWORD]);
+
+        $this->post('/login', ['email' => $user->email, 'password' => self::STRONG_PASSWORD]);
+
+        foreach (range(1, 4) as $attempt) {
+            $this->post(route('login.verify.store'), ['code' => '000000'])->assertSessionHasErrors('code');
+        }
+
+        $this->post(route('login.verify.store'), ['code' => '000000'])
+            ->assertRedirect(route('login'))
+            ->assertSessionHasErrors('email');
+
+        $this->assertGuest();
+        $this->assertDatabaseMissing('login_verification_codes', ['user_id' => $user->id]);
+    }
+
+    public function test_an_expired_login_code_cannot_authenticate(): void
+    {
+        Notification::fake();
+        $user = User::factory()->create(['email' => 'expired@example.com', 'password' => self::STRONG_PASSWORD]);
+
+        $this->post('/login', ['email' => $user->email, 'password' => self::STRONG_PASSWORD]);
+        $user->loginVerificationCode()->update(['expires_at' => now()->subSecond()]);
+
+        Notification::assertSentTo($user, LoginVerificationCodeNotification::class, function ($notification) {
+            $this->post(route('login.verify.store'), ['code' => $notification->code])
+                ->assertRedirect(route('login'))
+                ->assertSessionHasErrors('email');
+
+            return true;
+        });
+
+        $this->assertGuest();
     }
 
     public function test_user_is_logged_out_after_sixty_minutes_without_activity(): void

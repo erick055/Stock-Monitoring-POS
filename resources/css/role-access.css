@@ -246,6 +246,32 @@ h2 {
     line-height: 1.5;
 }
 
+.forgot-link {
+    display: block;
+    width: fit-content;
+    margin: -0.45rem 0 1rem auto;
+    color: var(--cyan);
+    font-size: 0.8rem;
+    text-decoration: none;
+}
+
+.text-link {
+    color: var(--cyan);
+    text-decoration: none;
+}
+
+.forgot-link:hover,
+.text-link:hover {
+    text-decoration: underline;
+}
+
+.account-form .verification-code {
+    font-size: 1.4rem;
+    font-weight: 700;
+    letter-spacing: 0.45em;
+    text-align: center;
+}
+
 .success-box {
     margin-bottom: 1rem;
     padding: 0.8rem 1rem;

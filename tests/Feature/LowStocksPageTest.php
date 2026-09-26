@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Mail\InventoryAlertMail;
 use App\Models\Product;
 use App\Models\SalesItem;
 use App\Models\SalesTransaction;
@@ -9,6 +10,7 @@ use App\Models\StockAlertDelivery;
 use App\Models\StockAlertSetting;
 use App\Models\StockAlertState;
 use App\Models\User;
+use App\Services\SmsAlertSender;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Http;
@@ -18,6 +20,30 @@ use Tests\TestCase;
 class LowStocksPageTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_semaphore_driver_sends_an_sms_with_the_configured_sender(): void
+    {
+        Http::fake([
+            'api.semaphore.co/*' => Http::response([[
+                'message_id' => 12345,
+                'recipient' => '639171234567',
+                'status' => 'Queued',
+            ]]),
+        ]);
+        config([
+            'services.sms.driver' => 'semaphore',
+            'services.sms.semaphore.api_key' => 'private-test-key',
+            'services.sms.semaphore.sender_name' => 'MOTOSYNC',
+        ]);
+
+        app(SmsAlertSender::class)->send('+639171234567', 'MotoSync inventory alert.');
+
+        Http::assertSent(fn ($request) => $request->url() === 'https://api.semaphore.co/api/v4/messages'
+            && $request['apikey'] === 'private-test-key'
+            && $request['number'] === '+639171234567'
+            && $request['message'] === 'MotoSync inventory alert.'
+            && $request['sendername'] === 'MOTOSYNC');
+    }
 
     public function test_admin_can_view_low_stocks_page(): void
     {
@@ -192,6 +218,16 @@ class LowStocksPageTest extends TestCase
         $this->assertStringContainsString('Recommended action', $emailMessage);
         $this->assertStringContainsString('Suggested restock: 2+ unit(s)', $emailMessage);
         $this->assertStringContainsString('Alert generated:', $emailMessage);
+        Mail::assertSent(InventoryAlertMail::class, function (InventoryAlertMail $mail) {
+            $html = $mail->render();
+
+            return str_contains($html, '<strong style="font-weight:700;color:#111318;">Status:</strong>')
+                && str_contains($html, '<strong style="font-weight:700;color:#111318;">Product:</strong>')
+                && str_contains($html, '<strong style="font-weight:700;color:#111318;">SKU:</strong>')
+                && str_contains($html, '<strong style="font-weight:700;color:#111318;">Current stock:</strong>')
+                && str_contains($html, '<strong style="font-weight:700;color:#111318;">Reorder level:</strong>')
+                && str_contains($html, '<strong style="font-weight:700;color:#111318;">Suggested restock:</strong>');
+        });
 
         $this->actingAs($admin)->post(route('admin.inventory.movements.store'), [
             ...$payload, 'quantity' => 1,

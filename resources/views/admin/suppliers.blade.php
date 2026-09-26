@@ -117,7 +117,12 @@ $navigation = [
             <section class="panel preview-panel">
                 <div class="section-heading">
                     <div><span class="section-kicker">{{ $selectedImport->status === 'pending' && ! $selectedImport->archived_at ? 'STEP 2 · REVIEW' : 'ARCHIVED IMPORT · READ ONLY' }}</span><h2>{{ $selectedImport->supplier->name }} — {{ $selectedImport->source_filename }}</h2></div>
-                    <span class="import-status {{ $selectedImport->error_count ? 'has-errors' : 'ready' }}">{{ $selectedImport->valid_count }} valid · {{ $selectedImport->error_count }} errors</span>
+                    <div class="import-heading-actions">
+                        <span class="import-status {{ $selectedImport->error_count ? 'has-errors' : 'ready' }}">{{ $selectedImport->valid_count }} valid · {{ $selectedImport->error_count }} errors</span>
+                        @if($selectedImport->status === 'pending' && ! $selectedImport->archived_at)
+                            <button class="apply-button" type="button" data-open-import-decision>Review import decision</button>
+                        @endif
+                    </div>
                 </div>
                 <p class="archive-note">Uploaded {{ $selectedImport->created_at->format('M d, Y h:i A') }} · {{ $selectedImport->archived_at ? 'Archived '.strtolower($selectedImport->status) : ucfirst($selectedImport->status) }} · {{ $importRows->total() }} records. Prices below are from this import.</p>
                 <div class="supplier-table-wrap">
@@ -155,13 +160,23 @@ $navigation = [
                     @if($importRows->previousPageUrl())<a href="{{ $importRows->previousPageUrl() }}">Previous</a>@endif
                     @if($importRows->nextPageUrl())<a href="{{ $importRows->nextPageUrl() }}">Next</a>@endif
                 </nav>
-                @if($selectedImport->status === 'pending' && ! $selectedImport->archived_at)
-                <div class="approval-actions">
-                    <form method="POST" action="{{ route('admin.suppliers.imports.reject', $selectedImport) }}">@csrf<button class="reject-button" type="submit">Reject import</button></form>
-                    <form method="POST" action="{{ route('admin.suppliers.imports.approve', $selectedImport) }}">@csrf<button class="apply-button" type="submit" @disabled($selectedImport->error_count > 0)>Approve and publish prices</button></form>
-                </div>
-                @endif
             </section>
+
+            @if($selectedImport->status === 'pending' && ! $selectedImport->archived_at)
+                <div class="supplier-modal" data-import-decision-modal hidden role="dialog" aria-modal="true" aria-labelledby="import-decision-title">
+                    <div class="supplier-modal-card">
+                        <button class="supplier-modal-close" type="button" data-close-modal aria-label="Close">×</button>
+                        <span class="section-kicker">IMPORT DECISION</span>
+                        <h2 id="import-decision-title">Accept or reject this supplier import?</h2>
+                        <p><strong>{{ $selectedImport->supplier->name }}</strong> · {{ $selectedImport->source_filename }} · {{ $selectedImport->valid_count }} valid rows.</p>
+                        @if($selectedImport->error_count > 0)<p class="modal-warning">Approval is unavailable because this import has {{ $selectedImport->error_count }} validation errors.</p>@endif
+                        <div class="supplier-modal-actions">
+                            <form method="POST" action="{{ route('admin.suppliers.imports.reject', $selectedImport) }}">@csrf<button class="reject-button" type="submit">Reject import</button></form>
+                            <form method="POST" action="{{ route('admin.suppliers.imports.approve', $selectedImport) }}">@csrf<button class="apply-button" type="submit" @disabled($selectedImport->error_count > 0)>Accept and publish prices</button></form>
+                        </div>
+                    </div>
+                </div>
+            @endif
         @endif
 
         <section class="panel suppliers-panel">
@@ -185,6 +200,15 @@ $navigation = [
                     <button class="supplier-sort-button" type="submit">Sort</button>
                 </form>
             </div>
+            @if($prices->contains(fn ($price) => ! $price->product_id && strtoupper($price->currency) === 'PHP'))
+                <div class="bulk-product-toolbar">
+                    <div><strong>Bulk add to Products</strong><span>Select unmatched PHP supplier items below, then create them together.</span></div>
+                    <div class="bulk-product-actions">
+                        <label class="bulk-select-all"><input type="checkbox" data-bulk-select-all><span>Select all eligible</span></label>
+                        <button class="apply-button" type="button" data-open-bulk-products disabled>Bulk add selected (<span data-bulk-count>0</span>)</button>
+                    </div>
+                </div>
+            @endif
             <div class="pricing-list">
                 @forelse($prices as $price)
                     @php
@@ -200,6 +224,9 @@ $navigation = [
                             && mb_strtolower(trim($price->supplier_sku), 'UTF-8') === mb_strtolower(trim($price->product->sku), 'UTF-8');
                     @endphp
                     <article class="pricing-card">
+                        @if(! $price->product_id && strtoupper($price->currency) === 'PHP')
+                            <label class="bulk-product-select"><input type="checkbox" value="{{ $price->supplier_price_id }}" data-bulk-product-checkbox><span>Select</span></label>
+                        @endif
                         <div class="supplier-line">
                             <strong>{{ $price->product_name }}</strong>
                             <small>{{ $price->supplier->name }} · Supplier SKU: {{ $price->supplier_sku }}</small>
@@ -302,6 +329,24 @@ $navigation = [
                 @endforelse
             </div>
         </section>
+
+        <div class="supplier-modal" data-bulk-products-modal hidden role="dialog" aria-modal="true" aria-labelledby="bulk-products-title">
+            <div class="supplier-modal-card bulk-modal-card">
+                <button class="supplier-modal-close" type="button" data-close-modal aria-label="Close">×</button>
+                <span class="section-kicker">BULK PRODUCT CREATION</span>
+                <h2 id="bulk-products-title">Add selected supplier items to Products?</h2>
+                <p><strong data-bulk-modal-count>0</strong> products will be created with their supplier SKU as the product SKU and part number. Store stock starts at zero.</p>
+                <form class="bulk-product-form" method="POST" action="{{ route('admin.suppliers.prices.bulk-create-products') }}" data-bulk-product-form>
+                    @csrf
+                    <div data-bulk-product-ids></div>
+                    <label>Selling price markup (%)<input name="markup_percent" type="number" min="0" max="1000" step="0.01" value="30" required></label>
+                    <label>Category<input name="category" maxlength="100" placeholder="e.g. Supplier Import"></label>
+                    <label>Shelf location<input name="shelf_location" maxlength="100" placeholder="Optional default location"></label>
+                    <label>Reorder level<input name="reorder_level" type="number" min="0" value="5" required></label>
+                    <div class="supplier-modal-actions"><button class="modal-cancel-button" type="button" data-close-modal>Cancel</button><button class="apply-button" type="submit">Create selected products</button></div>
+                </form>
+            </div>
+        </div>
 
         <datalist id="catalog-product-options">
             @foreach($catalogProducts as $catalogProduct)

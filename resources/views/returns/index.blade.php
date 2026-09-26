@@ -75,6 +75,7 @@ $oldReceipt = $receipts->firstWhere('id', (int) old('sale_id'));
                     <label class="wide">Product From This Receipt
                         <select name="product_id" required disabled data-receipt-product data-old-value="{{ old('product_id') }}"><option value="">Select a receipt first</option></select>
                     </label>
+                    <div class="refund-value-card wide" data-refund-value hidden aria-live="polite"></div>
                     <label>Qty<input name="quantity" type="number" min="1" value="{{ old('quantity', 1) }}" required data-item-quantity></label>
                     <label>Refund Amount<input name="refund_amount" type="number" step="0.01" min="0" value="{{ old('refund_amount', 0) }}" data-refund-amount></label>
                     <label>Condition<select name="item_condition" required><option value="sellable" @selected(old('item_condition') === 'sellable')>Sellable</option><option value="damaged" @selected(old('item_condition') === 'damaged')>Damaged</option></select></label>
@@ -96,6 +97,7 @@ $oldReceipt = $receipts->firstWhere('id', (int) old('sale_id'));
                     <label class="wide">Product From This Receipt
                         <select name="product_id" required disabled data-receipt-product data-old-value="{{ old('product_id') }}"><option value="">Select a receipt first</option></select>
                     </label>
+                    <div class="refund-value-card wide" data-refund-value hidden aria-live="polite"></div>
                     <label>Qty<input name="quantity" type="number" min="1" value="{{ old('quantity', 1) }}" required data-item-quantity></label>
                     <label>Replacement<select name="replacement_status" required><option value="pending" @selected(old('replacement_status') === 'pending')>Pending</option><option value="ordered" @selected(old('replacement_status') === 'ordered')>Ordered</option><option value="replaced" @selected(old('replacement_status') === 'replaced')>Replaced</option><option value="not_replaceable" @selected(old('replacement_status') === 'not_replaceable')>Not replaceable</option></select></label>
                     <label>Status<select name="status" required><option value="reported" @selected(old('status') === 'reported')>Reported</option><option value="reviewed" @selected(old('status') === 'reviewed')>Reviewed</option><option value="disposed" @selected(old('status') === 'disposed')>Disposed</option></select></label>

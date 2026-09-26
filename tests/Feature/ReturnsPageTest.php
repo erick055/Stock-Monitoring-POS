@@ -39,6 +39,22 @@ class ReturnsPageTest extends TestCase
         $response->assertSee('Record Product Return');
     }
 
+    public function test_receipt_items_include_their_refundable_unit_values(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $product = Product::create([
+            'sku' => 'VALUE-ITEM', 'name' => 'Valued Receipt Item', 'category' => 'Parts', 'unit_price' => 175.50, 'current_stock' => 2,
+        ]);
+        $this->createSale($admin, $product, 2, 175.50);
+
+        $response = $this->actingAs($admin)->get('/admin/returns');
+
+        $response->assertOk();
+        $response->assertSee('Valued Receipt Item');
+        $response->assertSee('"unit_price":175.5', false);
+        $response->assertSee('"available_value":351', false);
+    }
+
     public function test_approved_sellable_return_adds_stock_and_ledger_entry(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);

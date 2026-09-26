@@ -42,6 +42,14 @@ return [
             'auth_token' => env('TWILIO_AUTH_TOKEN'),
             'from' => env('TWILIO_FROM_NUMBER'),
         ],
+        'semaphore' => [
+            'api_key' => env('SEMAPHORE_API_KEY'),
+            'sender_name' => env('SEMAPHORE_SENDER_NAME'),
+        ],
+        'semaphore' => [
+            'api_key' => env('SEMAPHORE_API_KEY'),
+            'sender_name' => env('SEMAPHORE_SENDER_NAME'),
+        ],
     ],
 
 ];

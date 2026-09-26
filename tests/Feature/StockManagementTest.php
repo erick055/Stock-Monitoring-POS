@@ -139,6 +139,58 @@ class StockManagementTest extends TestCase
         $this->assertSame('Brake Parts', Product::where('sku', 'BRK-NEW')->value('category'));
     }
 
+    public function test_add_product_page_lists_existing_categories_and_an_add_new_option(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        Product::create(['sku' => 'BRAKE-CAT', 'name' => 'Brake Reference', 'category' => 'Brake Parts', 'is_active' => true]);
+        Product::create(['sku' => 'OIL-CAT', 'name' => 'Oil Reference', 'category' => 'Lubricants', 'is_active' => true]);
+
+        $this->actingAs($admin)->get(route('admin.inventory'))
+            ->assertOk()
+            ->assertSee('<option value="Brake Parts"', false)
+            ->assertSee('<option value="Lubricants"', false)
+            ->assertSee('+ Add new category');
+    }
+
+    public function test_admin_can_add_a_product_with_a_new_category(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $this->actingAs($admin)->post(route('admin.inventory.products.store'), [
+            'sku' => 'CHAIN-NEW',
+            'name' => 'New Chain',
+            'category' => '__new__',
+            'new_category' => '  Drive   Components ',
+            'manufacturer_part_number' => 'CHAIN-001',
+            'unit_cost' => 100,
+            'unit_price' => 150,
+            'reorder_level' => 5,
+            'qty_in' => 2,
+            'reason_code' => 'NEW_PRODUCT',
+        ])->assertSessionHasNoErrors();
+
+        $this->assertSame('Drive Components', Product::where('sku', 'CHAIN-NEW')->value('category'));
+    }
+
+    public function test_new_category_name_is_required_when_add_new_is_selected(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $this->actingAs($admin)->post(route('admin.inventory.products.store'), [
+            'sku' => 'CHAIN-MISSING',
+            'name' => 'Missing Category Chain',
+            'category' => '__new__',
+            'manufacturer_part_number' => 'CHAIN-002',
+            'unit_cost' => 100,
+            'unit_price' => 150,
+            'reorder_level' => 5,
+            'qty_in' => 2,
+            'reason_code' => 'NEW_PRODUCT',
+        ])->assertSessionHasErrors('new_category');
+
+        $this->assertDatabaseMissing('products', ['sku' => 'CHAIN-MISSING']);
+    }
+
     public function test_previously_deleted_sku_can_be_restored_from_stock_management(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);

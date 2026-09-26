@@ -28,6 +28,9 @@ if (shell && accountForm) {
         nameField.hidden = !isRegister;
         confirmField.hidden = !isRegister;
         passwordHint.hidden = !isRegister;
+        document.querySelectorAll('[data-login-only]').forEach((element) => {
+            element.hidden = isRegister;
+        });
         nameField.querySelector('input').required = isRegister;
         confirmField.querySelector('input').required = isRegister;
         passwordInput.autocomplete = isRegister ? 'new-password' : 'current-password';

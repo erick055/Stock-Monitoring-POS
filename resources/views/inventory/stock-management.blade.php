@@ -233,7 +233,18 @@ $editErrorProduct = $errors->getBag('editProduct')->any()
             <div class="form-grid">
                 <label>SKU<input name="sku" value="{{ old('sku') }}" maxlength="100" required></label>
                 <label>Product name<input name="name" value="{{ old('name') }}" maxlength="255" required></label>
-                <label>Category<input name="category" value="{{ old('category') }}" maxlength="100" placeholder="e.g. Lubricants"></label>
+                <label>Category
+                    <select name="category" data-category-select>
+                        <option value="">Select a category</option>
+                        @foreach($categories as $category)
+                            <option value="{{ $category }}" @selected(old('category') === $category)>{{ $category }}</option>
+                        @endforeach
+                        <option value="__new__" @selected(old('category') === '__new__')>+ Add new category</option>
+                    </select>
+                </label>
+                <label data-new-category-field @if(old('category') !== '__new__') hidden @endif>New category
+                    <input name="new_category" value="{{ old('new_category') }}" maxlength="100" placeholder="e.g. Lubricants" @if(old('category') === '__new__') required @else disabled @endif>
+                </label>
                 <label>Shelf location<input name="shelf_location" value="{{ old('shelf_location') }}" maxlength="100" placeholder="e.g. Aisle A · Shelf 03 · Bin 2"></label>
                 <label>Manufacturer<input name="manufacturer" value="{{ old('manufacturer') }}" maxlength="150" placeholder="e.g. Honda, NGK, DID"></label>
                 <label>Manufacturer part number (required)<input name="manufacturer_part_number" value="{{ old('manufacturer_part_number') }}" maxlength="150" required placeholder="Official number from manufacturer or packaging"></label>

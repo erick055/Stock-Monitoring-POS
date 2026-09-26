@@ -109,7 +109,7 @@ $navigation = [
         <section class="panel settings-panel">
             <div class="section-heading">
                 <div><span class="section-kicker">NOTIFICATION CONTROL</span><h2>Alert Settings</h2></div>
-                <form method="POST" action="{{ route('admin.low-stocks.run-now') }}">@csrf<button class="check-button" type="submit">Run alert check now</button></form>
+                <form method="POST" action="{{ route('admin.low-stocks.run-now') }}">@csrf<button class="check-button" type="submit"><span aria-hidden="true">⚡</span> Run alert check now</button></form>
             </div>
             <form class="notification-settings" method="POST" action="{{ route('admin.low-stocks.settings') }}">
                 @csrf
