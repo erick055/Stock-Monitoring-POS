@@ -25,6 +25,12 @@ class User extends Authenticatable implements MustVerifyEmail
         'email',
         'password',
         'role',
+        'account_status',
+        'approved_by',
+        'approved_at',
+        'disabled_by',
+        'disabled_at',
+        'disabled_reason',
     ];
 
     /**
@@ -47,6 +53,8 @@ class User extends Authenticatable implements MustVerifyEmail
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'approved_at' => 'datetime',
+            'disabled_at' => 'datetime',
         ];
     }
 
@@ -63,5 +71,20 @@ class User extends Authenticatable implements MustVerifyEmail
     public function loginVerificationCode(): HasOne
     {
         return $this->hasOne(LoginVerificationCode::class);
+    }
+
+    public function approvedBy(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(self::class, 'approved_by');
+    }
+
+    public function disabledBy(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(self::class, 'disabled_by');
+    }
+
+    public function trustedLoginDevices(): HasMany
+    {
+        return $this->hasMany(TrustedLoginDevice::class);
     }
 }

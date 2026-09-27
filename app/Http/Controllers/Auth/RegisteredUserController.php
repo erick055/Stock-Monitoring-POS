@@ -4,10 +4,8 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
-use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules;
 
@@ -29,15 +27,15 @@ class RegisteredUserController extends Controller
             ],
         ]);
 
-        // Public registration can never grant elevated privileges.
+        // Public registration creates a pending request. Only an owner may activate staff access.
         $validated['role'] = 'staff';
+        $validated['account_status'] = 'pending';
 
-        $user = User::create($validated);
-        event(new Registered($user));
-        Auth::login($user);
-        $request->session()->regenerate();
-        $request->session()->put('auth.last_activity_at', now()->timestamp);
+        User::create($validated);
 
-        return redirect()->route('verification.notice');
+        return redirect()->route('login')->with(
+            'status',
+            'Registration received. The owner must approve your staff account before you can log in.'
+        );
     }
 }

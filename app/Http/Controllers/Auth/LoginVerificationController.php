@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\LoginVerificationCode;
 use App\Models\User;
 use App\Notifications\LoginVerificationCodeNotification;
+use App\Services\TrustedLoginDeviceService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -27,7 +28,7 @@ class LoginVerificationController extends Controller
         return view('auth.login-verification', ['maskedEmail' => $this->maskEmail($user->email)]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, TrustedLoginDeviceService $trustedDevices): RedirectResponse
     {
         $request->validate(['code' => ['required', 'digits:6']]);
         $user = $this->pendingUser($request);
@@ -57,6 +58,7 @@ class LoginVerificationController extends Controller
         $request->session()->regenerate();
         $request->session()->put('auth.last_activity_at', now()->timestamp);
         Auth::guard()->getProvider()->updateRememberToken($user, Str::random(60));
+        $trustedDevices->trust($request, $user);
 
         return redirect()->intended(route($user->role.'.dashboard'))
             ->withoutCookie(Auth::guard()->getRecallerName());

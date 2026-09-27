@@ -33,6 +33,7 @@ export default defineConfig({
                 'resources/js/suppliers.js',
                 'resources/css/compatibility.css',
                 'resources/js/compatibility.js',
+                'resources/css/account-management.css',
                 
             ],
             refresh: true,

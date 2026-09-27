@@ -32,7 +32,7 @@ class DashboardController extends Controller
             'navigation' => [
                 ['⌂', 'Dashboard', '#'], ['▣', 'Stock Management', '/admin/inventory'], ['□', 'Products', '/admin/products'],
                 ['⌁', 'Analytics', '/admin/analytics'], ['!', 'Low Stock Alerts', '/admin/low-stocks'], ['@', 'Dead Stock', '/admin/deadstock'],
-                ['◇', 'Returns & Damages', '/admin/returns'], ['♙', 'Supplier Price', '/admin/suppliers'], ['⚙', 'Part Compatibility', '/admin/compatibility'],
+                ['◇', 'Returns & Damages', '/admin/returns'], ['♙', 'Supplier Price', '/admin/suppliers'], ['⚙', 'Part Compatibility', '/admin/compatibility'], ['♟', 'Account Management', '/admin/accounts'],
             ],
             'stats' => [
                 ['TOTAL PRODUCTS', number_format($products->count()), $products->filter(fn (Product $product) => $product->created_at?->isCurrentMonth())->count().' added this month', 'purple'],
@@ -50,6 +50,7 @@ class DashboardController extends Controller
                 ['◇', 'Returns & Damages', CustomerReturn::whereDate('returned_at', today())->count().' return(s) today', '/admin/returns'],
                 ['♧', 'Supplier Price', 'Import and compare supplier pricing', '/admin/suppliers'],
                 ['⚙', 'Part Compatibility', 'Search current inventory with AI', '/admin/compatibility'],
+                ['♟', 'Account Management', User::where('role', 'staff')->where('account_status', 'pending')->count().' registration(s) pending approval', '/admin/accounts'],
             ],
             'chart_kicker' => 'PERFORMANCE',
             'chart_title' => 'Sales — Last 7 Days',

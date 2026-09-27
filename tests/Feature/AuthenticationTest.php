@@ -2,8 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Models\TrustedLoginDevice;
 use App\Models\User;
 use App\Notifications\LoginVerificationCodeNotification;
+use App\Services\TrustedLoginDeviceService;
 use Illuminate\Auth\Events\Verified;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Auth;
@@ -18,7 +20,7 @@ class AuthenticationTest extends TestCase
 
     private const STRONG_PASSWORD = 'Secure!Password123';
 
-    public function test_public_registration_creates_only_an_unverified_staff_account(): void
+    public function test_public_registration_creates_a_pending_staff_request_without_logging_in(): void
     {
         $response = $this->post('/register', [
             'name' => 'Test Staff',
@@ -29,13 +31,36 @@ class AuthenticationTest extends TestCase
             'auth_mode' => 'register',
         ]);
 
-        $response->assertRedirect(route('verification.notice'));
-        $this->assertAuthenticated();
+        $response->assertRedirect(route('login'))
+            ->assertSessionHas('status', 'Registration received. The owner must approve your staff account before you can log in.');
+        $this->assertGuest();
         $this->assertDatabaseHas('users', [
             'email' => 'staff@example.com',
             'role' => 'staff',
+            'account_status' => 'pending',
             'email_verified_at' => null,
         ]);
+    }
+
+    public function test_pending_and_disabled_staff_cannot_start_login_verification(): void
+    {
+        Notification::fake();
+        $pending = User::factory()->create([
+            'email' => 'pending@example.com', 'password' => self::STRONG_PASSWORD,
+            'role' => 'staff', 'account_status' => 'pending',
+        ]);
+        $disabled = User::factory()->create([
+            'email' => 'disabled@example.com', 'password' => self::STRONG_PASSWORD,
+            'role' => 'staff', 'account_status' => 'disabled',
+        ]);
+
+        $this->post('/login', ['email' => $pending->email, 'password' => self::STRONG_PASSWORD])
+            ->assertSessionHasErrors('email');
+        $this->post('/login', ['email' => $disabled->email, 'password' => self::STRONG_PASSWORD])
+            ->assertSessionHasErrors('email');
+
+        Notification::assertNothingSent();
+        $this->assertGuest();
     }
 
     public function test_registration_rejects_a_weak_password(): void
@@ -166,6 +191,56 @@ class AuthenticationTest extends TestCase
         });
 
         $this->assertGuest();
+    }
+
+    public function test_a_trusted_browser_and_ip_can_skip_the_email_code_for_thirty_days(): void
+    {
+        Notification::fake();
+        $user = User::factory()->create([
+            'email' => 'trusted@example.com', 'password' => self::STRONG_PASSWORD,
+            'role' => 'staff', 'account_status' => 'active',
+        ]);
+        $token = 'trusted-device-token';
+        TrustedLoginDevice::create([
+            'user_id' => $user->id,
+            'token_hash' => hash('sha256', $token),
+            'ip_address' => '127.0.0.1',
+            'user_agent_hash' => hash('sha256', 'MotoSyncTestBrowser'),
+            'expires_at' => now()->addDays(30),
+        ]);
+
+        $this->withHeader('User-Agent', 'MotoSyncTestBrowser')
+            ->withCookie(TrustedLoginDeviceService::COOKIE_NAME, $token)
+            ->post('/login', ['email' => $user->email, 'password' => self::STRONG_PASSWORD])
+            ->assertRedirect(route('staff.dashboard'));
+
+        $this->assertAuthenticatedAs($user);
+        Notification::assertNothingSent();
+    }
+
+    public function test_a_trusted_cookie_cannot_be_reused_from_another_ip_address(): void
+    {
+        Notification::fake();
+        $user = User::factory()->create([
+            'email' => 'trusted@example.com', 'password' => self::STRONG_PASSWORD,
+            'role' => 'staff', 'account_status' => 'active',
+        ]);
+        $token = 'trusted-device-token';
+        TrustedLoginDevice::create([
+            'user_id' => $user->id,
+            'token_hash' => hash('sha256', $token),
+            'ip_address' => '192.0.2.10',
+            'user_agent_hash' => hash('sha256', 'MotoSyncTestBrowser'),
+            'expires_at' => now()->addDays(30),
+        ]);
+
+        $this->withHeader('User-Agent', 'MotoSyncTestBrowser')
+            ->withCookie(TrustedLoginDeviceService::COOKIE_NAME, $token)
+            ->post('/login', ['email' => $user->email, 'password' => self::STRONG_PASSWORD])
+            ->assertRedirect(route('login.verify'));
+
+        $this->assertGuest();
+        Notification::assertSentTo($user, LoginVerificationCodeNotification::class);
     }
 
     public function test_user_is_logged_out_after_sixty_minutes_without_activity(): void

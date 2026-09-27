@@ -15,7 +15,7 @@
 
         <p class="eyebrow">LOGIN SECURITY</p>
         <h1>Check your email</h1>
-        <p class="subtitle">Enter the six-digit code sent to <strong>{{ $maskedEmail }}</strong>. It expires in 10 minutes.</p>
+        <p class="subtitle">Enter the six-digit code sent to <strong>{{ $maskedEmail }}</strong>. It expires in 10 minutes. After verification, this browser and IP address will be trusted for 30 days.</p>
 
         <form class="account-form" method="POST" action="{{ route('login.verify.store') }}">
             @csrf

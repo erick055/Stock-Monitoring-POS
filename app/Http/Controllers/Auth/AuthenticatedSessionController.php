@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\TrustedLoginDeviceService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -13,7 +14,7 @@ use Illuminate\Validation\ValidationException;
 
 class AuthenticatedSessionController extends Controller
 {
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request, TrustedLoginDeviceService $trustedDevices): RedirectResponse
     {
         $request->merge([
             'email' => Str::lower(trim((string) $request->input('email'))),
@@ -47,6 +48,24 @@ class AuthenticatedSessionController extends Controller
 
         if (! $user instanceof User || ! in_array($user->role, ['admin', 'staff'], true)) {
             throw ValidationException::withMessages(['email' => 'This account is not authorized to access the application.']);
+        }
+
+        if ($user->account_status !== 'active') {
+            $message = $user->account_status === 'pending'
+                ? 'Your staff registration is waiting for owner approval.'
+                : 'This staff account has been disabled. Contact the owner for assistance.';
+
+            throw ValidationException::withMessages(['email' => $message]);
+        }
+
+        if ($trustedDevices->isTrusted($request, $user)) {
+            Auth::login($user, false);
+            $request->session()->regenerate();
+            $request->session()->put('auth.last_activity_at', now()->timestamp);
+            Auth::guard()->getProvider()->updateRememberToken($user, Str::random(60));
+
+            return redirect()->intended(route($user->role.'.dashboard'))
+                ->withoutCookie(Auth::guard()->getRecallerName());
         }
 
         try {

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AnalyticsController;
+use App\Http\Controllers\AccountManagementController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\LoginVerificationController;
 use App\Http\Controllers\Auth\NewPasswordController;
@@ -59,6 +60,10 @@ Route::middleware('auth')->group(function () {
 });
 
 Route::middleware(['auth', 'verified', 'role:admin'])->group(function () {
+    Route::get('/admin/accounts', [AccountManagementController::class, 'index'])->name('admin.accounts');
+    Route::patch('/admin/accounts/{user}/approve', [AccountManagementController::class, 'approve'])->name('admin.accounts.approve');
+    Route::patch('/admin/accounts/{user}/disable', [AccountManagementController::class, 'disable'])->name('admin.accounts.disable');
+    Route::patch('/admin/accounts/{user}/reactivate', [AccountManagementController::class, 'reactivate'])->name('admin.accounts.reactivate');
     Route::get('/admin/dashboard', [DashboardController::class, 'admin'])->name('admin.dashboard');
     Route::get('/admin/inventory', [StockManagementController::class, 'index'])->name('admin.inventory');
     Route::post('/admin/inventory/products', [StockManagementController::class, 'storeProduct'])->name('admin.inventory.products.store');

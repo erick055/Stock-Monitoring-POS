@@ -17,11 +17,11 @@ if (shell && accountForm) {
         accountForm.action = `${baseUrl}/${isRegister ? 'register' : 'login'}`;
         document.querySelector('[data-mode-input]').value = mode;
         document.querySelector('[data-form-mode]').textContent = isRegister ? 'CREATE STAFF ACCOUNT' : 'WELCOME BACK';
-        document.querySelector('[data-form-title]').textContent = isRegister ? 'Register for MotoSync' : 'Log in to MotoSync';
+        document.querySelector('[data-form-title]').textContent = isRegister ? 'Request staff access' : 'Log in to MotoSync';
         document.querySelector('[data-form-copy]').textContent = isRegister
-            ? 'Create a staff account using an email address you can verify.'
+            ? 'Submit your details for owner approval. You cannot log in until the owner activates your account.'
             : 'Use your registered email address and password.';
-        document.querySelector('[data-submit-label]').textContent = isRegister ? 'Create account' : 'Log in';
+        document.querySelector('[data-submit-label]').textContent = isRegister ? 'Submit registration request' : 'Log in';
         document.querySelector('[data-switch-text]').textContent = isRegister ? 'Already registered?' : 'Need a staff account?';
         document.querySelector('[data-switch-mode]').textContent = isRegister ? 'Log in' : 'Create one';
 
