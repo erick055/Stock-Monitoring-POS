@@ -1,15 +1,22 @@
 @php
-$navigation = [
-    ['⌂','Dashboard','/staff/dashboard'], ['□','Products','/staff/products'],
-    ['▤','POS Checkout','#'], ['◇','Return & Damage','/staff/returns'], ['⚙','Part Compatibility','/staff/compatibility'],
+$isAdmin = auth()->user()->role === 'admin';
+$navigation = $isAdmin ? [
+    ['house-door','Dashboard','/admin/dashboard'], ['boxes','Stock Management','/admin/inventory'], ['box-seam','Products','/admin/products'], ['cart3','POS Checkout','#'],
+    ['bar-chart-line','Analytics','/admin/analytics'], ['exclamation-triangle','Low Stock Alerts','/admin/low-stocks'], ['box2','Dead Stock','/admin/deadstock'],
+    ['arrow-repeat','Returns & Damages','/admin/returns'], ['tags','Supplier Price','/admin/suppliers'], ['gear','Part Compatibility','/admin/compatibility'], ['people','Account Management','/admin/accounts'],
+] : [
+    ['house-door','Dashboard','/staff/dashboard'], ['box-seam','Products','/staff/products'], ['cart3','POS Checkout','#'],
+    ['arrow-repeat','Return & Damage','/staff/returns'], ['gear','Part Compatibility','/staff/compatibility'],
 ];
+$posRoutePrefix = $isAdmin ? 'admin.pos' : 'staff.pos';
+$activeIndex = $isAdmin ? 3 : 2;
 @endphp
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Staff POS Checkout | MotoSync</title>
+    <title>{{ $isAdmin ? 'Owner' : 'Staff' }} POS Checkout | MotoSync</title>
     <meta name="csrf-token" content="{{ csrf_token() }}">
     @vite(['resources/css/dashboard.css','resources/css/pos.css','resources/css/responsive.css','resources/js/dashboard.js','resources/js/pos.js'])
 </head>
@@ -17,25 +24,25 @@ $navigation = [
 <div class="dashboard-shell pos-shell">
     <aside class="sidebar" data-sidebar>
         <div class="sidebar-brand"><span class="logo-mark">M</span><div><strong>MotoSync</strong><small>Pareng RJJ Motorcycle Parts</small></div></div>
-        <nav class="nav-list" aria-label="Staff navigation">
+        <nav class="nav-list" aria-label="{{ $isAdmin ? 'Administrator' : 'Staff' }} navigation">
             @foreach($navigation as $index => $item)
-                <a class="nav-link {{ $index === 2 ? 'active' : '' }}" href="{{ $item[2] === '#' ? '#' : url($item[2]) }}"><span>{{ $item[0] }}</span><span>{{ $item[1] }}</span></a>
+                <a class="nav-link {{ $index === $activeIndex ? 'active' : '' }}" href="{{ $item[2] === '#' ? '#' : url($item[2]) }}"><span><i class="bi bi-{{ $item[0] }}" aria-hidden="true"></i></span><span>{{ $item[1] }}</span></a>
             @endforeach
         </nav>
         <div class="sidebar-user">
             <span class="avatar">{{ strtoupper(substr(auth()->user()->name,0,2)) }}</span>
-            <div><strong>{{ auth()->user()->name }}</strong><small>Staff</small></div>
-            <form method="POST" action="{{ request()->getBaseUrl() }}/logout">@csrf<button class="logout-button" type="submit" title="Log out">&#8618;</button></form>
+            <div><strong>{{ auth()->user()->name }}</strong><small>{{ $isAdmin ? 'Administrator' : 'Staff' }}</small></div>
+            <form method="POST" action="{{ request()->getBaseUrl() }}/logout">@csrf<button class="logout-button" type="submit" title="Log out"><i class="bi bi-box-arrow-right" aria-hidden="true"></i></button></form>
         </div>
     </aside>
 
     <main class="dashboard-main pos-main">
         <header class="topbar pos-topbar">
-            <button class="menu-button" type="button" data-menu aria-label="Toggle navigation">&#9776;</button>
+            <button class="menu-button" type="button" data-menu aria-label="Toggle navigation"><i class="bi bi-list" aria-hidden="true"></i></button>
             <div><p class="welcome">POS WORKSPACE</p><h1>POS Checkout</h1><p>Process orders, manage the cart, and complete payments.</p></div>
         </header>
 
-        <section class="pos-layout" data-pos-app data-products='@json($products)' data-held-orders='@json($heldOrders)' data-checkout-url="{{ route('staff.pos.checkout') }}" data-hold-url="{{ route('staff.pos.holds.store') }}">
+        <section class="pos-layout" data-pos-app data-products='@json($products)' data-held-orders='@json($heldOrders)' data-inventory-version="{{ $inventoryVersion }}" data-live-inventory-url="{{ route('inventory.live') }}" data-checkout-url="{{ route($posRoutePrefix.'.checkout') }}" data-hold-url="{{ route($posRoutePrefix.'.holds.store') }}">
             <div class="pos-catalog panel">
                 <div class="pos-catalog-head">
                     <div>
@@ -80,12 +87,11 @@ $navigation = [
                         <span>P</span>
                         <input type="number" min="0" max="9999999999.99" step="0.01" inputmode="decimal" placeholder="0.00" data-labor-amount aria-label="Optional labor charge">
                     </div>
-                    <small>Added after merchandise tax and recorded on the receipt.</small>
+                    <small>Added to the merchandise subtotal and recorded on the receipt.</small>
                 </label>
 
                 <div class="cart-summary">
                     <div class="summary-row"><span>Subtotal</span><span data-subtotal>P0.00</span></div>
-                    <div class="summary-row"><span>Tax (12%)</span><span data-tax>P0.00</span></div>
                     <div class="summary-row"><span>Labor</span><span data-labor-total>P0.00</span></div>
                     <div class="summary-row total"><span>Total</span><span data-total>P0.00</span></div>
                 </div>
@@ -144,7 +150,7 @@ $navigation = [
                             <td>{{ (int) $sale->units_count > 0 ? (int) $sale->units_count.' unit'.((int) $sale->units_count === 1 ? '' : 's') : 'Labor only' }}</td>
                             <td><span class="payment-pill">{{ ucfirst($sale->payment_method) }}</span></td>
                             <td><strong>P{{ number_format($sale->total_sale_amount, 2) }}</strong></td>
-                            <td><a class="receipt-link" href="{{ route('staff.pos.receipts.show', $sale) }}" target="_blank" rel="noopener">View receipt</a></td>
+                            <td><a class="receipt-link" href="{{ route($posRoutePrefix.'.receipts.show', $sale) }}" target="_blank" rel="noopener">View receipt</a></td>
                         </tr>
                     @empty
                         <tr data-empty-log><td colspan="7" class="empty-log">No completed checkouts yet.</td></tr>
@@ -175,7 +181,6 @@ $navigation = [
             <div class="receipt-preview-items" data-receipt-items></div>
             <div class="receipt-preview-totals">
                 <div><span>Subtotal</span><strong data-receipt-subtotal></strong></div>
-                <div><span>Tax (12%)</span><strong data-receipt-tax></strong></div>
                 <div data-receipt-labor-row><span>Labor</span><strong data-receipt-labor></strong></div>
                 <div class="receipt-preview-total"><span>Total paid</span><strong data-receipt-total></strong></div>
             </div>

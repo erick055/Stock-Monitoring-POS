@@ -27,6 +27,7 @@ class SupplierPriceController extends Controller
     {
         $productMatcher->linkUnmatchedPricesBySku();
 
+        $search = trim((string) $request->query('search'));
         $sort = (string) $request->query('sort', 'updated_desc');
         $sorts = [
             'updated_desc' => ['last_updated_at', 'desc'],
@@ -42,7 +43,18 @@ class SupplierPriceController extends Controller
             $sort = 'updated_desc';
         }
 
-        $pricesQuery = SupplierPrice::query()->with(['supplier', 'product']);
+        $pricesQuery = SupplierPrice::query()
+            ->with(['supplier', 'product'])
+            ->when($search, fn ($query) => $query->where(function ($query) use ($search) {
+                $query->where('product_name', 'like', "%{$search}%")
+                    ->orWhere('supplier_sku', 'like', "%{$search}%")
+                    ->orWhereHas('supplier', fn ($supplier) => $supplier->where('name', 'like', "%{$search}%"))
+                    ->orWhereHas('product', fn ($product) => $product
+                        ->where('name', 'like', "%{$search}%")
+                        ->orWhere('sku', 'like', "%{$search}%")
+                        ->orWhere('category', 'like', "%{$search}%")
+                        ->orWhere('manufacturer_part_number', 'like', "%{$search}%"));
+            }));
         if ($sort === 'supplier') {
             $pricesQuery->orderBy(
                 Supplier::query()->select('name')->whereColumn('suppliers.supplier_id', 'supplier_prices.supplier_id')
@@ -85,7 +97,7 @@ class SupplierPriceController extends Controller
             'stale' => $prices->filter(fn ($price) => $price->last_updated_at->lt(now()->subDays(30)))->count(),
         ];
 
-        return view('admin.suppliers', compact('prices', 'imports', 'selectedImport', 'importRows', 'summary', 'catalogProducts', 'sort'));
+        return view('admin.suppliers', compact('prices', 'imports', 'selectedImport', 'importRows', 'summary', 'catalogProducts', 'sort', 'search'));
     }
 
     public function upload(Request $request, SupplierSpreadsheetImporter $importer): RedirectResponse

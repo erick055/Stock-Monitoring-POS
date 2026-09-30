@@ -86,7 +86,7 @@ class DeadStockPageTest extends TestCase
             ->assertSee('Premium Exhaust')
             ->assertSee('₱4,000.00')
             ->assertSee('1 units / month')
-            ->assertSee('AI Dead Stock Score')
+            ->assertSee('Measured inventory risk score')
             ->assertSee('Dead Stock')
             ->assertSee('No POS sales recorded in the last 90 days')
             ->assertSee('Apply a targeted discount')

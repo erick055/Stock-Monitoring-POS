@@ -1,8 +1,8 @@
 @php
 $navigation = [
-    ['⌂','Dashboard','/admin/dashboard'], ['▣','Stock Management','/admin/inventory'], ['□','Products','/admin/products'],
-    ['⌁','Analytics','/admin/analytics'], ['!','Low Stock Alerts','/admin/low-stocks'], ['@','Dead Stock', '/admin/deadstock'],
-    ['◇','Returns & Damages','/admin/returns'], ['♙','Supplier Price','/admin/suppliers'], ['⚙','Part Compatibility','/admin/compatibility'], ['♟','Account Management','/admin/accounts'],
+    ['house-door','Dashboard','/admin/dashboard'], ['boxes','Stock Management','/admin/inventory'], ['box-seam','Products','/admin/products'], ['cart3','POS Checkout','/admin/pos'],
+    ['bar-chart-line','Analytics','/admin/analytics'], ['exclamation-triangle','Low Stock Alerts','/admin/low-stocks'], ['box2','Dead Stock', '/admin/deadstock'],
+    ['arrow-repeat','Returns & Damages','/admin/returns'], ['tags','Supplier Price','/admin/suppliers'], ['gear','Part Compatibility','/admin/compatibility'], ['people','Account Management','/admin/accounts'],
 ];
 @endphp
 <!DOCTYPE html>
@@ -19,19 +19,19 @@ $navigation = [
         <div class="sidebar-brand"><span class="logo-mark">M</span><div><strong>MotoSync</strong><small>Pareng RJJ Motorcycle Parts</small></div></div>
         <nav class="nav-list" aria-label="Administrator navigation">
             @foreach($navigation as $index => $item)
-                <a class="nav-link {{ $index === 3 ? 'active' : '' }}" href="{{ $item[2] === '#' ? '#' : url($item[2]) }}"><span>{{ $item[0] }}</span><span>{{ $item[1] }}</span></a>
+                <a class="nav-link {{ $index === 4 ? 'active' : '' }}" href="{{ $item[2] === '#' ? '#' : url($item[2]) }}"><span><i class="bi bi-{{ $item[0] }}" aria-hidden="true"></i></span><span>{{ $item[1] }}</span></a>
             @endforeach
         </nav>
         <div class="sidebar-user">
             <span class="avatar">{{ strtoupper(substr(auth()->user()->name,0,2)) }}</span>
             <div><strong>{{ auth()->user()->name }}</strong><small>Administrator</small></div>
-            <form method="POST" action="{{ request()->getBaseUrl() }}/logout">@csrf<button class="logout-button" type="submit" title="Log out">&#8618;</button></form>
+            <form method="POST" action="{{ request()->getBaseUrl() }}/logout">@csrf<button class="logout-button" type="submit" title="Log out"><i class="bi bi-box-arrow-right" aria-hidden="true"></i></button></form>
         </div>
     </aside>
 
     <main class="dashboard-main analytics-main">
         <header class="analytics-header">
-            <button class="menu-button" type="button" data-menu aria-label="Toggle navigation">&#9776;</button>
+            <button class="menu-button" type="button" data-menu aria-label="Toggle navigation"><i class="bi bi-list" aria-hidden="true"></i></button>
             <div>
                 <p class="welcome">CONNECTED TO POS</p>
                 <h1>Sales &amp; Analytics Dashboard</h1>
@@ -40,7 +40,7 @@ $navigation = [
             <div class="header-tools">
                 <span class="period-select">Live POS Data</span>
                 <div class="export-menu" data-export-menu>
-                    <button class="more-button" type="button" data-export-toggle aria-label="Export analytics data" aria-haspopup="menu" aria-expanded="false">&#8226;&#8226;&#8226;</button>
+                    <button class="more-button" type="button" data-export-toggle aria-label="Export analytics data" aria-haspopup="menu" aria-expanded="false"><i class="bi bi-three-dots" aria-hidden="true"></i></button>
                     <div class="export-options" data-export-options role="menu" hidden>
                         <div class="export-options-heading"><span>EXPORT DATA</span><small>{{ $chartPeriodLabel }} · {{ $chartRangeLabel }} and whole analytics report</small></div>
                         <a href="{{ route('admin.analytics.export', ['period' => $salesPeriod, 'range' => $periodRanges[$salesPeriod]]) }}" role="menuitem"><span class="export-icon excel">XLS</span><span><strong>Excel workbook</strong><small>Download all analytics worksheets</small></span></a>
@@ -48,6 +48,9 @@ $navigation = [
                 </div>
             </div>
         </header>
+
+        @if(session('success'))<div class="analytics-message success" role="status">{{ session('success') }}</div>@endif
+        @if(session('error'))<div class="analytics-message error" role="alert">{{ session('error') }}</div>@endif
 
         <section class="stat-grid analytics-stats" aria-label="Analytics summary">
             <article class="stat-card purple"><div class="stat-head"><span>TOTAL SALES</span><span class="trend-dot"></span></div><strong>₱{{ number_format($summary['total_sales'], 2) }}</strong><small>From completed POS sales</small></article>
@@ -60,7 +63,7 @@ $navigation = [
             <article class="panel analytics-panel">
                 <div class="section-heading">
                     <div><span class="section-kicker">BEST SELLERS</span><h2>Top POS Items</h2></div>
-                    <button type="button">&#8226;&#8226;&#8226;</button>
+                    <button type="button"><i class="bi bi-three-dots" aria-hidden="true"></i></button>
                 </div>
                 <div class="sales-list">
                     @forelse($bestSellers as $item)
@@ -75,7 +78,7 @@ $navigation = [
                 <div class="section-heading">
                     <div><span class="section-kicker">{{ strtoupper($chartPeriodLabel) }} VIEW · {{ strtoupper($chartRangeLabel) }}</span><h2>{{ $salesPeriod === 'year' ? 'Sales Month by Month' : 'Sales Day by Day' }}</h2></div>
                     <div class="chart-period-menu" data-chart-period-menu>
-                        <button class="chart-period-toggle" type="button" data-chart-period-toggle aria-label="Choose sales chart period" aria-haspopup="menu" aria-expanded="false">&#8226;&#8226;&#8226;</button>
+                        <button class="chart-period-toggle" type="button" data-chart-period-toggle aria-label="Choose sales chart period" aria-haspopup="menu" aria-expanded="false"><i class="bi bi-three-dots" aria-hidden="true"></i></button>
                         <div class="chart-period-options" data-chart-period-options role="menu" hidden>
                             <a href="{{ route('admin.analytics', ['period' => 'week', 'range' => $periodRanges['week']]) }}" role="menuitem" class="{{ $salesPeriod === 'week' ? 'is-active' : '' }}" @if($salesPeriod === 'week') aria-current="page" @endif><strong>Weekly view</strong><small>Choose a week · day by day</small></a>
                             <a href="{{ route('admin.analytics', ['period' => 'month', 'range' => $periodRanges['month']]) }}" role="menuitem" class="{{ $salesPeriod === 'month' ? 'is-active' : '' }}" @if($salesPeriod === 'month') aria-current="page" @endif><strong>Monthly view</strong><small>Choose a month · day by day</small></a>
@@ -175,8 +178,35 @@ $navigation = [
         </section>
 
         <section class="analytics-grid">
+            <article class="panel analytics-panel ai-demand-panel">
+                <div class="section-heading">
+                    <div><span class="section-kicker">GROQ AI FORECAST</span><h2>Future Product Demand</h2><small>Next 30 days · based on 12 weeks of paid POS history</small></div>
+                    <span class="ai-only-badge">AI only</span>
+                </div>
+                <form method="POST" action="{{ route('admin.analytics.demand-forecast') }}" class="ai-forecast-action">
+                    @csrf
+                    <p>Generate on demand to preserve the hosted API's free quota. Results remain cached for {{ config('groq.cache_hours') }} hours.</p>
+                    <button type="submit">{{ $aiDemandForecast['available'] ? 'Refresh AI forecast' : 'Generate AI forecast' }}</button>
+                </form>
+                @if($aiDemandForecast['available'])
+                    <p class="ai-forecast-summary">{{ $aiDemandForecast['summary'] }}</p>
+                    <div class="ai-forecast-list">
+                        @foreach($aiDemandForecast['items'] as $item)
+                            <article class="ai-forecast-item">
+                                <div><strong>{{ $item['name'] }}</strong><small>{{ $item['sku'] }} · {{ ucfirst($item['trend']) }} trend · {{ ucfirst($item['confidence']) }} confidence</small></div>
+                                <span><strong>{{ number_format($item['predicted_units']) }}</strong> predicted units</span>
+                                <p>{{ $item['rationale'] }}</p>
+                            </article>
+                        @endforeach
+                    </div>
+                    <p class="ai-forecast-meta">Generated {{ \Carbon\Carbon::parse($aiDemandForecast['generated_at'])->diffForHumans() }} by {{ $aiDemandForecast['model'] }}. Predictions are estimates, not recorded demand.</p>
+                @else
+                    <div class="empty-analytics"><strong>AI forecast unavailable.</strong><br>{{ $aiDemandForecast['message'] }}</div>
+                @endif
+            </article>
+
             <article class="panel analytics-panel">
-                <div class="section-heading"><div><span class="section-kicker">DEMAND</span><h2>Most Requested Items</h2></div><span class="period">Last 30 days</span></div>
+                <div class="section-heading"><div><span class="section-kicker">OBSERVED DEMAND</span><h2>Most Requested Items</h2></div><span class="period">Past 30 days · actual sales</span></div>
                 <div class="sales-list">
                     @forelse($demand as $item)
                         <div class="sales-item"><strong>{{ $item->name }}</strong><span>{{ number_format($item->demand_units) }} units demanded</span></div>
@@ -198,6 +228,24 @@ $navigation = [
                     <article class="flow-card violet"><small>Current Stock</small><strong>{{ number_format($stockFlow['current']) }} ITEMS</strong></article>
                 </div>
             </section>
+        </section>
+        <section class="panel analytics-panel slow-products-panel">
+            <div class="section-heading">
+                <div><span class="section-kicker">INVENTORY TURNOVER</span><h2><i class="bi bi-hourglass-split" aria-hidden="true"></i> Slow-Moving Products</h2><small>Based on paid sales over the last 30 and 90 days, stock levels, and inventory age.</small></div>
+                <a href="{{ route('admin.dead-stock', ['classification' => 'slow']) }}">Review products <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+            </div>
+            <div class="velocity-table-wrap">
+                <table class="velocity-table">
+                    <thead><tr><th>Product</th><th>Stock</th><th>30-Day Sales</th><th>Last Sale</th><th>Stock Cost</th><th>Recommendation</th></tr></thead>
+                    <tbody>
+                        @forelse($slowMovingProducts as $item)
+                            <tr><td><strong>{{ $item['name'] }}</strong><small>{{ $item['sku'] }}</small></td><td>{{ number_format($item['stock']) }}</td><td>{{ number_format($item['monthly_units']) }} units</td><td>{{ $item['last_sale'] }}</td><td>{{ $item['total_cost'] }}</td><td>{{ $item['recommendation'] }}</td></tr>
+                        @empty
+                            <tr><td colspan="6" class="empty-analytics">No slow-moving products detected. Dead stock is tracked separately on the Dead Stock page.</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
         </section>
     </main>
 </div>

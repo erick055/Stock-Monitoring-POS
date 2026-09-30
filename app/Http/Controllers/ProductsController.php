@@ -3,12 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\Product;
+use App\Services\InventoryLiveService;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class ProductsController extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request, InventoryLiveService $liveInventory): View
     {
         $search = trim((string) $request->query('search'));
         $category = trim((string) $request->query('category'));
@@ -67,7 +68,8 @@ class ProductsController extends Controller
         ];
 
         $view = $request->user()->role === 'admin' ? 'admin.products' : 'staff.products';
+        $inventoryVersion = $liveInventory->version();
 
-        return view($view, compact('products', 'categories', 'summary', 'search', 'category', 'sort'));
+        return view($view, compact('products', 'categories', 'summary', 'search', 'category', 'sort', 'inventoryVersion'));
     }
 }

@@ -15,6 +15,26 @@ class DashboardTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_quick_access_cards_have_valid_icons_and_destination_links(): void
+    {
+        foreach (['admin', 'staff'] as $role) {
+            $user = User::factory()->create(['role' => $role]);
+            $response = $this->actingAs($user)->get(route($role.'.dashboard'))->assertOk();
+            $document = new \DOMDocument;
+            @$document->loadHTML($response->getContent());
+            $xpath = new \DOMXPath($document);
+            $cards = $xpath->query('//a[@class="module-card"]');
+            $modules = $response->viewData('dashboard')['modules'];
+            $this->assertSame(count($modules), $cards->length);
+            foreach ($cards as $index => $card) {
+                $this->assertSame(url($modules[$index][3]), $card->getAttribute('href'));
+                $icons = $xpath->query('.//span[@class="module-icon"]/i', $card);
+                $this->assertSame(1, $icons->length);
+                $this->assertSame('bi bi-'.$modules[$index][0], $icons->item(0)->getAttribute('class'));
+            }
+        }
+    }
+
     public function test_admin_dashboard_uses_live_company_inventory_and_sales_data(): void
     {
         $admin = User::factory()->create(['role' => 'admin', 'name' => 'Admin Owner']);

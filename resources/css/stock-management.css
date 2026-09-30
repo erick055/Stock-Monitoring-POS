@@ -580,11 +580,6 @@ body.modal-open { overflow: hidden; }
     box-shadow: 0 15px 40px #000;
 }
 
-.nav-link {
-    padding-top: 7px;
-    padding-bottom: 7px;
-}
-
 @media (max-width: 900px) {
     .header-tools {
         margin-left: auto;

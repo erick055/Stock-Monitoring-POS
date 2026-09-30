@@ -7,8 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 class StockAlertSetting extends Model
 {
     protected $fillable = [
-        'email_enabled', 'sms_enabled', 'daily_summary_enabled',
-        'notification_email', 'notification_phone', 'daily_summary_time',
+        'email_enabled', 'daily_summary_enabled',
+        'notification_email', 'daily_summary_time',
         'last_daily_summary_at',
     ];
 
@@ -16,7 +16,6 @@ class StockAlertSetting extends Model
     {
         return [
             'email_enabled' => 'boolean',
-            'sms_enabled' => 'boolean',
             'daily_summary_enabled' => 'boolean',
             'last_daily_summary_at' => 'datetime',
         ];

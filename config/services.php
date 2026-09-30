@@ -35,21 +35,4 @@ return [
         ],
     ],
 
-    'sms' => [
-        'driver' => env('SMS_DRIVER', 'log'),
-        'twilio' => [
-            'account_sid' => env('TWILIO_ACCOUNT_SID'),
-            'auth_token' => env('TWILIO_AUTH_TOKEN'),
-            'from' => env('TWILIO_FROM_NUMBER'),
-        ],
-        'semaphore' => [
-            'api_key' => env('SEMAPHORE_API_KEY'),
-            'sender_name' => env('SEMAPHORE_SENDER_NAME'),
-        ],
-        'semaphore' => [
-            'api_key' => env('SEMAPHORE_API_KEY'),
-            'sender_name' => env('SEMAPHORE_SENDER_NAME'),
-        ],
-    ],
-
 ];

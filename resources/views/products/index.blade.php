@@ -1,12 +1,12 @@
 @php
 $isAdmin = auth()->user()->role === 'admin';
 $navigation = $isAdmin ? [
-    ['⌂','Dashboard','/admin/dashboard'], ['▣','Stock Management','/admin/inventory'], ['□','Products','/admin/products'],
-    ['⌁','Analytics','/admin/analytics'], ['!','Low Stock Alerts','/admin/low-stocks'], ['@','Dead Stock','/admin/deadstock'],
-    ['◇','Returns & Damages','/admin/returns'], ['♙','Supplier Price','/admin/suppliers'], ['⚙','Part Compatibility','/admin/compatibility'], ['♟','Account Management','/admin/accounts'],
+    ['house-door','Dashboard','/admin/dashboard'], ['boxes','Stock Management','/admin/inventory'], ['box-seam','Products','/admin/products'], ['cart3','POS Checkout','/admin/pos'],
+    ['bar-chart-line','Analytics','/admin/analytics'], ['exclamation-triangle','Low Stock Alerts','/admin/low-stocks'], ['box2','Dead Stock','/admin/deadstock'],
+    ['arrow-repeat','Returns & Damages','/admin/returns'], ['tags','Supplier Price','/admin/suppliers'], ['gear','Part Compatibility','/admin/compatibility'], ['people','Account Management','/admin/accounts'],
 ] : [
-    ['⌂','Dashboard','/staff/dashboard'], ['□','Products','/staff/products'],
-    ['▤','POS Checkout','/staff/pos'], ['◇','Return & Damage','/staff/returns'], ['⚙','Part Compatibility','/staff/compatibility'],
+    ['house-door','Dashboard','/staff/dashboard'], ['box-seam','Products','/staff/products'],
+    ['cart3','POS Checkout','/staff/pos'], ['arrow-repeat','Return & Damage','/staff/returns'], ['gear','Part Compatibility','/staff/compatibility'],
 ];
 $activeIndex = $isAdmin ? 2 : 1;
 $productDetailRecords = [];
@@ -19,25 +19,25 @@ $productDetailRecords = [];
     <title>Products | MotoSync</title>
     @vite(['resources/css/dashboard.css','resources/css/products.css','resources/css/sorting-controls.css','resources/css/responsive.css','resources/js/dashboard.js','resources/js/products.js'])
 </head>
-<body>
+<body data-live-inventory-page data-live-inventory-url="{{ route('inventory.live') }}" data-inventory-version="{{ $inventoryVersion }}">
 <div class="dashboard-shell products-shell">
     <aside class="sidebar" data-sidebar>
         <div class="sidebar-brand"><span class="logo-mark">M</span><div><strong>MotoSync</strong><small>Pareng RJJ Motorcycle Parts</small></div></div>
         <nav class="nav-list" aria-label="{{ $isAdmin ? 'Administrator' : 'Staff' }} navigation">
             @foreach($navigation as $index => $item)
-                <a class="nav-link {{ $index === $activeIndex ? 'active' : '' }}" href="{{ $item[2] === '#' ? '#' : url($item[2]) }}"><span>{{ $item[0] }}</span><span>{{ $item[1] }}</span></a>
+                <a class="nav-link {{ $index === $activeIndex ? 'active' : '' }}" href="{{ $item[2] === '#' ? '#' : url($item[2]) }}"><span><i class="bi bi-{{ $item[0] }}" aria-hidden="true"></i></span><span>{{ $item[1] }}</span></a>
             @endforeach
         </nav>
         <div class="sidebar-user">
             <span class="avatar">{{ strtoupper(substr(auth()->user()->name, 0, 2)) }}</span>
             <div><strong>{{ auth()->user()->name }}</strong><small>{{ $isAdmin ? 'Administrator' : 'Staff' }}</small></div>
-            <form method="POST" action="{{ route('logout') }}">@csrf<button class="logout-button" type="submit" title="Log out">&#8618;</button></form>
+            <form method="POST" action="{{ route('logout') }}">@csrf<button class="logout-button" type="submit" title="Log out"><i class="bi bi-box-arrow-right" aria-hidden="true"></i></button></form>
         </div>
     </aside>
 
     <main class="dashboard-main products-main">
         <header class="products-header">
-            <button class="menu-button" type="button" data-menu aria-label="Toggle navigation">&#9776;</button>
+            <button class="menu-button" type="button" data-menu aria-label="Toggle navigation"><i class="bi bi-list" aria-hidden="true"></i></button>
             <div><p class="welcome">READ-ONLY CATALOG</p><h1>Products</h1><p>View product information, pricing, and current inventory balances.</p></div>
             <span class="read-only-badge">View only</span>
         </header>
@@ -145,7 +145,7 @@ $productDetailRecords = [];
 
 @foreach($productDetailRecords as $detail)
     <section class="product-details" id="product-details-{{ $detail['id'] }}" popover aria-labelledby="product-details-title-{{ $detail['id'] }}">
-        <header><div><span class="section-kicker">READ-ONLY PRODUCT RECORD</span><h2 id="product-details-title-{{ $detail['id'] }}">{{ $detail['name'] }}</h2></div><button type="button" popovertarget="product-details-{{ $detail['id'] }}" popovertargetaction="hide" aria-label="Close">×</button></header>
+        <header><div><span class="section-kicker">READ-ONLY PRODUCT RECORD</span><h2 id="product-details-title-{{ $detail['id'] }}">{{ $detail['name'] }}</h2></div><button type="button" popovertarget="product-details-{{ $detail['id'] }}" popovertargetaction="hide" aria-label="Close"><i class="bi bi-x-lg" aria-hidden="true"></i></button></header>
         <div class="details-grid">
             <h3 class="details-section">Product identification</h3>
             <div><small>Product ID</small><strong>#{{ $detail['id'] }}</strong></div><div><small>SKU</small><strong>{{ $detail['sku'] }}</strong></div>

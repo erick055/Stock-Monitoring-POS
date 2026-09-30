@@ -94,17 +94,10 @@ class LowStocksController extends Controller
         if (! $settings->notification_email) {
             $settings->update(['notification_email' => $request->user()->email]);
         }
-        $deliveries = StockAlertDelivery::query()->latest()->limit(20)->get();
-        $smsStatus = match (config('services.sms.driver')) {
-            'twilio' => config('services.sms.twilio.account_sid') && config('services.sms.twilio.auth_token') && config('services.sms.twilio.from')
-                ? 'Twilio configured' : 'Twilio credentials missing',
-            'semaphore' => config('services.sms.semaphore.api_key') && config('services.sms.semaphore.sender_name')
-                ? 'Semaphore configured' : 'Semaphore credentials missing',
-            default => 'Not configured — local log only, no phone delivery',
-        };
+        $deliveries = StockAlertDelivery::query()->where('channel', 'email')->latest()->limit(20)->get();
 
         return view('admin.low-stocks', compact(
-            'summary', 'activeAlerts', 'fastMoving', 'settings', 'deliveries', 'smsStatus',
+            'summary', 'activeAlerts', 'fastMoving', 'settings', 'deliveries',
             'search', 'status', 'perPage'
         ));
     }
@@ -113,10 +106,8 @@ class LowStocksController extends Controller
     {
         $validated = $request->validate([
             'email_enabled' => ['required', 'boolean'],
-            'sms_enabled' => ['required', 'boolean'],
             'daily_summary_enabled' => ['required', 'boolean'],
             'notification_email' => ['nullable', 'required_if:email_enabled,1', 'required_if:daily_summary_enabled,1', 'email', 'max:255'],
-            'notification_phone' => ['nullable', 'required_if:sms_enabled,1', 'regex:/^\+?[0-9][0-9\s\-]{7,24}$/'],
             'daily_summary_time' => ['required', 'date_format:H:i'],
         ]);
 

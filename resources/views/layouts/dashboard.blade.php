@@ -12,19 +12,19 @@
         <div class="sidebar-brand"><span class="logo-mark">M</span><div><strong>MotoSync</strong><small>Pareng RJJ Motorcycle Parts</small></div></div>
         <nav class="nav-list" aria-label="{{ $dashboard['role_name'] }} navigation">
             @foreach($dashboard['navigation'] as $index => $item)
-                <a class="nav-link {{ $index === 0 ? 'active' : '' }}" href="{{ $item[2] === '#' ? '#' : url($item[2]) }}"><span>{{ $item[0] }}</span><span>{{ $item[1] }}</span></a>
+                <a class="nav-link {{ $index === 0 ? 'active' : '' }}" href="{{ $item[2] === '#' ? '#' : url($item[2]) }}"><span><i class="bi bi-{{ $item[0] }}" aria-hidden="true"></i></span><span>{{ $item[1] }}</span></a>
             @endforeach
         </nav>
         <div class="sidebar-user">
             <span class="avatar">{{ $dashboard['initials'] }}</span>
             <div><strong>{{ $dashboard['display_name'] }}</strong><small>{{ $dashboard['role_name'] }}</small></div>
-            <form method="POST" action="{{ request()->getBaseUrl() }}/logout">@csrf<button class="logout-button" type="submit" title="Log out">&#8618;</button></form>
+            <form method="POST" action="{{ request()->getBaseUrl() }}/logout">@csrf<button class="logout-button" type="submit" title="Log out"><i class="bi bi-box-arrow-right" aria-hidden="true"></i></button></form>
         </div>
     </aside>
 
     <main class="dashboard-main">
         <header class="topbar">
-            <button class="menu-button" type="button" data-menu aria-label="Toggle navigation">&#9776;</button>
+            <button class="menu-button" type="button" data-menu aria-label="Toggle navigation"><i class="bi bi-list" aria-hidden="true"></i></button>
             <div><p class="welcome">Welcome back, {{ $dashboard['first_name'] }}</p><h1>{{ $dashboard['role_name'] }} Dashboard</h1><p>{{ $dashboard['description'] }}</p></div>
             <div class="top-actions">
                 <span class="live-status"><i></i> Live <small>Updated {{ $dashboard['updated_at']->format('h:i A') }}</small></span>
@@ -44,10 +44,14 @@
         </section>
 
         <section class="panel modules-panel">
-            <div class="section-heading"><div><span class="section-kicker">QUICK ACCESS</span><h2>{{ $dashboard['modules_title'] }}</h2></div><button type="button">&#8226;&#8226;&#8226;</button></div>
+            <div class="section-heading"><div><span class="section-kicker">QUICK ACCESS</span><h2>{{ $dashboard['modules_title'] }}</h2></div><button type="button"><i class="bi bi-three-dots" aria-hidden="true"></i></button></div>
             <div class="module-grid">
                 @foreach($dashboard['modules'] as $module)
-                    <a class="module-card" href="{{ url($module[3]) }}"><span class="module-icon">{{ $module[0] }}</span><div><strong>{{ $module[1] }}</strong><small>{{ $module[2] }}</small></div><span class="arrow">&#8594;</span></a>
+                    <a class="module-card" href="{{ url($module[3]) }}">
+                        <span class="module-icon"><i class="bi bi-{{ $module[0] }}" aria-hidden="true"></i></span>
+                        <div><strong>{{ $module[1] }}</strong><small>{{ $module[2] }}</small></div>
+                        <span class="arrow"><i class="bi bi-arrow-right" aria-hidden="true"></i></span>
+                    </a>
                 @endforeach
             </div>
         </section>

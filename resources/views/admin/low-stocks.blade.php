@@ -1,8 +1,8 @@
 @php
 $navigation = [
-    ['⌂','Dashboard','/admin/dashboard'], ['▣','Stock Management','/admin/inventory'], ['□','Products','/admin/products'],
-    ['⌁','Analytics','/admin/analytics'], ['!','Low Stock Alerts','/admin/low-stocks'], ['@','Dead Stock', '/admin/deadstock'],
-    ['◇','Returns & Damages','/admin/returns'], ['♙','Supplier Price','/admin/suppliers'], ['⚙','Part Compatibility','/admin/compatibility'], ['♟','Account Management','/admin/accounts'],
+    ['house-door','Dashboard','/admin/dashboard'], ['boxes','Stock Management','/admin/inventory'], ['box-seam','Products','/admin/products'], ['cart3','POS Checkout','/admin/pos'],
+    ['bar-chart-line','Analytics','/admin/analytics'], ['exclamation-triangle','Low Stock Alerts','/admin/low-stocks'], ['box2','Dead Stock', '/admin/deadstock'],
+    ['arrow-repeat','Returns & Damages','/admin/returns'], ['tags','Supplier Price','/admin/suppliers'], ['gear','Part Compatibility','/admin/compatibility'], ['people','Account Management','/admin/accounts'],
 ];
 @endphp
 <!DOCTYPE html>
@@ -19,19 +19,19 @@ $navigation = [
         <div class="sidebar-brand"><span class="logo-mark">M</span><div><strong>MotoSync</strong><small>Pareng RJJ Motorcycle Parts</small></div></div>
         <nav class="nav-list" aria-label="Administrator navigation">
             @foreach($navigation as $index => $item)
-                <a class="nav-link {{ $index === 4 ? 'active' : '' }}" href="{{ $item[2] === '#' ? '#' : url($item[2]) }}"><span>{{ $item[0] }}</span><span>{{ $item[1] }}</span></a>
+                <a class="nav-link {{ $index === 5 ? 'active' : '' }}" href="{{ $item[2] === '#' ? '#' : url($item[2]) }}"><span><i class="bi bi-{{ $item[0] }}" aria-hidden="true"></i></span><span>{{ $item[1] }}</span></a>
             @endforeach
         </nav>
         <div class="sidebar-user">
             <span class="avatar">{{ strtoupper(substr(auth()->user()->name,0,2)) }}</span>
             <div><strong>{{ auth()->user()->name }}</strong><small>Administrator</small></div>
-            <form method="POST" action="{{ request()->getBaseUrl() }}/logout">@csrf<button class="logout-button" type="submit" title="Log out">&#8618;</button></form>
+            <form method="POST" action="{{ request()->getBaseUrl() }}/logout">@csrf<button class="logout-button" type="submit" title="Log out"><i class="bi bi-box-arrow-right" aria-hidden="true"></i></button></form>
         </div>
     </aside>
 
     <main class="dashboard-main alerts-main">
         <header class="alerts-header">
-            <button class="menu-button" type="button" data-menu aria-label="Toggle navigation">&#9776;</button>
+            <button class="menu-button" type="button" data-menu aria-label="Toggle navigation"><i class="bi bi-list" aria-hidden="true"></i></button>
             <div>
                 <p class="welcome">LIVE INVENTORY ALERTS</p>
                 <h1>Stock Alerts and Monitoring</h1>
@@ -109,7 +109,7 @@ $navigation = [
         <section class="panel settings-panel">
             <div class="section-heading">
                 <div><span class="section-kicker">NOTIFICATION CONTROL</span><h2>Alert Settings</h2></div>
-                <form method="POST" action="{{ route('admin.low-stocks.run-now') }}">@csrf<button class="check-button" type="submit"><span aria-hidden="true">⚡</span> Run alert check now</button></form>
+                <form method="POST" action="{{ route('admin.low-stocks.run-now') }}">@csrf<button class="check-button" type="submit"><span aria-hidden="true"><i class="bi bi-lightning-charge"></i></span> Run alert check now</button></form>
             </div>
             <form class="notification-settings" method="POST" action="{{ route('admin.low-stocks.settings') }}">
                 @csrf
@@ -119,17 +119,12 @@ $navigation = [
                         <input type="hidden" name="email_enabled" value="0"><input name="email_enabled" value="1" type="checkbox" @checked($settings->email_enabled)>
                     </label>
                     <label class="setting-card">
-                        <span>SMS Alerts</span><small>{{ $smsStatus }}</small>
-                        <input type="hidden" name="sms_enabled" value="0"><input name="sms_enabled" value="1" type="checkbox" @checked($settings->sms_enabled)>
-                    </label>
-                    <label class="setting-card">
                         <span>Daily Summary</span><small>Email one consolidated report each day</small>
                         <input type="hidden" name="daily_summary_enabled" value="0"><input name="daily_summary_enabled" value="1" type="checkbox" @checked($settings->daily_summary_enabled)>
                     </label>
                 </div>
                 <div class="notification-destinations">
                     <label>Email destination<input name="notification_email" type="email" value="{{ old('notification_email', $settings->notification_email) }}" placeholder="owner@example.com"></label>
-                    <label>SMS destination<input name="notification_phone" type="tel" value="{{ old('notification_phone', $settings->notification_phone) }}" placeholder="+639171234567"></label>
                     <label>Daily summary time<input name="daily_summary_time" type="time" value="{{ old('daily_summary_time', $settings->daily_summary_time) }}" required></label>
                     <button class="apply-button" type="submit">Save settings</button>
                 </div>

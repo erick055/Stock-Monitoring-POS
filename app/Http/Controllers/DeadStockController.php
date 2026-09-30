@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Product;
+use App\Models\DeadStockMlModel;
+use App\Models\DeadStockMlPrediction;
 use App\Models\ProductPromotion;
 use App\Models\SalesItem;
 use Illuminate\Http\RedirectResponse;
@@ -12,11 +14,21 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use App\Services\DeadStockMachineLearning;
+use RuntimeException;
 
 class DeadStockController extends Controller
 {
     public function index(Request $request): View
     {
+        // Check history once an hour; insufficient history stays an honest empty state.
+        if (\Illuminate\Support\Facades\Cache::add('dead-stock-ml:auto-refresh', true, now()->addHour())) {
+            try {
+                app(DeadStockMachineLearning::class)->trainAndPredict();
+            } catch (RuntimeException $exception) {
+                // Existing predictions remain available while more history is collected.
+            }
+        }
         $search = trim((string) $request->query('search'));
         $classification = (string) $request->query('classification', 'all');
         $status = in_array((string) $request->query('status', 'queue'), ['queue', 'archived'], true)
@@ -35,13 +47,25 @@ class DeadStockController extends Controller
         $salesLastThirtyDays = $this->soldUnitsByProduct(30);
         $latestSales = $this->latestSaleByProduct();
 
+        $mlPredictions = DeadStockMlPrediction::query()->get()->keyBy('product_id');
+        $latestMlModel = DeadStockMlModel::query()->latest('trained_at')->first();
         $scoredProducts = $products
-            ->map(fn (Product $product) => $this->scoreProduct(
+            ->map(function (Product $product) use ($salesLastThirtyDays, $salesLastNinetyDays, $latestSales, $mlPredictions) {
+                $item = $this->scoreProduct(
                 $product,
                 (int) ($salesLastThirtyDays[$product->product_id] ?? 0),
                 (int) ($salesLastNinetyDays[$product->product_id] ?? 0),
                 $latestSales[$product->product_id] ?? null
-            ))
+                );
+                $prediction = $mlPredictions->get($product->product_id);
+                $item['ml_prediction'] = $prediction ? [
+                    'probability' => (float) $prediction->stagnation_probability,
+                    'classification' => $prediction->classification,
+                    'factors' => $prediction->factors,
+                    'predicted_at' => $prediction->predicted_at,
+                ] : null;
+                return $item;
+            })
             ->sortByDesc('score')
             ->values();
 
@@ -55,8 +79,8 @@ class DeadStockController extends Controller
         $trappedCapital = $deadStockItems->sum('total_cost_raw') + $slowMovingItems->sum('total_cost_raw');
 
         $summary = [
-            ['DEAD STOCK ITEM', number_format($deadStockItems->count()), 'AI score 70-100 / high risk', 'purple'],
-            ['SLOW MOVING', number_format($slowMovingItems->count()), 'AI score 40-69 / monitor', 'violet'],
+            ['DEAD STOCK ITEM', number_format($deadStockItems->count()), 'Measured score 70-100 / high risk', 'purple'],
+            ['SLOW MOVING', number_format($slowMovingItems->count()), 'Measured score 40-69 / monitor', 'violet'],
             ['TRAPPED CAPITAL', '₱' . number_format($trappedCapital, 2), 'Estimated value tied to idle stock', 'orange'],
             ['ARCHIVED', number_format($archivedProducts->count()), 'Hidden from the active recovery queue', 'cyan'],
         ];
@@ -88,6 +112,19 @@ class DeadStockController extends Controller
             ->orderBy('name')
             ->get(['product_id', 'sku', 'name', 'current_stock']);
 
+        $outlookItems = $scoredProducts
+            ->filter(fn (array $item) => $item['stock'] > 0)
+            ->when($search, fn ($items) => $items->filter(fn (array $item) => str_contains(
+                mb_strtolower($item['name'].' '.$item['sku']), mb_strtolower($search)
+            )))
+            ->sortByDesc(fn (array $item) => $item['ml_prediction']['probability'] ?? -1)
+            ->values();
+        $outlookItems = new LengthAwarePaginator(
+            $outlookItems->forPage(LengthAwarePaginator::resolveCurrentPage('outlook_page'), $perPage)->values(),
+            $outlookItems->count(), $perPage, LengthAwarePaginator::resolveCurrentPage('outlook_page'),
+            ['path' => $request->url(), 'query' => $request->query(), 'pageName' => 'outlook_page']
+        );
+
         return view('admin.dead-stock', compact(
             'summary',
             'deadStockItems',
@@ -99,8 +136,20 @@ class DeadStockController extends Controller
             'classification',
             'status',
             'perPage',
-            'bundleProducts'
+            'bundleProducts',
+            'latestMlModel',
+            'outlookItems'
         ));
+    }
+
+    public function trainModel(DeadStockMachineLearning $ml): RedirectResponse
+    {
+        try {
+            $result = $ml->trainAndPredict();
+            return back()->with('success', "ML model trained from {$result['model']->training_samples} historical snapshots and refreshed {$result['predictions']} predictions.");
+        } catch (RuntimeException $exception) {
+            return back()->withErrors(['ml' => $exception->getMessage()]);
+        }
     }
 
     public function applyPromotion(Request $request, Product $product): RedirectResponse
@@ -247,7 +296,7 @@ class DeadStockController extends Controller
             ->all();
     }
 
-    private function scoreProduct(Product $product, int $monthlyUnits, int $quarterUnits, ?string $latestSale): array
+    public function scoreProduct(Product $product, int $monthlyUnits, int $quarterUnits, ?string $latestSale): array
     {
         $totalCost = (float) $product->unit_cost * (int) $product->current_stock;
         $inventoryAgeDays = max(0, (int) $product->created_at?->diffInDays(now()));
@@ -347,20 +396,20 @@ class DeadStockController extends Controller
     private function buildRecommendations($deadStockItems, $slowMovingItems): array
     {
         if ($deadStockItems->isEmpty() && $slowMovingItems->isEmpty()) {
-            return ['AI scan result: inventory movement looks healthy. Continue monitoring POS sales and stock aging weekly.'];
+            return ['Measured scan result: inventory movement looks healthy. Continue monitoring POS sales and stock aging weekly.'];
         }
 
         $recommendations = [];
 
         if ($deadStockItems->isNotEmpty()) {
             $topDeadStock = $deadStockItems->first();
-            $recommendations[] = "AI priority: {$topDeadStock['name']} has a {$topDeadStock['score']}/100 dead-stock risk score. {$topDeadStock['recommendation']}";
+            $recommendations[] = "Rule-based priority: {$topDeadStock['name']} has a {$topDeadStock['score']}/100 dead-stock risk score. {$topDeadStock['recommendation']}";
             $recommendations[] = 'Pause reordering for SKUs classified as Dead Stock until existing inventory is reduced.';
         }
 
         if ($slowMovingItems->isNotEmpty()) {
             $topSlowMoving = $slowMovingItems->first();
-            $recommendations[] = "AI monitor: {$topSlowMoving['name']} is slow moving at {$topSlowMoving['velocity']}. {$topSlowMoving['recommendation']}";
+            $recommendations[] = "Rule-based monitor: {$topSlowMoving['name']} is slow moving at {$topSlowMoving['velocity']}. {$topSlowMoving['recommendation']}";
         }
 
         $recommendations[] = 'Use POS sales history weekly to validate if the recovery action improves turnover.';

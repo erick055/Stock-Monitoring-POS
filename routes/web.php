@@ -11,6 +11,7 @@ use App\Http\Controllers\CompatibilityController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DeadStockController;
 use App\Http\Controllers\LowStocksController;
+use App\Http\Controllers\InventoryLiveController;
 use App\Http\Controllers\PosController;
 use App\Http\Controllers\ProductsController;
 use App\Http\Controllers\ReturnsController;
@@ -57,6 +58,7 @@ Route::middleware('auth')->group(function () {
 
         return back()->with('status', 'verification-link-sent');
     })->middleware('throttle:6,1')->name('verification.send');
+    Route::get('/inventory/live', InventoryLiveController::class)->middleware(['verified', 'throttle:120,1'])->name('inventory.live');
 });
 
 Route::middleware(['auth', 'verified', 'role:admin'])->group(function () {
@@ -72,12 +74,24 @@ Route::middleware(['auth', 'verified', 'role:admin'])->group(function () {
     Route::delete('/admin/inventory/products/{product}', [StockManagementController::class, 'destroyProduct'])->middleware('throttle:5,1')->name('admin.inventory.products.destroy');
     Route::post('/admin/inventory/movements', [StockManagementController::class, 'storeMovement'])->name('admin.inventory.movements.store');
     Route::get('/admin/products', [ProductsController::class, 'index'])->name('admin.products');
+    Route::get('/admin/pos', [PosController::class, 'index'])->name('admin.pos');
+    Route::post('/admin/pos/checkout', [PosController::class, 'store'])->name('admin.pos.checkout');
+    Route::post('/admin/pos/holds', [PosController::class, 'storeHold'])->name('admin.pos.holds.store');
+    Route::delete('/admin/pos/holds/{heldOrder}', [PosController::class, 'cancelHold'])->name('admin.pos.holds.cancel');
+    Route::get('/admin/pos/receipts/{sale}', [PosController::class, 'showReceipt'])->name('admin.pos.receipts.show');
+    Route::get('/admin/pos', [PosController::class, 'index'])->name('admin.pos');
+    Route::post('/admin/pos/checkout', [PosController::class, 'store'])->name('admin.pos.checkout');
+    Route::post('/admin/pos/holds', [PosController::class, 'storeHold'])->name('admin.pos.holds.store');
+    Route::delete('/admin/pos/holds/{heldOrder}', [PosController::class, 'cancelHold'])->name('admin.pos.holds.cancel');
+    Route::get('/admin/pos/receipts/{sale}', [PosController::class, 'showReceipt'])->name('admin.pos.receipts.show');
     Route::get('/admin/analytics', [AnalyticsController::class, 'index'])->name('admin.analytics');
+    Route::post('/admin/analytics/demand-forecast', [AnalyticsController::class, 'generateDemandForecast'])->middleware('throttle:3,1')->name('admin.analytics.demand-forecast');
     Route::get('/admin/analytics/export/excel', [AnalyticsController::class, 'export'])->middleware('throttle:10,1')->name('admin.analytics.export');
     Route::get('/admin/low-stocks', [LowStocksController::class, 'index'])->name('admin.low-stocks');
     Route::post('/admin/low-stocks/settings', [LowStocksController::class, 'updateSettings'])->name('admin.low-stocks.settings');
     Route::post('/admin/low-stocks/run-now', [LowStocksController::class, 'runNow'])->name('admin.low-stocks.run-now');
     Route::get('/admin/deadstock', [DeadStockController::class, 'index'])->name('admin.dead-stock');
+    Route::post('/admin/dead-stock/train-model', [DeadStockController::class, 'trainModel'])->middleware('throttle:2,10')->name('admin.dead-stock.train-model');
     Route::get('/admin/dead-stock', [DeadStockController::class, 'index']);
     Route::post('/admin/dead-stock/{product}/promotions', [DeadStockController::class, 'applyPromotion'])->name('admin.dead-stock.promotions.apply');
     Route::delete('/admin/dead-stock/{product}/promotions', [DeadStockController::class, 'endPromotion'])->name('admin.dead-stock.promotions.end');

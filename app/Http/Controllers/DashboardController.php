@@ -30,9 +30,9 @@ class DashboardController extends Controller
         $dashboard = [
             ...$this->identity($user, 'Administrator', 'Monitor live inventory, POS sales, alerts, and business operations.'),
             'navigation' => [
-                ['⌂', 'Dashboard', '#'], ['▣', 'Stock Management', '/admin/inventory'], ['□', 'Products', '/admin/products'],
-                ['⌁', 'Analytics', '/admin/analytics'], ['!', 'Low Stock Alerts', '/admin/low-stocks'], ['@', 'Dead Stock', '/admin/deadstock'],
-                ['◇', 'Returns & Damages', '/admin/returns'], ['♙', 'Supplier Price', '/admin/suppliers'], ['⚙', 'Part Compatibility', '/admin/compatibility'], ['♟', 'Account Management', '/admin/accounts'],
+                ['house-door', 'Dashboard', '#'], ['boxes', 'Stock Management', '/admin/inventory'], ['box-seam', 'Products', '/admin/products'], ['cart3', 'POS Checkout', '/admin/pos'],
+                ['bar-chart-line', 'Analytics', '/admin/analytics'], ['exclamation-triangle', 'Low Stock Alerts', '/admin/low-stocks'], ['box2', 'Dead Stock', '/admin/deadstock'],
+                ['arrow-repeat', 'Returns & Damages', '/admin/returns'], ['tags', 'Supplier Price', '/admin/suppliers'], ['gear', 'Part Compatibility', '/admin/compatibility'], ['people', 'Account Management', '/admin/accounts'],
             ],
             'stats' => [
                 ['TOTAL PRODUCTS', number_format($products->count()), $products->filter(fn (Product $product) => $product->created_at?->isCurrentMonth())->count().' added this month', 'purple'],
@@ -42,15 +42,15 @@ class DashboardController extends Controller
             ],
             'modules_title' => 'System Modules',
             'modules' => [
-                ['▣', 'Stock Management', number_format($products->sum('current_stock')).' units currently recorded', '/admin/inventory'],
-                ['□', 'Product Catalog', number_format($products->count()).' active products', '/admin/products'],
-                ['⌁', 'Data Analytics', '₱'.number_format($monthSales, 2).' sales this month', '/admin/analytics'],
-                ['!', 'Low Stock Alerts', number_format($lowStock->count()).' products need attention', '/admin/low-stocks'],
-                ['◉', 'Dead Stock Detection', 'Review inventory unlikely to sell', '/admin/deadstock'],
-                ['◇', 'Returns & Damages', CustomerReturn::whereDate('returned_at', today())->count().' return(s) today', '/admin/returns'],
-                ['♧', 'Supplier Price', 'Import and compare supplier pricing', '/admin/suppliers'],
-                ['⚙', 'Part Compatibility', 'Search current inventory with AI', '/admin/compatibility'],
-                ['♟', 'Account Management', User::where('role', 'staff')->where('account_status', 'pending')->count().' registration(s) pending approval', '/admin/accounts'],
+                ['boxes', 'Stock Management', number_format($products->sum('current_stock')).' units currently recorded', '/admin/inventory'],
+                ['box-seam', 'Product Catalog', number_format($products->count()).' active products', '/admin/products'],
+                ['bar-chart-line', 'Data Analytics', '₱'.number_format($monthSales, 2).' sales this month', '/admin/analytics'],
+                ['exclamation-triangle', 'Low Stock Alerts', number_format($lowStock->count()).' products need attention', '/admin/low-stocks'],
+                ['box2', 'Dead Stock Detection', 'Review inventory unlikely to sell', '/admin/deadstock'],
+                ['arrow-repeat', 'Returns & Damages', CustomerReturn::whereDate('returned_at', today())->count().' return(s) today', '/admin/returns'],
+                ['tags', 'Supplier Price', 'Import and compare supplier pricing', '/admin/suppliers'],
+                ['gear', 'Part Compatibility', 'Search current inventory with AI', '/admin/compatibility'],
+                ['people', 'Account Management', User::where('role', 'staff')->where('account_status', 'pending')->count().' registration(s) pending approval', '/admin/accounts'],
             ],
             'chart_kicker' => 'PERFORMANCE',
             'chart_title' => 'Sales — Last 7 Days',
@@ -78,8 +78,8 @@ class DashboardController extends Controller
         $dashboard = [
             ...$this->identity($user, 'Staff', 'Track your live shift sales, orders, and inventory work.'),
             'navigation' => [
-                ['⌂', 'Dashboard', '#'], ['□', 'Products', '/staff/products'],
-                ['▤', 'POS Checkout', '/staff/pos'], ['◇', 'Return & Damage', '/staff/returns'], ['⚙', 'Part Compatibility', '/staff/compatibility'],
+                ['house-door', 'Dashboard', '#'], ['box-seam', 'Products', '/staff/products'],
+                ['cart3', 'POS Checkout', '/staff/pos'], ['arrow-repeat', 'Return & Damage', '/staff/returns'], ['gear', 'Part Compatibility', '/staff/compatibility'],
             ],
             'stats' => [
                 ['MY SALES TODAY', '₱'.number_format($todayRevenue, 2), number_format($todayTransactions).' completed transaction(s)', 'cyan'],
@@ -89,10 +89,10 @@ class DashboardController extends Controller
             ],
             'modules_title' => 'My Work Modules',
             'modules' => [
-                ['▤', 'POS Checkout', number_format($heldCount).' held order(s) waiting', '/staff/pos'],
-                ['□', 'Product Catalog', 'View current products and stock levels', '/staff/products'],
-                ['◇', 'Return & Damage', CustomerReturn::where('user_id', $user->id)->whereDate('returned_at', today())->count().' return(s) handled today', '/staff/returns'],
-                ['⚙', 'Part Compatibility', 'Search available inventory with AI', '/staff/compatibility'],
+                ['cart3', 'POS Checkout', number_format($heldCount).' held order(s) waiting', '/staff/pos'],
+                ['box-seam', 'Product Catalog', 'View current products and stock levels', '/staff/products'],
+                ['arrow-repeat', 'Return & Damage', CustomerReturn::where('user_id', $user->id)->whereDate('returned_at', today())->count().' return(s) handled today', '/staff/returns'],
+                ['gear', 'Part Compatibility', 'Search available inventory with AI', '/staff/compatibility'],
             ],
             'chart_kicker' => 'MY PERFORMANCE',
             'chart_title' => 'My Sales — Last 7 Days',

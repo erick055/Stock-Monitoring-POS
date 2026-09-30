@@ -1,19 +1,20 @@
 @php
 $isAdmin = auth()->user()->role === 'admin';
 $navigation = $isAdmin ? [
-    ['⌂','Dashboard','/admin/dashboard'], ['▣','Stock Management','/admin/inventory'], ['□','Products','/admin/products'],
-    ['⌁','Analytics','/admin/analytics'], ['!','Low Stock Alerts','/admin/low-stocks'], ['◎','Dead Stock','/admin/deadstock'],
-    ['◇','Returns & Damages','/admin/returns'], ['♙','Supplier Price','/admin/suppliers'], ['⚙','Part Compatibility','#'], ['♟','Account Management','/admin/accounts'],
+    ['house-door','Dashboard','/admin/dashboard'], ['boxes','Stock Management','/admin/inventory'], ['box-seam','Products','/admin/products'], ['cart3','POS Checkout','/admin/pos'],
+    ['bar-chart-line','Analytics','/admin/analytics'], ['exclamation-triangle','Low Stock Alerts','/admin/low-stocks'], ['box2','Dead Stock','/admin/deadstock'],
+    ['arrow-repeat','Returns & Damages','/admin/returns'], ['tags','Supplier Price','/admin/suppliers'], ['gear','Part Compatibility','#'], ['people','Account Management','/admin/accounts'],
 ] : [
-    ['⌂','Dashboard','/staff/dashboard'], ['□','Products','/staff/products'],
-    ['▤','POS Checkout','/staff/pos'], ['◇','Return & Damage','/staff/returns'], ['⚙','Part Compatibility','#'],
+    ['house-door','Dashboard','/staff/dashboard'], ['box-seam','Products','/staff/products'],
+    ['cart3','POS Checkout','/staff/pos'], ['arrow-repeat','Return & Damage','/staff/returns'], ['gear','Part Compatibility','#'],
 ];
 $aiRoute = $isAdmin ? route('admin.compatibility.ai') : route('staff.compatibility.ai');
+$activeIndex = $isAdmin ? 9 : 4;
 $statuses = [
-    'compatible' => ['symbol' => '✓', 'label' => 'Compatible', 'description' => 'AI found support for this motorcycle and part combination.'],
-    'possible' => ['symbol' => '~', 'label' => 'Possible', 'description' => 'A plausible fit, with an unresolved year, variant, or specification detail.'],
-    'unknown' => ['symbol' => '?', 'label' => 'Not enough information', 'description' => 'Available information is missing or conflicting; AI cannot determine fit.'],
-    'incompatible' => ['symbol' => '×', 'label' => 'Not compatible', 'description' => 'AI identified a specific fitment or specification mismatch.'],
+    'compatible' => ['symbol' => 'check-circle', 'label' => 'Compatible', 'description' => 'AI found support for this motorcycle and part combination.'],
+    'possible' => ['symbol' => 'exclamation-circle', 'label' => 'Possible', 'description' => 'A plausible fit, with an unresolved year, variant, or specification detail.'],
+    'unknown' => ['symbol' => 'question-circle', 'label' => 'Not enough information', 'description' => 'Available information is missing or conflicting; AI cannot determine fit.'],
+    'incompatible' => ['symbol' => 'x-circle', 'label' => 'Not compatible', 'description' => 'AI identified a specific fitment or specification mismatch.'],
 ];
 @endphp
 <!DOCTYPE html>
@@ -30,19 +31,19 @@ $statuses = [
         <div class="sidebar-brand"><span class="logo-mark">M</span><div><strong>MotoSync</strong><small>Pareng RJJ Motorcycle Parts</small></div></div>
         <nav class="nav-list" aria-label="{{ $isAdmin ? 'Administrator' : 'Staff' }} navigation">
             @foreach($navigation as $index => $item)
-                <a class="nav-link {{ $index === count($navigation) - 1 ? 'active' : '' }}" href="{{ $item[2] === '#' ? '#' : url($item[2]) }}"><span>{{ $item[0] }}</span><span>{{ $item[1] }}</span></a>
+                <a class="nav-link {{ $index === $activeIndex ? 'active' : '' }}" href="{{ $item[2] === '#' ? '#' : url($item[2]) }}"><span><i class="bi bi-{{ $item[0] }}" aria-hidden="true"></i></span><span>{{ $item[1] }}</span></a>
             @endforeach
         </nav>
         <div class="sidebar-user">
             <span class="avatar">{{ strtoupper(substr(auth()->user()->name,0,2)) }}</span>
             <div><strong>{{ auth()->user()->name }}</strong><small>{{ $isAdmin ? 'Administrator' : 'Staff' }}</small></div>
-            <form method="POST" action="{{ route('logout') }}">@csrf<button class="logout-button" type="submit" title="Log out">&#8618;</button></form>
+            <form method="POST" action="{{ route('logout') }}">@csrf<button class="logout-button" type="submit" title="Log out"><i class="bi bi-box-arrow-right" aria-hidden="true"></i></button></form>
         </div>
     </aside>
 
     <main class="dashboard-main compatibility-main">
         <header class="compatibility-header">
-            <button class="menu-button" type="button" data-menu aria-label="Toggle navigation">&#9776;</button>
+            <button class="menu-button" type="button" data-menu aria-label="Toggle navigation"><i class="bi bi-list" aria-hidden="true"></i></button>
             <div>
                 <p class="welcome">OPENAI-POWERED PART RESEARCH</p>
                 <h1>AI Motorcycle Parts Compatibility</h1>
@@ -82,7 +83,7 @@ $statuses = [
             <div class="section-heading"><div><span class="section-kicker">READ YOUR RESULTS</span><h2>Compatibility legend</h2></div><span class="legend-note">AI assessments</span></div>
             <div class="legend-grid">
                 @foreach($statuses as $status => $info)
-                    <div class="legend-item status-{{ $status }}"><span class="status-symbol" aria-hidden="true">{{ $info['symbol'] }}</span><div><strong>{{ $info['label'] }}</strong><p>{{ $info['description'] }}</p></div></div>
+                    <div class="legend-item status-{{ $status }}"><span class="status-symbol" aria-hidden="true"><i class="bi bi-{{ $info['symbol'] }}"></i></span><div><strong>{{ $info['label'] }}</strong><p>{{ $info['description'] }}</p></div></div>
                 @endforeach
             </div>
         </section>
@@ -137,7 +138,7 @@ $statuses = [
                                         <span class="result-category">{{ $product->category ?: 'Uncategorized' }} · {{ $product->sku }}</span>
                                         <h3>{{ $product->name }}</h3>
                                     </div>
-                                    <span class="result-badge"><span aria-hidden="true">{{ $statuses[$assessment['status']]['symbol'] }}</span> {{ $statuses[$assessment['status']]['label'] }}</span>
+                                    <span class="result-badge"><i class="bi bi-{{ $statuses[$assessment['status']]['symbol'] }}" aria-hidden="true"></i> {{ $statuses[$assessment['status']]['label'] }}</span>
                                 </div>
                                 <p class="part-identity">{{ $product->manufacturer ?: 'Manufacturer not listed' }} · Part no. {{ $product->manufacturer_part_number ?: 'Not listed' }}</p>
                                 <div class="result-evidence">

@@ -1,3 +1,5 @@
+import './inventory-live-reload';
+
 const filterForm = document.querySelector('[data-products-filter]');
 
 document.querySelectorAll('[data-auto-submit]').forEach((select) => select.addEventListener('change', () => filterForm?.submit()));

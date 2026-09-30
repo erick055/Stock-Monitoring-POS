@@ -1,8 +1,8 @@
 @php
 $navigation = [
-    ['⌂','Dashboard','/admin/dashboard'], ['▣','Stock Management','/admin/inventory'], ['□','Products','/admin/products'],
-    ['⌁','Analytics','/admin/analytics'], ['!','Low Stock Alerts','/admin/low-stocks'], ['@','Dead Stock', '/admin/deadstock'],
-    ['◇','Returns & Damages','/admin/returns'], ['♙','Supplier Price','/admin/suppliers'], ['⚙','Part Compatibility','/admin/compatibility'], ['♟','Account Management','/admin/accounts'],
+    ['house-door','Dashboard','/admin/dashboard'], ['boxes','Stock Management','/admin/inventory'], ['box-seam','Products','/admin/products'], ['cart3','POS Checkout','/admin/pos'],
+    ['bar-chart-line','Analytics','/admin/analytics'], ['exclamation-triangle','Low Stock Alerts','/admin/low-stocks'], ['box2','Dead Stock', '/admin/deadstock'],
+    ['arrow-repeat','Returns & Damages','/admin/returns'], ['tags','Supplier Price','/admin/suppliers'], ['gear','Part Compatibility','/admin/compatibility'], ['people','Account Management','/admin/accounts'],
 ];
 @endphp
 <!DOCTYPE html>
@@ -19,21 +19,21 @@ $navigation = [
         <div class="sidebar-brand"><span class="logo-mark">M</span><div><strong>MotoSync</strong><small>Pareng RJJ Motorcycle Parts</small></div></div>
         <nav class="nav-list" aria-label="Administrator navigation">
             @foreach($navigation as $index=> $item)
-                <a class="nav-link {{ $index === 5 ? 'active' : '' }}" href="{{ $item[2] === '#' ? '#' : url($item[2]) }}"><span>{{ $item[0] }}</span><span>{{ $item[1] }}</span></a>
+                <a class="nav-link {{ $index === 6 ? 'active' : '' }}" href="{{ $item[2] === '#' ? '#' : url($item[2]) }}"><span><i class="bi bi-{{ $item[0] }}" aria-hidden="true"></i></span><span>{{ $item[1] }}</span></a>
             @endforeach
         </nav>
         <div class="sidebar-user">
             <span class="avatar">{{ strtoupper(substr(auth()->user()->name,0,2)) }}</span>
             <div><strong>{{ auth()->user()->name }}</strong><small>Administrator</small></div>
-            <form method="POST" action="{{ request()->getBaseUrl() }}/logout">@csrf<button class="logout-button" type="submit" title="Log out">&#8618;</button></form>
+            <form method="POST" action="{{ request()->getBaseUrl() }}/logout">@csrf<button class="logout-button" type="submit" title="Log out"><i class="bi bi-box-arrow-right" aria-hidden="true"></i></button></form>
         </div>
     </aside>
 
     <main class="dashboard-main dead-stock-main">
         <header class="dead-stock-header">
-            <button class="menu-button" type="button" data-menu aria-label="Toggle navigation">&#9776;</button>
+            <button class="menu-button" type="button" data-menu aria-label="Toggle navigation"><i class="bi bi-list" aria-hidden="true"></i></button>
             <div>
-                <p class="welcome">AI-POWERED INVENTORY OPTIMIZATION</p>
+                <p class="welcome">INVENTORY RISK &amp; MACHINE LEARNING</p>
                 <h1>Dead Stock Detection</h1>
                 <p>Automated scoring analyzes POS sales, stock aging, demand, and trapped capital.</p>
             </div>
@@ -48,6 +48,82 @@ $navigation = [
             @endforeach
         </section>
 
+        <section class="panel demand-outlook-panel" aria-labelledby="demand-insight-title">
+            <div class="demand-outlook-header">
+            <div class="demand-insight-icon" aria-hidden="true"><i class="bi bi-stars"></i></div>
+            <div class="demand-insight-copy">
+                <div class="demand-insight-heading">
+                    <div>
+                        <span class="section-kicker">DEMAND OUTLOOK</span>
+                        <h2 id="demand-insight-title">Spot products that may stop selling</h2>
+                    </div>
+                    <span class="model-status {{ $latestMlModel ? 'ready' : 'waiting' }}">
+                        <i></i>{{ $latestMlModel ? 'Predictions ready' : 'Waiting for sales history' }}
+                    </span>
+                </div>
+                <p class="demand-insight-summary">
+                    @if($latestMlModel)
+                        Predictions refresh automatically when this page is opened, up to once an hour. Products with the highest risk appear first.
+                    @else
+                        Once there is enough POS history, this tool learns from what sold and what stayed on the shelf to estimate the next 90 days.
+                    @endif
+                </p>
+                @if($latestMlModel)
+                    <details class="model-details">
+                        <summary>About this update</summary>
+                        <p>
+                            Updated {{ $latestMlModel->trained_at->diffForHumans() }} using {{ number_format($latestMlModel->training_samples) }} historical product snapshots
+                            @if($latestMlModel->validation_accuracy !== null)
+                                , with {{ number_format($latestMlModel->validation_accuracy * 100, 1) }}% test accuracy
+                            @endif.
+                        </p>
+                    </details>
+                @endif
+            </div>
+            </div>
+            <div class="table-wrap outlook-table">
+                <table>
+                    <thead><tr><th>Product</th><th>Stock</th><th>90-Day Outlook</th><th>Chance of No Demand</th><th>Observations</th><th>Updated</th></tr></thead>
+                    <tbody>
+                        @forelse($outlookItems as $item)
+                            <tr>
+                                <td><strong>{{ $item['name'] }}</strong><small>{{ $item['sku'] }}</small></td>
+                                <td>{{ number_format($item['stock']) }}</td>
+                                @if($item['ml_prediction'])
+                                    <td><span class="ai-badge {{ $item['ml_prediction']['probability'] >= .7 ? 'dead-stock' : ($item['ml_prediction']['probability'] >= .4 ? 'slow-moving' : 'healthy') }}">{{ $item['ml_prediction']['classification'] }}</span></td>
+                                    <td><strong>{{ number_format($item['ml_prediction']['probability'] * 100, 1) }}%</strong></td>
+                                    <td>{{ implode(' · ', $item['ml_prediction']['factors']) ?: 'No notable warning signs in recent sales.' }}</td>
+                                    <td>{{ $item['ml_prediction']['predicted_at']->diffForHumans() }}</td>
+                                @else
+                                    <td><span class="outlook-pending">Waiting for history</span></td>
+                                    <td>—</td>
+                                    <td>More sales history is needed to predict demand.</td>
+                                    <td>—</td>
+                                @endif
+                            </tr>
+                        @empty
+                            <tr><td colspan="6" class="empty-table">No stocked products match your search.</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+            @if($outlookItems->hasPages())
+                <nav class="compact-pagination" aria-label="Demand outlook pages">
+                    @if($outlookItems->onFirstPage())
+                        <span>Previous</span>
+                    @else
+                        <a href="{{ $outlookItems->previousPageUrl() }}">Previous</a>
+                    @endif
+                    <strong>Page {{ $outlookItems->currentPage() }} of {{ $outlookItems->lastPage() }}</strong>
+                    @if($outlookItems->hasMorePages())
+                        <a href="{{ $outlookItems->nextPageUrl() }}">Next</a>
+                    @else
+                        <span>Next</span>
+                    @endif
+                </nav>
+            @endif
+        </section>
+
         <section class="panel detail-panel risk-inventory-panel">
             <datalist id="bundle-product-options">
                 @foreach($bundleProducts as $bundleProduct)
@@ -55,7 +131,7 @@ $navigation = [
                 @endforeach
             </datalist>
             <div class="section-heading">
-                <div><span class="section-kicker">{{ $status === 'archived' ? 'ARCHIVE' : 'AI RECOVERY QUEUE' }}</span><h2>{{ $status === 'archived' ? 'Archived Dead-Stock Items' : 'Inventory Unlikely to Sell Soon' }}</h2><small>{{ number_format($riskItems->total()) }} matching products. {{ $status === 'archived' ? 'Archived records remain in inventory and can be restored.' : 'AI suggests; only an administrator can approve an offer.' }}</small></div>
+                <div><span class="section-kicker">{{ $status === 'archived' ? 'ARCHIVE' : 'RISK RECOVERY QUEUE' }}</span><h2>{{ $status === 'archived' ? 'Archived Dead-Stock Items' : 'Inventory Unlikely to Sell Soon' }}</h2><small>{{ number_format($riskItems->total()) }} matching products. {{ $status === 'archived' ? 'Archived records remain in inventory and can be restored.' : 'ML predictions appear after training; only an administrator can approve an offer.' }}</small></div>
             </div>
             <nav class="archive-tabs" aria-label="Dead stock queue views">
                 <a class="{{ $status === 'queue' ? 'active' : '' }}" href="{{ route('admin.dead-stock') }}">Active queue</a>
@@ -77,7 +153,7 @@ $navigation = [
                         <tr>
                             <td><strong>{{ $item['name'] }}</strong><small>{{ $item['sku'] }} | {{ $item['age'] }}</small></td>
                             <td><span class="ai-badge {{ $item['classification_class'] }}">{{ $item['classification'] }}</span></td>
-                            <td><div class="table-score" title="{{ $item['classification'] === 'Dead Stock' ? 'AI Dead Stock Score' : 'AI Risk Score' }}"><strong>{{ $item['score'] }}</strong><div class="score-track"><i class="{{ $item['classification_class'] }}" style="width:{{ $item['score_width'] }}"></i></div></div></td>
+                            <td><div class="table-score" title="Measured inventory risk score"><strong>{{ $item['score'] }}</strong><div class="score-track"><i class="{{ $item['classification_class'] }}" style="width:{{ $item['score_width'] }}"></i></div></div></td>
                             <td>{{ number_format($item['stock']) }}</td>
                             <td>{{ number_format($item['monthly_units']) }}</td>
                             <td>{{ $item['last_sale'] }}</td>
@@ -86,6 +162,19 @@ $navigation = [
                                 <details class="risk-details">
                                     <summary>View</summary>
                                     <ul>@foreach($item['reasons'] as $reason)<li>{{ $reason }}</li>@endforeach</ul>
+                                    @if($item['ml_prediction'])
+                                        <div class="demand-result">
+                                            <span>90-day demand outlook</span>
+                                            <strong>{{ $item['ml_prediction']['classification'] }}</strong>
+                                            <p>{{ number_format($item['ml_prediction']['probability'] * 100, 1) }}% chance of receiving no demand in the next 90 days</p>
+                                        </div>
+                                        @if($item['ml_prediction']['factors'])
+                                            <p class="analysis-label">Why this was flagged</p>
+                                            <ul>@foreach($item['ml_prediction']['factors'] as $factor)<li>{{ $factor }}</li>@endforeach</ul>
+                                        @endif
+                                    @else
+                                        <p class="demand-waiting"><strong>Demand outlook not ready yet.</strong> The risk score above is based on current stock and recent sales.</p>
+                                    @endif
                                     <p>{{ $item['recommendation'] }}</p>
                                 </details>
                             </td>

@@ -1,8 +1,8 @@
 @php
 $navigation = [
-    ['⌂','Dashboard','/admin/dashboard'], ['▣','Stock Management','/admin/inventory'], ['□','Products','/admin/products'],
-    ['⌁','Analytics','/admin/analytics'], ['!','Low Stock Alerts','/admin/low-stocks'], ['@','Dead Stock','/admin/deadstock'],
-    ['◇','Returns & Damages','/admin/returns'], ['♙','Supplier Price','/admin/suppliers'], ['⚙','Part Compatibility','/admin/compatibility'], ['♟','Account Management','/admin/accounts'],
+    ['house-door','Dashboard','/admin/dashboard'], ['boxes','Stock Management','/admin/inventory'], ['box-seam','Products','/admin/products'], ['cart3','POS Checkout','/admin/pos'],
+    ['bar-chart-line','Analytics','/admin/analytics'], ['exclamation-triangle','Low Stock Alerts','/admin/low-stocks'], ['box2','Dead Stock','/admin/deadstock'],
+    ['arrow-repeat','Returns & Damages','/admin/returns'], ['tags','Supplier Price','/admin/suppliers'], ['gear','Part Compatibility','/admin/compatibility'], ['people','Account Management','/admin/accounts'],
 ];
 @endphp
 <!DOCTYPE html>
@@ -19,19 +19,19 @@ $navigation = [
         <div class="sidebar-brand"><span class="logo-mark">M</span><div><strong>MotoSync</strong><small>Pareng RJJ Motorcycle Parts</small></div></div>
         <nav class="nav-list" aria-label="Administrator navigation">
             @foreach($navigation as $index => $item)
-                <a class="nav-link {{ $index === 7 ? 'active' : '' }}" href="{{ url($item[2]) }}"><span>{{ $item[0] }}</span><span>{{ $item[1] }}</span></a>
+                <a class="nav-link {{ $index === 8 ? 'active' : '' }}" href="{{ url($item[2]) }}"><span><i class="bi bi-{{ $item[0] }}" aria-hidden="true"></i></span><span>{{ $item[1] }}</span></a>
             @endforeach
         </nav>
         <div class="sidebar-user">
             <span class="avatar">{{ strtoupper(substr(auth()->user()->name, 0, 2)) }}</span>
             <div><strong>{{ auth()->user()->name }}</strong><small>Administrator</small></div>
-            <form method="POST" action="{{ route('logout') }}">@csrf<button class="logout-button" type="submit" title="Log out">&#8618;</button></form>
+            <form method="POST" action="{{ route('logout') }}">@csrf<button class="logout-button" type="submit" title="Log out"><i class="bi bi-box-arrow-right" aria-hidden="true"></i></button></form>
         </div>
     </aside>
 
     <main class="dashboard-main suppliers-main">
         <header class="suppliers-header">
-            <button class="menu-button" type="button" data-menu aria-label="Toggle navigation">&#9776;</button>
+            <button class="menu-button" type="button" data-menu aria-label="Toggle navigation"><i class="bi bi-list" aria-hidden="true"></i></button>
             <div>
                 <p class="welcome">REAL SUPPLIER PRICE IMPORTS</p>
                 <h1>Supplier Price</h1>
@@ -120,7 +120,7 @@ $navigation = [
                     <div class="import-heading-actions">
                         <span class="import-status {{ $selectedImport->error_count ? 'has-errors' : 'ready' }}">{{ $selectedImport->valid_count }} valid · {{ $selectedImport->error_count }} errors</span>
                         @if($selectedImport->status === 'pending' && ! $selectedImport->archived_at)
-                            <button class="apply-button" type="button" data-open-import-decision>Review import decision</button>
+                            <button class="apply-button" type="button" data-open-import-decision><i class="bi bi-clipboard-check" aria-hidden="true"></i> Review import decision <i class="bi bi-chevron-right" aria-hidden="true"></i></button>
                         @endif
                     </div>
                 </div>
@@ -165,7 +165,7 @@ $navigation = [
             @if($selectedImport->status === 'pending' && ! $selectedImport->archived_at)
                 <div class="supplier-modal" data-import-decision-modal hidden role="dialog" aria-modal="true" aria-labelledby="import-decision-title">
                     <div class="supplier-modal-card">
-                        <button class="supplier-modal-close" type="button" data-close-modal aria-label="Close">×</button>
+                        <button class="supplier-modal-close" type="button" data-close-modal aria-label="Close"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
                         <span class="section-kicker">IMPORT DECISION</span>
                         <h2 id="import-decision-title">Accept or reject this supplier import?</h2>
                         <p><strong>{{ $selectedImport->supplier->name }}</strong> · {{ $selectedImport->source_filename }} · {{ $selectedImport->valid_count }} valid rows.</p>
@@ -184,6 +184,9 @@ $navigation = [
                 <div><span class="section-kicker">CURRENT DATA</span><h2>Published supplier prices</h2></div>
                 <form class="supplier-sort-form" method="GET" action="{{ route('admin.suppliers') }}">
                     @if($selectedImport)<input type="hidden" name="import" value="{{ $selectedImport->supplier_import_id }}">@endif
+                    <label class="supplier-price-search" for="supplier-price-search">Search products
+                        <input id="supplier-price-search" name="search" type="search" value="{{ $search }}" placeholder="Product, SKU, category, part number, or supplier">
+                    </label>
                     <label for="supplier-sort">Sort prices
                         <select id="supplier-sort" name="sort">
                             <option value="updated_desc" @selected($sort === 'updated_desc')>Recently updated</option>
@@ -197,7 +200,8 @@ $navigation = [
                             <option value="stock_low" @selected($sort === 'stock_low')>Supplier stock: low to high</option>
                         </select>
                     </label>
-                    <button class="supplier-sort-button" type="submit">Sort</button>
+                    <button class="supplier-sort-button" type="submit">Search &amp; sort</button>
+                    @if($search)<a class="supplier-search-clear" href="{{ route('admin.suppliers', array_filter(['sort' => $sort, 'import' => $selectedImport?->supplier_import_id])) }}">Clear</a>@endif
                 </form>
             </div>
             @if($prices->contains(fn ($price) => ! $price->product_id && strtoupper($price->currency) === 'PHP'))
@@ -230,7 +234,7 @@ $navigation = [
                         <div class="supplier-line">
                             <strong>{{ $price->product_name }}</strong>
                             <small>{{ $price->supplier->name }} · Supplier SKU: {{ $price->supplier_sku }}</small>
-                            <em class="{{ $price->product ? 'matched-text' : 'unmatched-text' }}">{{ $price->product ? '✓ '.($isAutomaticSkuMatch ? 'Automatically matched by SKU: ' : 'Matched to product ').$price->product->sku : 'Unmatched supplier item' }}</em>
+                            <em class="{{ $price->product ? 'matched-text' : 'unmatched-text' }}"><i class="bi bi-{{ $price->product ? 'check-circle' : 'question-circle' }}" aria-hidden="true"></i> {{ $price->product ? ($isAutomaticSkuMatch ? 'Automatically matched by SKU: ' : 'Matched to product ').$price->product->sku : 'Unmatched supplier item' }}</em>
                         </div>
                         <div class="pricing-pill">{{ $price->currency }} {{ number_format((float) $price->unit_price, 2) }}<span>Supplier unit price</span></div>
                         <div class="pricing-pill">{{ $price->previous_price ? $price->currency.' '.number_format((float) $price->previous_price, 2) : 'First import' }}<span>Previous supplier price</span></div>
@@ -241,7 +245,7 @@ $navigation = [
                         @if($price->product)
                             <section class="price-match-panel matched" aria-label="Matched product price comparison">
                                 <header>
-                                    <div><span class="match-state">✓ PRODUCT MATCHED</span><strong>Supplier price compared with the recorded product cost</strong></div>
+                                    <div><span class="match-state"><i class="bi bi-check-circle" aria-hidden="true"></i> PRODUCT MATCHED</span><strong>Supplier price compared with the recorded product cost</strong></div>
                                     <small>The selling price is shown separately and is never treated as the supplier cost.</small>
                                 </header>
                                 <div class="price-comparison-grid">
@@ -325,14 +329,14 @@ $navigation = [
                         </details>
                     </article>
                 @empty
-                    <div class="empty-state">No supplier prices have been published. Upload a price list to begin.</div>
+                    <div class="empty-state">{{ $search ? 'No supplier prices match “'.$search.'”. Try a product name, SKU, category, part number, or supplier.' : 'No supplier prices have been published. Upload a price list to begin.' }}</div>
                 @endforelse
             </div>
         </section>
 
         <div class="supplier-modal" data-bulk-products-modal hidden role="dialog" aria-modal="true" aria-labelledby="bulk-products-title">
             <div class="supplier-modal-card bulk-modal-card">
-                <button class="supplier-modal-close" type="button" data-close-modal aria-label="Close">×</button>
+                <button class="supplier-modal-close" type="button" data-close-modal aria-label="Close"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
                 <span class="section-kicker">BULK PRODUCT CREATION</span>
                 <h2 id="bulk-products-title">Add selected supplier items to Products?</h2>
                 <p><strong data-bulk-modal-count>0</strong> products will be created with their supplier SKU as the product SKU and part number. Store stock starts at zero.</p>

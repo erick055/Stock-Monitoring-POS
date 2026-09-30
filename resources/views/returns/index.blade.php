@@ -2,15 +2,15 @@
 $isAdmin = $viewRole === 'admin';
 $navigation = $isAdmin
     ? [
-        ['⌂','Dashboard','/admin/dashboard'], ['▣','Stock Management','/admin/inventory'], ['□','Products','/admin/products'],
-        ['⌁','Analytics','/admin/analytics'], ['!','Low Stock Alerts','/admin/low-stocks'], ['@','Dead Stock','/admin/deadstock'],
-        ['◇','Returns & Damages','#'], ['♙','Supplier Price','/admin/suppliers'], ['⚙','Part Compatibility','/admin/compatibility'], ['♟','Account Management','/admin/accounts'],
+        ['house-door','Dashboard','/admin/dashboard'], ['boxes','Stock Management','/admin/inventory'], ['box-seam','Products','/admin/products'], ['cart3','POS Checkout','/admin/pos'],
+        ['bar-chart-line','Analytics','/admin/analytics'], ['exclamation-triangle','Low Stock Alerts','/admin/low-stocks'], ['box2','Dead Stock','/admin/deadstock'],
+        ['arrow-repeat','Returns & Damages','#'], ['tags','Supplier Price','/admin/suppliers'], ['gear','Part Compatibility','/admin/compatibility'], ['people','Account Management','/admin/accounts'],
     ]
     : [
-        ['⌂','Dashboard','/staff/dashboard'], ['□','Products','/staff/products'],
-        ['▤','POS Checkout','/staff/pos'], ['◇','Return & Damage','#'], ['⚙','Part Compatibility','/staff/compatibility'],
+        ['house-door','Dashboard','/staff/dashboard'], ['box-seam','Products','/staff/products'],
+        ['cart3','POS Checkout','/staff/pos'], ['arrow-repeat','Return & Damage','#'], ['gear','Part Compatibility','/staff/compatibility'],
     ];
-$activeIndex = $isAdmin ? 6 : 3;
+$activeIndex = $isAdmin ? 7 : 3;
 $returnRoute = $isAdmin ? route('admin.returns.customer.store') : route('staff.returns.customer.store');
 $damageRoute = $isAdmin ? route('admin.returns.damage.store') : route('staff.returns.damage.store');
 $oldReceipt = $receipts->firstWhere('id', (int) old('sale_id'));
@@ -29,19 +29,19 @@ $oldReceipt = $receipts->firstWhere('id', (int) old('sale_id'));
         <div class="sidebar-brand"><span class="logo-mark">M</span><div><strong>MotoSync</strong><small>Pareng RJJ Motorcycle Parts</small></div></div>
         <nav class="nav-list" aria-label="{{ $isAdmin ? 'Administrator' : 'Staff' }} navigation">
             @foreach($navigation as $index => $item)
-                <a class="nav-link {{ $index === $activeIndex ? 'active' : '' }}" href="{{ $item[2] === '#' ? '#' : url($item[2]) }}"><span>{{ $item[0] }}</span><span>{{ $item[1] }}</span></a>
+                <a class="nav-link {{ $index === $activeIndex ? 'active' : '' }}" href="{{ $item[2] === '#' ? '#' : url($item[2]) }}"><span><i class="bi bi-{{ $item[0] }}" aria-hidden="true"></i></span><span>{{ $item[1] }}</span></a>
             @endforeach
         </nav>
         <div class="sidebar-user">
             <span class="avatar">{{ strtoupper(substr(auth()->user()->name,0,2)) }}</span>
             <div><strong>{{ auth()->user()->name }}</strong><small>{{ $isAdmin ? 'Administrator' : 'Staff' }}</small></div>
-            <form method="POST" action="{{ request()->getBaseUrl() }}/logout">@csrf<button class="logout-button" type="submit" title="Log out">&#8618;</button></form>
+            <form method="POST" action="{{ request()->getBaseUrl() }}/logout">@csrf<button class="logout-button" type="submit" title="Log out"><i class="bi bi-box-arrow-right" aria-hidden="true"></i></button></form>
         </div>
     </aside>
 
     <main class="dashboard-main returns-main">
         <header class="returns-header">
-            <button class="menu-button" type="button" data-menu aria-label="Toggle navigation">&#9776;</button>
+            <button class="menu-button" type="button" data-menu aria-label="Toggle navigation"><i class="bi bi-list" aria-hidden="true"></i></button>
             <div>
                 <p class="welcome">LIVE RETURNS, DAMAGES, AND REFUNDS</p>
                 <h1>Return &amp; Damage Management</h1>

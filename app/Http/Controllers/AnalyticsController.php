@@ -6,7 +6,9 @@ use App\Models\InventoryLedger;
 use App\Models\Product;
 use App\Models\SalesItem;
 use App\Models\SalesTransaction;
+use App\Services\GroqDemandForecaster;
 use Carbon\CarbonImmutable;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
@@ -21,6 +23,16 @@ class AnalyticsController extends Controller
     public function index(Request $request): View
     {
         return view('admin.analytics', $this->analyticsData($request));
+    }
+
+    public function generateDemandForecast(Request $request, GroqDemandForecaster $forecaster): RedirectResponse
+    {
+        $forecast = $forecaster->generate((int) $request->user()->id);
+
+        return back()->with(
+            $forecast['available'] ? 'success' : 'error',
+            $forecast['available'] ? 'Groq AI generated a new 30-day product demand forecast.' : $forecast['message'],
+        );
     }
 
     public function export(Request $request): BinaryFileResponse
@@ -39,6 +51,23 @@ class AnalyticsController extends Controller
             ? $request->query('period')
             : 'week';
         $now = CarbonImmutable::now();
+        $movement = SalesItem::query()
+            ->join('sales_transactions', 'sales_items.sale_id', '=', 'sales_transactions.sale_id')
+            ->where('sales_transactions.payment_status', 'paid')
+            ->where('sales_transactions.sale_date', '<=', $now)
+            ->select('sales_items.product_id')
+            ->selectRaw('SUM(CASE WHEN sales_transactions.sale_date >= ? THEN sales_items.quantity ELSE 0 END) as monthly_units', [$now->subDays(30)])
+            ->selectRaw('SUM(CASE WHEN sales_transactions.sale_date >= ? THEN sales_items.quantity ELSE 0 END) as quarter_units', [$now->subDays(90)])
+            ->selectRaw('MAX(sales_transactions.sale_date) as latest_sale')
+            ->groupBy('sales_items.product_id')->get()->keyBy('product_id');
+        $slowMovingProducts = Product::query()->where('is_active', true)->where('current_stock', '>', 0)
+            ->whereNull('dead_stock_archived_at')
+            ->with(['activePromotion.administrator', 'activePromotion.bundleProduct', 'deadStockArchivedBy'])
+            ->get()->map(function (Product $product) use ($movement) {
+                $sales = $movement->get($product->product_id);
+                return app(DeadStockController::class)->scoreProduct($product,
+                    (int) ($sales?->monthly_units ?? 0), (int) ($sales?->quarter_units ?? 0), $sales?->latest_sale);
+            })->where('classification', 'Slow Moving')->sortByDesc('total_cost_raw')->values();
         $chartAnchor = $this->chartAnchor($salesPeriod, (string) $request->query('range', ''), $now);
 
         $paidSales = SalesTransaction::query()->where('payment_status', 'paid');
@@ -173,11 +202,14 @@ class AnalyticsController extends Controller
             'stock_out' => InventoryLedger::query()->where('reason_code', '!=', 'POS_SALE')->sum('qty_out'),
             'current' => Product::query()->where('is_active', true)->sum('current_stock'),
         ];
+        $aiDemandForecast = app(GroqDemandForecaster::class)->current();
 
         return compact(
+            'slowMovingProducts',
             'summary',
             'bestSellers',
             'demand',
+            'aiDemandForecast',
             'sellingSpeedRanking',
             'highestStock',
             'lowestStock',

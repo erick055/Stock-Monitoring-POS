@@ -104,7 +104,7 @@ class StockManagementTest extends TestCase
 
         foreach ([[], ['manufacturer_part_number' => null], ['manufacturer_part_number' => '   ']] as $partNumber) {
             $this->post(route('admin.inventory.products.store'), [...$payload, ...$partNumber])
-                ->assertSessionHasErrors('manufacturer_part_number');
+                ->assertSessionHasErrors(['manufacturer_part_number'], null, 'addProduct');
             $this->patch(route('admin.inventory.products.update', $product), [
                 ...$payload, ...$partNumber, 'edit_product_id' => $product->product_id,
             ])->assertSessionHasErrors(['manufacturer_part_number'], null, 'editProduct');
@@ -172,6 +172,59 @@ class StockManagementTest extends TestCase
         $this->assertSame('Drive Components', Product::where('sku', 'CHAIN-NEW')->value('category'));
     }
 
+    public function test_product_form_lists_existing_shelves_and_an_add_new_option(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        Product::create([
+            'sku' => 'SHELF-REFERENCE', 'name' => 'Shelf Reference',
+            'shelf_location' => 'Aisle B Shelf 04', 'is_active' => true,
+        ]);
+
+        $this->actingAs($admin)->get(route('admin.inventory'))
+            ->assertOk()
+            ->assertSee('<option value="Aisle B Shelf 04"', false)
+            ->assertSee('+ Add new shelf');
+    }
+
+    public function test_admin_can_add_a_product_with_a_new_shelf(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $this->actingAs($admin)->post(route('admin.inventory.products.store'), [
+            'sku' => 'NEW-SHELF-PRODUCT',
+            'name' => 'New Shelf Product',
+            'shelf_location' => '__new__',
+            'new_shelf_location' => '  Aisle C   Shelf 08  ',
+            'manufacturer_part_number' => 'NEW-SHELF-001',
+            'unit_cost' => 100,
+            'unit_price' => 150,
+            'reorder_level' => 5,
+            'qty_in' => 2,
+            'reason_code' => 'NEW_PRODUCT',
+        ])->assertSessionHasNoErrors();
+
+        $this->assertSame('Aisle C Shelf 08', Product::where('sku', 'NEW-SHELF-PRODUCT')->value('shelf_location'));
+    }
+
+    public function test_new_shelf_name_is_required_when_add_new_is_selected(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+
+        $this->actingAs($admin)->post(route('admin.inventory.products.store'), [
+            'sku' => 'MISSING-SHELF-NAME',
+            'name' => 'Missing Shelf Name',
+            'shelf_location' => '__new__',
+            'manufacturer_part_number' => 'MISSING-SHELF-001',
+            'unit_cost' => 100,
+            'unit_price' => 150,
+            'reorder_level' => 5,
+            'qty_in' => 2,
+            'reason_code' => 'NEW_PRODUCT',
+        ])->assertSessionHasErrors(['new_shelf_location'], null, 'addProduct');
+
+        $this->assertDatabaseMissing('products', ['sku' => 'MISSING-SHELF-NAME']);
+    }
+
     public function test_new_category_name_is_required_when_add_new_is_selected(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);
@@ -186,7 +239,7 @@ class StockManagementTest extends TestCase
             'reorder_level' => 5,
             'qty_in' => 2,
             'reason_code' => 'NEW_PRODUCT',
-        ])->assertSessionHasErrors('new_category');
+        ])->assertSessionHasErrors(['new_category'], null, 'addProduct');
 
         $this->assertDatabaseMissing('products', ['sku' => 'CHAIN-MISSING']);
     }
@@ -247,16 +300,16 @@ class StockManagementTest extends TestCase
 
         $this->actingAs($admin)->post(route('admin.inventory.products.store'), [
             ...$base, 'sku' => ' brk-001 ', 'name' => 'Different Name',
-        ])->assertSessionHasErrors('sku');
+        ])->assertSessionHasErrors(['sku'], null, 'addProduct');
 
         $this->actingAs($admin)->post(route('admin.inventory.products.store'), [
             ...$base, 'sku' => 'BRK-002', 'name' => ' front   brake pad ',
-        ])->assertSessionHasErrors('name');
+        ])->assertSessionHasErrors(['name'], null, 'addProduct');
 
         $this->actingAs($admin)->post(route('admin.inventory.products.store'), [
             ...$base, 'sku' => 'BRK-003', 'name' => 'Alternate Pad',
             'manufacturer' => 'honda', 'manufacturer_part_number' => ' hnd-pad-01 ',
-        ])->assertSessionHasErrors('manufacturer_part_number');
+        ])->assertSessionHasErrors(['manufacturer_part_number'], null, 'addProduct');
 
         $this->assertDatabaseCount('products', 1);
         $this->assertDatabaseCount('inventory_ledgers', 0);

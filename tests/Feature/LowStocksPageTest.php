@@ -10,7 +10,6 @@ use App\Models\StockAlertDelivery;
 use App\Models\StockAlertSetting;
 use App\Models\StockAlertState;
 use App\Models\User;
-use App\Services\SmsAlertSender;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Http;
@@ -20,30 +19,6 @@ use Tests\TestCase;
 class LowStocksPageTest extends TestCase
 {
     use RefreshDatabase;
-
-    public function test_semaphore_driver_sends_an_sms_with_the_configured_sender(): void
-    {
-        Http::fake([
-            'api.semaphore.co/*' => Http::response([[
-                'message_id' => 12345,
-                'recipient' => '639171234567',
-                'status' => 'Queued',
-            ]]),
-        ]);
-        config([
-            'services.sms.driver' => 'semaphore',
-            'services.sms.semaphore.api_key' => 'private-test-key',
-            'services.sms.semaphore.sender_name' => 'MOTOSYNC',
-        ]);
-
-        app(SmsAlertSender::class)->send('+639171234567', 'MotoSync inventory alert.');
-
-        Http::assertSent(fn ($request) => $request->url() === 'https://api.semaphore.co/api/v4/messages'
-            && $request['apikey'] === 'private-test-key'
-            && $request['number'] === '+639171234567'
-            && $request['message'] === 'MotoSync inventory alert.'
-            && $request['sendername'] === 'MOTOSYNC');
-    }
 
     public function test_admin_can_view_low_stocks_page(): void
     {
@@ -152,44 +127,32 @@ class LowStocksPageTest extends TestCase
         $response->assertForbidden();
     }
 
-    public function test_admin_can_save_email_sms_and_daily_summary_settings(): void
+    public function test_admin_can_save_email_and_daily_summary_settings(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);
 
         $this->actingAs($admin)->post(route('admin.low-stocks.settings'), [
             'email_enabled' => 1,
-            'sms_enabled' => 1,
             'daily_summary_enabled' => 1,
             'notification_email' => 'alerts@example.com',
-            'notification_phone' => '+639171234567',
             'daily_summary_time' => '08:30',
         ])->assertRedirect()->assertSessionHas('success');
 
         $settings = StockAlertSetting::firstOrFail();
         $this->assertTrue($settings->email_enabled);
-        $this->assertTrue($settings->sms_enabled);
         $this->assertTrue($settings->daily_summary_enabled);
         $this->assertSame('alerts@example.com', $settings->notification_email);
-        $this->assertSame('+639171234567', $settings->notification_phone);
         $this->assertSame('08:30', $settings->daily_summary_time);
     }
 
-    public function test_stock_crossing_warning_threshold_sends_email_and_sms_once(): void
+    public function test_stock_crossing_warning_threshold_sends_email_once(): void
     {
         Mail::fake();
-        Http::fake(['api.twilio.com/*' => Http::response(['sid' => 'SM123'], 201)]);
-        config([
-            'services.sms.driver' => 'twilio',
-            'services.sms.twilio.account_sid' => 'AC123',
-            'services.sms.twilio.auth_token' => 'token',
-            'services.sms.twilio.from' => '+15005550006',
-        ]);
+        Http::fake();
 
         StockAlertSetting::create([
             'email_enabled' => true,
-            'sms_enabled' => true,
             'notification_email' => 'alerts@example.com',
-            'notification_phone' => '+639171234567',
         ]);
         $admin = User::factory()->create(['role' => 'admin']);
         $product = Product::create([
@@ -206,12 +169,8 @@ class LowStocksPageTest extends TestCase
         $this->actingAs($admin)->post(route('admin.inventory.movements.store'), $payload)->assertSessionHas('success');
 
         $this->assertDatabaseHas('stock_alert_deliveries', ['channel' => 'email', 'alert_type' => 'immediate', 'status' => 'sent']);
-        $this->assertDatabaseHas('stock_alert_deliveries', ['channel' => 'sms', 'alert_type' => 'immediate', 'status' => 'sent']);
-        Http::assertSent(fn ($request) => $request['To'] === '+639171234567'
-            && str_contains($request['Body'], 'Alert Product')
-            && str_contains($request['Body'], 'Stock 9, reorder 5')
-            && str_contains($request['Body'], 'Add 2+ units')
-            && mb_strlen($request['Body']) <= 155);
+        Http::assertNothingSent();
+        $this->assertDatabaseMissing('stock_alert_deliveries', ['channel' => 'sms']);
 
         $emailMessage = StockAlertDelivery::where('channel', 'email')->value('message');
         $this->assertStringContainsString('MotoSync Inventory Alert', $emailMessage);
@@ -232,7 +191,7 @@ class LowStocksPageTest extends TestCase
         $this->actingAs($admin)->post(route('admin.inventory.movements.store'), [
             ...$payload, 'quantity' => 1,
         ])->assertSessionHas('success');
-        $this->assertSame(2, StockAlertDelivery::where('alert_type', 'immediate')->count());
+        $this->assertSame(1, StockAlertDelivery::where('alert_type', 'immediate')->count());
     }
 
     public function test_daily_summary_command_sends_one_documented_email(): void
@@ -286,7 +245,7 @@ class LowStocksPageTest extends TestCase
     {
         $admin = User::factory()->create(['role' => 'admin']);
         StockAlertDelivery::create([
-            'channel' => 'sms', 'alert_type' => 'immediate', 'status' => 'failed',
+            'channel' => 'email', 'alert_type' => 'immediate', 'status' => 'failed',
             'recipient' => '+639171234567', 'message' => 'Alert body', 'error' => 'Provider unavailable',
         ]);
 
@@ -332,14 +291,17 @@ class LowStocksPageTest extends TestCase
         ]);
     }
 
-    public function test_local_log_sms_mode_is_not_reported_as_delivered(): void
+    public function test_legacy_sms_settings_cannot_send_notifications_or_appear_on_the_page(): void
     {
-        config(['services.sms.driver' => 'log']);
+        Http::fake();
         $admin = User::factory()->create(['role' => 'admin']);
-        StockAlertSetting::create([
+        $settings = new StockAlertSetting;
+        $settings->forceFill([
+            'id' => 1,
+            'email_enabled' => false,
             'sms_enabled' => true,
             'notification_phone' => '+639171234567',
-        ]);
+        ])->save();
         Product::create([
             'sku' => 'LOG-SMS-01', 'name' => 'Log SMS Product', 'unit_price' => 100,
             'current_stock' => 1, 'reorder_level' => 5,
@@ -348,12 +310,10 @@ class LowStocksPageTest extends TestCase
         $this->actingAs($admin)->post(route('admin.low-stocks.run-now'))
             ->assertSessionHas('success', 'Stock alert check completed. 0 new notification(s) sent.');
 
-        $this->assertDatabaseHas('stock_alert_deliveries', [
-            'channel' => 'sms',
-            'status' => 'failed',
-            'recipient' => '+639171234567',
-            'error' => 'SMS was not delivered because the application is in local log mode. Configure Twilio for phone delivery.',
-        ]);
+        Http::assertNothingSent();
+        $this->assertDatabaseMissing('stock_alert_deliveries', ['channel' => 'sms']);
+        $this->actingAs($admin)->get(route('admin.low-stocks'))
+            ->assertOk()->assertDontSee('SMS Alerts')->assertDontSee('notification_phone');
     }
 
     public function test_guest_is_redirected_from_low_stocks_page(): void

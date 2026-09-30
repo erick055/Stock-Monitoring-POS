@@ -9,6 +9,7 @@ use App\Models\Product;
 use App\Models\SalesItem;
 use App\Models\SalesTransaction;
 use App\Services\LowStockAlertService;
+use App\Services\InventoryLiveService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -18,15 +19,10 @@ use Illuminate\View\View;
 
 class PosController extends Controller
 {
-    public function index(): View
+    public function index(InventoryLiveService $liveInventory): View
     {
-        $sourceProducts = Product::query()
-            ->with('activePromotion.bundleProduct')
-            ->where('is_active', true)
-            ->where('current_stock', '>', 0)
-            ->orderBy('category')
-            ->orderBy('name')
-            ->get();
+        $inventoryProducts = $liveInventory->products();
+        $sourceProducts = $inventoryProducts->where('current_stock', '>', 0)->values();
 
         $categoryLabels = [];
 
@@ -64,6 +60,7 @@ class PosController extends Controller
         $categories = collect($categoryLabels)
             ->map(fn (string $label, string $key) => ['key' => $key, 'label' => $label])
             ->values();
+        $inventoryVersion = $liveInventory->version($inventoryProducts);
 
         $checkoutLogs = SalesTransaction::query()
             ->with('staff')
@@ -80,7 +77,7 @@ class PosController extends Controller
             ->get()
             ->map(fn (HeldOrder $heldOrder) => $this->heldOrderData($heldOrder));
 
-        return view('staff.pos', compact('products', 'categories', 'checkoutLogs', 'heldOrders'));
+        return view('staff.pos', compact('products', 'categories', 'checkoutLogs', 'heldOrders', 'inventoryVersion'));
     }
 
     private function cleanCategory(?string $category): string
@@ -241,13 +238,12 @@ class PosController extends Controller
                 ];
             }
 
-            $tax = round($subtotal * 0.12, 2);
-            $total = round($subtotal + $tax + $laborAmount, 2);
+            $total = round($subtotal + $laborAmount, 2);
 
             $sale = SalesTransaction::create([
                 'staff_id' => $request->user()->id,
                 'subtotal' => $subtotal,
-                'tax_amount' => $tax,
+                'tax_amount' => 0,
                 'labor_amount' => $laborAmount,
                 'total_sale_amount' => $total,
                 'payment_status' => 'paid',
@@ -294,7 +290,7 @@ class PosController extends Controller
             'total' => (float) $sale->total_sale_amount,
             'receipt' => [
                 'number' => $receiptNumber,
-                'url' => route('staff.pos.receipts.show', $sale),
+                'url' => route($request->user()->role.'.pos.receipts.show', $sale),
                 'date' => $sale->sale_date->format('M d, Y h:i A'),
                 'cashier' => $request->user()->name,
                 'payment_method' => ucfirst($sale->payment_method),
@@ -352,11 +348,11 @@ class PosController extends Controller
             'cashier' => $heldOrder->staff?->name ?? 'Former staff',
             'labor' => (float) $heldOrder->labor_amount,
             'total' => round(
-                (float) $heldOrder->items->sum(fn (HeldOrderItem $item) => $item->quantity * (float) $item->unit_price) * 1.12
+                (float) $heldOrder->items->sum(fn (HeldOrderItem $item) => $item->quantity * (float) $item->unit_price)
                 + (float) $heldOrder->labor_amount,
                 2
             ),
-            'cancel_url' => route('staff.pos.holds.cancel', $heldOrder),
+            'cancel_url' => route(auth()->user()->role.'.pos.holds.cancel', $heldOrder),
             'items' => $heldOrder->items->map(fn (HeldOrderItem $item) => [
                 'product_id' => $item->product_id,
                 'name' => $item->product->name,

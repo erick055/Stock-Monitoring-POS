@@ -1,14 +1,14 @@
 const posApp = document.querySelector('[data-pos-app]');
 
 if (posApp) {
-    const products = JSON.parse(posApp.dataset.products || '[]');
+    let products = JSON.parse(posApp.dataset.products || '[]');
     let heldOrders = JSON.parse(posApp.dataset.heldOrders || '[]');
     const grid = posApp.querySelector('[data-product-grid]');
     const searchInput = posApp.querySelector('[data-pos-search]');
-    const categoryButtons = [...posApp.querySelectorAll('[data-category]')];
+    const categoryContainer = posApp.querySelector('.pos-categories');
+    let categoryButtons = [...posApp.querySelectorAll('[data-category]')];
     const cartContainer = posApp.querySelector('[data-cart-items]');
     const subtotalNode = posApp.querySelector('[data-subtotal]');
-    const taxNode = posApp.querySelector('[data-tax]');
     const laborInput = posApp.querySelector('[data-labor-amount]');
     const laborTotalNode = posApp.querySelector('[data-labor-total]');
     const totalNode = posApp.querySelector('[data-total]');
@@ -22,6 +22,8 @@ if (posApp) {
     const holdButton = posApp.querySelector('[data-hold-order]');
     const checkoutUrl = posApp.dataset.checkoutUrl;
     const holdUrl = posApp.dataset.holdUrl;
+    const liveInventoryUrl = posApp.dataset.liveInventoryUrl;
+    let inventoryVersion = posApp.dataset.inventoryVersion;
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
     const emptyCartMarkup = 'No products selected.<br>Add a product or enter a labor charge.';
     let currentCategory = 'All';
@@ -54,7 +56,6 @@ if (posApp) {
         receiptModal.querySelector('[data-receipt-date]').textContent = receipt.date;
         receiptModal.querySelector('[data-receipt-cashier]').textContent = `Cashier: ${receipt.cashier}`;
         receiptModal.querySelector('[data-receipt-subtotal]').textContent = peso(receipt.subtotal);
-        receiptModal.querySelector('[data-receipt-tax]').textContent = peso(receipt.tax);
         const labor = Number(receipt.labor) || 0;
         const laborRow = receiptModal.querySelector('[data-receipt-labor-row]');
         laborRow.hidden = labor <= 0;
@@ -371,11 +372,9 @@ if (posApp) {
     }
 
     function updateTotals(subtotal) {
-        const tax = subtotal * 0.12;
         const labor = laborAmount();
-        const total = subtotal + tax + labor;
+        const total = subtotal + labor;
         subtotalNode.textContent = peso(subtotal);
-        taxNode.textContent = peso(tax);
         laborTotalNode.textContent = peso(labor);
         totalNode.textContent = peso(total);
         payTotalNode.textContent = peso(total);
@@ -482,14 +481,65 @@ if (posApp) {
         renderCart();
     }
 
-    categoryButtons.forEach((button) => {
-        button.addEventListener('click', () => {
-            currentCategory = button.dataset.category || 'All';
-            categoryButtons.forEach((entry) => entry.classList.remove('active'));
-            button.classList.add('active');
-            renderProducts();
+    function bindCategoryButtons() {
+        categoryButtons.forEach((button) => {
+            button.addEventListener('click', () => {
+                currentCategory = button.dataset.category || 'All';
+                categoryButtons.forEach((entry) => entry.classList.remove('active'));
+                button.classList.add('active');
+                renderProducts();
+            });
         });
-    });
+    }
+
+    function renderCategoryButtons() {
+        if (!categoryContainer) return;
+        const categories = new Map(products.map((product) => [product.categoryKey, product.category]));
+        if (currentCategory !== 'All' && !categories.has(currentCategory)) currentCategory = 'All';
+        categoryContainer.innerHTML = '';
+
+        [['All', 'All Items'], ...categories.entries()].forEach(([key, label]) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = `cat-btn${currentCategory === key ? ' active' : ''}`;
+            button.dataset.category = key;
+            button.textContent = label;
+            categoryContainer.appendChild(button);
+        });
+        categoryButtons = [...categoryContainer.querySelectorAll('[data-category]')];
+        bindCategoryButtons();
+    }
+
+    async function syncLiveInventory() {
+        if (!liveInventoryUrl || document.hidden) return;
+        try {
+            const response = await fetch(liveInventoryUrl, { headers: { Accept: 'application/json' }, cache: 'no-store' });
+            if (!response.ok) return;
+            const snapshot = await response.json();
+            if (snapshot.version === inventoryVersion) return;
+
+            const freshProducts = Array.isArray(snapshot.products) ? snapshot.products : [];
+            let adjusted = false;
+            cart = cart.flatMap((item) => {
+                const fresh = freshProducts.find((product) => product.id === item.id);
+                if (!fresh || fresh.stock < 1) {
+                    adjusted = true;
+                    return [];
+                }
+                const quantity = Math.min(item.qty, fresh.stock);
+                if (quantity !== item.qty || fresh.price !== item.price) adjusted = true;
+                return [{ ...fresh, qty: quantity }];
+            });
+            products = freshProducts;
+            inventoryVersion = snapshot.version;
+            renderCategoryButtons();
+            renderProducts();
+            renderCart();
+            if (adjusted) showToast('Live inventory changed; the active order was updated.');
+        } catch (error) {
+            // Keep checkout usable and retry automatically.
+        }
+    }
 
     searchInput?.addEventListener('input', renderProducts);
     laborInput?.addEventListener('input', () => updateTotals(currentSubtotal()));
@@ -611,8 +661,11 @@ if (posApp) {
         }
     });
 
+    bindCategoryButtons();
     renderProducts();
     renderCart();
     renderHeldOrders();
     updateActiveHold();
+    window.setInterval(syncLiveInventory, 5000);
+    window.setTimeout(syncLiveInventory, 800);
 }

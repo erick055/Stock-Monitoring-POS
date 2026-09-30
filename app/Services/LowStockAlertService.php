@@ -9,15 +9,10 @@ use App\Models\StockAlertSetting;
 use App\Models\StockAlertState;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Str;
 use Throwable;
 
 class LowStockAlertService
 {
-    public function __construct(private readonly SmsAlertSender $sms)
-    {
-    }
-
     public function settings(): StockAlertSetting
     {
         return StockAlertSetting::query()->firstOrCreate(['id' => 1]);
@@ -46,7 +41,7 @@ class LowStockAlertService
             'last_checked_at' => now(),
         ])->save();
 
-        if (! $shouldNotify || (! $settings->email_enabled && ! $settings->sms_enabled)) {
+        if (! $shouldNotify || ! $settings->email_enabled) {
             return 0;
         }
 
@@ -56,14 +51,6 @@ class LowStockAlertService
                 $settings->notification_email,
                 $this->immediateEmailSubject($product, $severity),
                 $this->immediateEmailMessage($product, $severity),
-                'immediate',
-                $product,
-            );
-        }
-        if ($settings->sms_enabled && $settings->notification_phone) {
-            $sent += $this->sendSms(
-                $settings->notification_phone,
-                $this->immediateSmsMessage($product, $severity),
                 'immediate',
                 $product,
             );
@@ -208,21 +195,6 @@ class LowStockAlertService
         ]);
     }
 
-    private function immediateSmsMessage(Product $product, string $severity): string
-    {
-        $productLabel = Str::limit("{$product->sku} {$product->name}", 48, '');
-        $message = sprintf(
-            'MotoSync %s | %s | Stock %d, reorder %d | Add %d+ units. Check Low Stock Alerts.',
-            $this->statusLabel($product, $severity),
-            $productLabel,
-            $product->current_stock,
-            $product->reorder_level,
-            $this->recommendedRestock($product),
-        );
-
-        return Str::limit($message, 155, '...');
-    }
-
     private function dailySummarySubject(Collection $products): string
     {
         if ($products->isEmpty()) {
@@ -259,20 +231,6 @@ class LowStockAlertService
             return 1;
         } catch (Throwable $error) {
             $this->recordDelivery($product, 'email', $type, 'failed', $recipient, $message, $error->getMessage());
-
-            return 0;
-        }
-    }
-
-    private function sendSms(string $recipient, string $message, string $type, ?Product $product = null): int
-    {
-        try {
-            $this->sms->send($recipient, $message);
-            $this->recordDelivery($product, 'sms', $type, 'sent', $recipient, $message);
-
-            return 1;
-        } catch (Throwable $error) {
-            $this->recordDelivery($product, 'sms', $type, 'failed', $recipient, $message, $error->getMessage());
 
             return 0;
         }

@@ -294,7 +294,7 @@ class SuppliersPageTest extends TestCase
         $this->actingAs($admin)->get(route('admin.suppliers'))
             ->assertOk()
             ->assertSee('Apply supplier cost')
-            ->assertSee('✓ PRODUCT MATCHED')
+            ->assertSee('PRODUCT MATCHED')
             ->assertSee('Product SKU')
             ->assertSee('MATCH-01')
             ->assertSee('Model / Product Name')
@@ -574,6 +574,38 @@ class SuppliersPageTest extends TestCase
         $this->actingAs($admin)->get(route('admin.suppliers', ['sort' => 'product']))
             ->assertOk()
             ->assertSeeInOrder(['Affordable Part', 'Premium Part']);
+    }
+
+    public function test_owner_can_search_supplier_prices_by_product_and_supplier_details(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $supplier = Supplier::create(['name' => 'Metro Parts Supply', 'code' => 'METRO', 'is_active' => true]);
+        $product = Product::create([
+            'sku' => 'CHAIN-520', 'name' => 'Heavy Duty Chain', 'category' => 'Drive Components',
+            'manufacturer_part_number' => 'DID-520', 'unit_price' => 900,
+        ]);
+        SupplierPrice::create([
+            'supplier_id' => $supplier->supplier_id, 'product_id' => $product->product_id,
+            'supplier_sku' => 'SUP-CHAIN', 'product_name' => 'Chain Set', 'currency' => 'PHP',
+            'unit_price' => 600, 'source_type' => 'spreadsheet', 'source_filename' => 'search.csv',
+            'last_updated_at' => now(),
+        ]);
+        SupplierPrice::create([
+            'supplier_id' => $supplier->supplier_id, 'supplier_sku' => 'SUP-OIL',
+            'product_name' => 'Engine Oil', 'currency' => 'PHP', 'unit_price' => 200,
+            'source_type' => 'spreadsheet', 'source_filename' => 'search.csv', 'last_updated_at' => now(),
+        ]);
+
+        foreach (['Heavy Duty Chain', 'CHAIN-520', 'Drive Components', 'DID-520'] as $search) {
+            $this->actingAs($admin)->get(route('admin.suppliers', ['search' => $search]))
+                ->assertOk()->assertSee('Chain Set')->assertDontSee('Engine Oil');
+        }
+
+        $this->actingAs($admin)->get(route('admin.suppliers', ['search' => 'Metro Parts']))
+            ->assertOk()->assertSee('Chain Set')->assertSee('Engine Oil');
+
+        $this->actingAs($admin)->get(route('admin.suppliers', ['search' => 'SUP-OIL']))
+            ->assertOk()->assertSee('Engine Oil')->assertDontSee('Chain Set');
     }
 
     public function test_guest_is_redirected_from_supplier_price_page(): void

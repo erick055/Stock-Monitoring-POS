@@ -1,9 +1,9 @@
 @php
 $navigation = [
-    ['⌂','Dashboard','/admin/dashboard'], ['▣','Stock Management','/admin/inventory'], ['□','Products','/admin/products'],
-    ['⌁','Analytics','/admin/analytics'], ['!','Low Stock Alerts','/admin/low-stocks'], ['@','Dead Stock','/admin/deadstock'],
-    ['◇','Returns & Damages','/admin/returns'], ['♙','Supplier Price','/admin/suppliers'], ['⚙','Part Compatibility','/admin/compatibility'],
-    ['♟','Account Management','#'],
+    ['house-door','Dashboard','/admin/dashboard'], ['boxes','Stock Management','/admin/inventory'], ['box-seam','Products','/admin/products'], ['cart3','POS Checkout','/admin/pos'],
+    ['bar-chart-line','Analytics','/admin/analytics'], ['exclamation-triangle','Low Stock Alerts','/admin/low-stocks'], ['box2','Dead Stock','/admin/deadstock'],
+    ['arrow-repeat','Returns & Damages','/admin/returns'], ['tags','Supplier Price','/admin/suppliers'], ['gear','Part Compatibility','/admin/compatibility'],
+    ['people','Account Management','#'],
 ];
 @endphp
 <!DOCTYPE html>
@@ -20,19 +20,19 @@ $navigation = [
         <div class="sidebar-brand"><span class="logo-mark">M</span><div><strong>MotoSync</strong><small>Pareng RJJ Motorcycle Parts</small></div></div>
         <nav class="nav-list" aria-label="Administrator navigation">
             @foreach($navigation as $index => $item)
-                <a class="nav-link {{ $index === 9 ? 'active' : '' }}" href="{{ $item[2] === '#' ? '#' : url($item[2]) }}"><span>{{ $item[0] }}</span><span>{{ $item[1] }}</span></a>
+                <a class="nav-link {{ $index === 10 ? 'active' : '' }}" href="{{ $item[2] === '#' ? '#' : url($item[2]) }}"><span><i class="bi bi-{{ $item[0] }}" aria-hidden="true"></i></span><span>{{ $item[1] }}</span></a>
             @endforeach
         </nav>
         <div class="sidebar-user">
             <div class="avatar">{{ collect(preg_split('/\s+/', auth()->user()->name))->take(2)->map(fn($word) => strtoupper(substr($word, 0, 1)))->join('') }}</div>
             <div><strong>{{ auth()->user()->name }}</strong><small>Owner</small></div>
-            <form method="POST" action="{{ route('logout') }}">@csrf<button class="logout-button" type="submit" title="Log out">&#8618;</button></form>
+            <form method="POST" action="{{ route('logout') }}">@csrf<button class="logout-button" type="submit" title="Log out"><i class="bi bi-box-arrow-right" aria-hidden="true"></i></button></form>
         </div>
     </aside>
 
     <main class="dashboard-main accounts-main">
         <header class="accounts-header">
-            <button class="menu-button" type="button" data-menu aria-label="Toggle navigation">&#9776;</button>
+            <button class="menu-button" type="button" data-menu aria-label="Toggle navigation"><i class="bi bi-list" aria-hidden="true"></i></button>
             <div><p class="welcome">OWNER CONTROL</p><h1>Account Management</h1><p>Approve new staff registrations and immediately remove access when needed.</p></div>
         </header>
 
@@ -59,7 +59,7 @@ $navigation = [
                 @forelse($staff as $account)
                     <article class="account-card {{ $account->account_status }}">
                         <div class="account-identity">
-                            <span class="account-avatar">{{ collect(preg_split('/\s+/', $account->name))->take(2)->map(fn($word) => strtoupper(substr($word, 0, 1)))->join('') }}</span>
+                            <span class="account-avatar" role="img" aria-label="User profile"><i class="bi bi-person-fill" aria-hidden="true"></i></span>
                             <div><strong>{{ $account->name }}</strong><span>{{ $account->email }}</span><small>Registered {{ $account->created_at->format('M d, Y · h:i A') }}</small></div>
                         </div>
                         <div class="account-state">

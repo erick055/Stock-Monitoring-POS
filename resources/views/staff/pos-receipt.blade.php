@@ -8,7 +8,7 @@
 </head>
 <body>
 <div class="receipt-actions">
-    <a href="{{ route('staff.pos') }}">Back to POS</a>
+    <a href="{{ route(auth()->user()->role.'.pos') }}">Back to POS</a>
     <button class="primary" type="button" onclick="window.print()">Print receipt</button>
 </div>
 
@@ -55,7 +55,6 @@
 
     <section class="receipt-totals">
         <div class="receipt-total-row"><span>Subtotal</span><span>P{{ number_format($sale->subtotal, 2) }}</span></div>
-        <div class="receipt-total-row"><span>Tax (12%)</span><span>P{{ number_format($sale->tax_amount, 2) }}</span></div>
         @if((float) $sale->labor_amount > 0)
             <div class="receipt-total-row"><span>Labor</span><span>P{{ number_format($sale->labor_amount, 2) }}</span></div>
         @endif

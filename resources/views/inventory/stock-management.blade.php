@@ -1,8 +1,8 @@
 @php
 $navigation = [
-    ['⌂','Dashboard','/admin/dashboard'], ['▣','Stock Management','#'], ['□','Products','/admin/products'],
-    ['⌁','Analytics','/admin/analytics'], ['!','Low Stock Alerts','/admin/low-stocks'], ['@','Dead Stock','/admin/deadstock'],
-    ['◇','Returns & Damages','/admin/returns'], ['♙','Supplier Price','/admin/suppliers'], ['⚙','Part Compatibility','/admin/compatibility'], ['♟','Account Management','/admin/accounts'],
+    ['house-door','Dashboard','/admin/dashboard'], ['boxes','Stock Management','#'], ['box-seam','Products','/admin/products'], ['cart3','POS Checkout','/admin/pos'],
+    ['bar-chart-line','Analytics','/admin/analytics'], ['exclamation-triangle','Low Stock Alerts','/admin/low-stocks'], ['box2','Dead Stock','/admin/deadstock'],
+    ['arrow-repeat','Returns & Damages','/admin/returns'], ['tags','Supplier Price','/admin/suppliers'], ['gear','Part Compatibility','/admin/compatibility'], ['people','Account Management','/admin/accounts'],
 ];
 $productStoreRoute = route('admin.inventory.products.store');
 $movementStoreRoute = route('admin.inventory.movements.store');
@@ -18,25 +18,25 @@ $editErrorProduct = $errors->getBag('editProduct')->any()
     <title>Stock Management | MotoSync</title>
     @vite(['resources/css/dashboard.css','resources/css/stock-management.css','resources/css/sorting-controls.css','resources/css/responsive.css','resources/js/dashboard.js','resources/js/stock-management.js'])
 </head>
-<body>
+<body data-live-inventory-page data-live-inventory-url="{{ route('inventory.live') }}" data-inventory-version="{{ $inventoryVersion }}">
 <div class="dashboard-shell stock-shell">
     <aside class="sidebar" data-sidebar>
         <div class="sidebar-brand"><span class="logo-mark">M</span><div><strong>MotoSync</strong><small>Pareng RJJ Motorcycle Parts</small></div></div>
         <nav class="nav-list" aria-label="Administrator navigation">
             @foreach($navigation as $index => $item)
-                <a class="nav-link {{ $index === 1 ? 'active' : '' }}" href="{{ $item[2] === '#' ? '#' : url($item[2]) }}"><span>{{ $item[0] }}</span><span>{{ $item[1] }}</span></a>
+                <a class="nav-link {{ $index === 1 ? 'active' : '' }}" href="{{ $item[2] === '#' ? '#' : url($item[2]) }}"><span><i class="bi bi-{{ $item[0] }}" aria-hidden="true"></i></span><span>{{ $item[1] }}</span></a>
             @endforeach
         </nav>
         <div class="sidebar-user">
             <span class="avatar">{{ strtoupper(substr(auth()->user()->name, 0, 2)) }}</span>
             <div><strong>{{ auth()->user()->name }}</strong><small>Administrator</small></div>
-            <form method="POST" action="{{ route('logout') }}">@csrf<button class="logout-button" type="submit" title="Log out">&#8618;</button></form>
+            <form method="POST" action="{{ route('logout') }}">@csrf<button class="logout-button" type="submit" title="Log out"><i class="bi bi-box-arrow-right" aria-hidden="true"></i></button></form>
         </div>
     </aside>
 
     <main class="dashboard-main stock-main">
         <header class="stock-header">
-            <button class="menu-button" type="button" data-menu aria-label="Toggle navigation">&#9776;</button>
+            <button class="menu-button" type="button" data-menu aria-label="Toggle navigation"><i class="bi bi-list" aria-hidden="true"></i></button>
             <div><p class="welcome">INVENTORY CONTROL</p><h1>Stock Management</h1><p>Monitor inventory levels and record every stock movement.</p></div>
             <form class="header-tools" method="GET">
                 <label class="search-box"><span>⌕</span><input type="search" name="search" value="{{ $search }}" placeholder="Search SKU, product, or shelf"></label>
@@ -224,10 +224,13 @@ $editErrorProduct = $errors->getBag('editProduct')->any()
     </main>
 </div>
 
-<div class="stock-modal" data-product-modal data-open-on-error="{{ $errors->getBag('default')->any() && old('sku') ? 'true' : 'false' }}" hidden>
+<div class="stock-modal" data-product-modal data-open-on-error="{{ $errors->getBag('addProduct')->any() ? 'true' : 'false' }}" hidden>
     <div class="modal-backdrop" data-close-product></div>
     <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="add-product-title">
-        <div class="modal-header"><div><span class="section-kicker">NEW INVENTORY ITEM</span><h2 id="add-product-title">Add Product</h2></div><button type="button" data-close-product aria-label="Close">×</button></div>
+        <div class="modal-header"><div><span class="section-kicker">NEW INVENTORY ITEM</span><h2 id="add-product-title">Add Product</h2></div><button type="button" data-close-product aria-label="Close"><i class="bi bi-x-lg" aria-hidden="true"></i></button></div>
+        @if($errors->getBag('addProduct')->any())
+            <div class="modal-form-errors" role="alert"><strong>The product was not added:</strong><ul>@foreach($errors->getBag('addProduct')->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>
+        @endif
         <form method="POST" action="{{ $productStoreRoute }}" class="product-form">
             @csrf
             <div class="form-grid">
@@ -245,7 +248,18 @@ $editErrorProduct = $errors->getBag('editProduct')->any()
                 <label data-new-category-field @if(old('category') !== '__new__') hidden @endif>New category
                     <input name="new_category" value="{{ old('new_category') }}" maxlength="100" placeholder="e.g. Lubricants" @if(old('category') === '__new__') required @else disabled @endif>
                 </label>
-                <label>Shelf location<input name="shelf_location" value="{{ old('shelf_location') }}" maxlength="100" placeholder="e.g. Aisle A · Shelf 03 · Bin 2"></label>
+                <label>Shelf location
+                    <select name="shelf_location" data-option-select data-new-value="__new__" data-new-field="new-shelf-field">
+                        <option value="">Select a shelf</option>
+                        @foreach($shelves as $shelf)
+                            <option value="{{ $shelf }}" @selected(old('shelf_location') === $shelf)>{{ $shelf }}</option>
+                        @endforeach
+                        <option value="__new__" @selected(old('shelf_location') === '__new__')>+ Add new shelf</option>
+                    </select>
+                </label>
+                <label data-new-option-field="new-shelf-field" @if(old('shelf_location') !== '__new__') hidden @endif>New shelf
+                    <input name="new_shelf_location" value="{{ old('new_shelf_location') }}" maxlength="100" placeholder="e.g. Aisle A · Shelf 03 · Bin 2" @if(old('shelf_location') === '__new__') required @else disabled @endif>
+                </label>
                 <label>Manufacturer<input name="manufacturer" value="{{ old('manufacturer') }}" maxlength="150" placeholder="e.g. Honda, NGK, DID"></label>
                 <label>Manufacturer part number (required)<input name="manufacturer_part_number" value="{{ old('manufacturer_part_number') }}" maxlength="150" required placeholder="Official number from manufacturer or packaging"></label>
                 <label>Opening Qty In<input name="qty_in" value="{{ old('qty_in', 0) }}" type="number" min="0" required></label>
@@ -266,7 +280,7 @@ $editErrorProduct = $errors->getBag('editProduct')->any()
     <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="edit-product-title">
         <div class="modal-header">
             <div><span class="section-kicker">PRODUCT INFORMATION</span><h2 id="edit-product-title">Edit <span data-edit-product-title>{{ $editErrorProduct?->name }}</span></h2></div>
-            <button type="button" data-close-edit-product aria-label="Close">×</button>
+            <button type="button" data-close-edit-product aria-label="Close"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
         </div>
         @if($errors->getBag('editProduct')->any())
             <div class="modal-form-errors" role="alert"><strong>Please correct:</strong><ul>@foreach($errors->getBag('editProduct')->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>
@@ -277,8 +291,28 @@ $editErrorProduct = $errors->getBag('editProduct')->any()
             <div class="form-grid">
                 <label>SKU<input name="sku" value="{{ old('sku', $editErrorProduct?->sku) }}" maxlength="100" required></label>
                 <label>Product name<input name="name" value="{{ old('name', $editErrorProduct?->name) }}" maxlength="255" required></label>
-                <label>Category<input name="category" value="{{ old('category', $editErrorProduct?->category) }}" maxlength="100" placeholder="e.g. Lubricants"></label>
-                <label>Shelf location<input name="shelf_location" value="{{ old('shelf_location', $editErrorProduct?->shelf_location) }}" maxlength="100" placeholder="e.g. Aisle A · Shelf 03 · Bin 2"></label>
+                @php($editCategory = old('category', $editErrorProduct?->category))
+                @php($editShelf = old('shelf_location', $editErrorProduct?->shelf_location))
+                <label>Category
+                    <select name="category" data-option-select data-new-value="__new__" data-new-field="edit-new-category-field">
+                        <option value="">Select a category</option>
+                        @foreach($categories as $category)<option value="{{ $category }}" @selected($editCategory === $category)>{{ $category }}</option>@endforeach
+                        <option value="__new__" @selected($editCategory === '__new__')>+ Add new category</option>
+                    </select>
+                </label>
+                <label data-new-option-field="edit-new-category-field" @if($editCategory !== '__new__') hidden @endif>New category
+                    <input name="new_category" value="{{ old('new_category') }}" maxlength="100" placeholder="e.g. Lubricants" @if($editCategory === '__new__') required @else disabled @endif>
+                </label>
+                <label>Shelf location
+                    <select name="shelf_location" data-option-select data-new-value="__new__" data-new-field="edit-new-shelf-field">
+                        <option value="">Select a shelf</option>
+                        @foreach($shelves as $shelf)<option value="{{ $shelf }}" @selected($editShelf === $shelf)>{{ $shelf }}</option>@endforeach
+                        <option value="__new__" @selected($editShelf === '__new__')>+ Add new shelf</option>
+                    </select>
+                </label>
+                <label data-new-option-field="edit-new-shelf-field" @if($editShelf !== '__new__') hidden @endif>New shelf
+                    <input name="new_shelf_location" value="{{ old('new_shelf_location') }}" maxlength="100" placeholder="e.g. Aisle A · Shelf 03 · Bin 2" @if($editShelf === '__new__') required @else disabled @endif>
+                </label>
                 <label>Manufacturer<input name="manufacturer" value="{{ old('manufacturer', $editErrorProduct?->manufacturer) }}" maxlength="150" placeholder="e.g. Honda, NGK, DID"></label>
                 <label>Manufacturer part number (required)<input name="manufacturer_part_number" value="{{ old('manufacturer_part_number', $editErrorProduct?->manufacturer_part_number) }}" maxlength="150" required placeholder="Official number from manufacturer or packaging"></label>
                 <label>Unit cost (₱)<input name="unit_cost" value="{{ old('unit_cost', $editErrorProduct?->unit_cost) }}" type="number" min="0" max="9999999999.99" step="0.01" required></label>

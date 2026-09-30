@@ -1,3 +1,5 @@
+import './inventory-live-reload';
+
 const statusFilter = document.querySelector('[data-status-filter]');
 const filterForm = document.querySelector('[data-filter-form]');
 const modal = document.querySelector('[data-product-modal]');
@@ -42,6 +44,22 @@ function updateNewCategoryField() {
 categorySelect?.addEventListener('change', updateNewCategoryField);
 updateNewCategoryField();
 
+function updateNewOptionField(select, focus = false) {
+    const field = document.querySelector(`[data-new-option-field="${select.dataset.newField}"]`);
+    const input = field?.querySelector('input');
+    if (!field || !input) return;
+    const adding = select.value === select.dataset.newValue;
+    field.hidden = !adding;
+    input.disabled = !adding;
+    input.required = adding;
+    if (adding && focus) window.setTimeout(() => input.focus(), 0);
+}
+
+document.querySelectorAll('[data-option-select]').forEach((select) => {
+    select.addEventListener('change', () => updateNewOptionField(select, true));
+    updateNewOptionField(select);
+});
+
 const editModal = document.querySelector('[data-edit-product-modal]');
 const editForm = editModal?.querySelector('[data-edit-product-form]');
 const editTitle = editModal?.querySelector('[data-edit-product-title]');
@@ -50,7 +68,14 @@ const editPromotionNote = editModal?.querySelector('[data-edit-promotion-note]')
 
 function setEditValue(name, value) {
     const field = editForm?.elements.namedItem(name);
-    if (field) field.value = value || '';
+    if (!field) return;
+    const requestedValue = value || '';
+    if (field instanceof HTMLSelectElement && requestedValue && ![...field.options].some((option) => option.value === requestedValue)) {
+        const option = new Option(requestedValue, requestedValue);
+        field.add(option, field.options[field.options.length - 1]);
+    }
+    field.value = requestedValue;
+    if (field.matches('[data-option-select]')) updateNewOptionField(field);
 }
 
 function showEditProductModal() {
