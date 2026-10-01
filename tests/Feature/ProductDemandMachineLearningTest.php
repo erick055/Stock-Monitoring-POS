@@ -49,18 +49,24 @@ class ProductDemandMachineLearningTest extends TestCase
         $this->assertGreaterThanOrEqual(20, $result['training_samples']);
         $this->assertGreaterThanOrEqual(5, $result['validation_samples']);
         $this->assertGreaterThanOrEqual(0, $result['validation_mae']);
-        foreach ($result['items'] as $i => $item) {
-            $this->assertEqualsWithDelta(3 * ($i + 1), $item['predicted_units'], 2);
+        foreach ($result['items'] as $item) {
+            $quantity = (int) substr($item['sku'], -1);
+            $this->assertEqualsWithDelta(3 * $quantity, $item['predicted_units'], 2);
         }
+        $this->assertSame('ML-DEMAND-5', $result['items'][0]['sku']);
+        $this->assertSame(1, $result['items'][0]['priority_rank']);
+        $this->assertSame(0, $result['items'][0]['stock_shortfall']);
         $this->assertSame($result, $service->current());
         $newSale = SalesTransaction::create(['staff_id' => $staff->id, 'subtotal' => 100, 'total_sale_amount' => 100,
             'payment_status' => 'paid', 'sale_date' => now()]);
         SalesItem::create(['sale_id' => $newSale->sale_id, 'product_id' => $products->first()->product_id,
             'quantity' => 2, 'unit_sale_price' => 100, 'unit_cost' => 50, 'line_total' => 200]);
         $updated = $service->current();
-        $this->assertSame($result['items'][0]['recent_units'] + 2, $updated['items'][0]['recent_units']);
+        $beforeRow = collect($result['items'])->firstWhere('product_id', $products->first()->product_id);
+        $updatedRow = collect($updated['items'])->firstWhere('product_id', $products->first()->product_id);
+        $this->assertSame($beforeRow['recent_units'] + 2, $updatedRow['recent_units']);
         $newSale->update(['payment_status' => 'unpaid']);
-        $this->assertSame($result['items'][0]['recent_units'], $service->current()['items'][0]['recent_units']);
+        $this->assertSame($beforeRow['recent_units'], collect($service->current()['items'])->firstWhere('product_id', $products->first()->product_id)['recent_units']);
         Http::assertNothingSent();
     }
 }

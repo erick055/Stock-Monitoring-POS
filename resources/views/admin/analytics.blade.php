@@ -181,54 +181,45 @@ $navigation = [
 
         <section class="analytics-grid">
             <article class="panel analytics-panel ai-demand-panel">
-                <div class="demand-heading">
-                    <div>
-                        <span class="section-kicker">LOCAL MACHINE LEARNING</span>
-                        <h2>Future Product Demand</h2>
-                        <p>A look at what your products may sell over the next 30 days.</p>
+                <div class="future-outlook-header">
+                    <div class="future-outlook-icon" aria-hidden="true"><i class="bi bi-stars"></i></div>
+                    <div class="future-outlook-copy">
+                        <div class="future-outlook-heading">
+                            <div><span class="section-kicker">LOCAL MACHINE LEARNING</span><h2>Future Product Demand</h2></div>
+                            <span class="future-model-status {{ $aiDemandForecast['available'] ? 'ready' : 'waiting' }}"><i aria-hidden="true"></i>{{ $aiDemandForecast['available'] ? 'Predictions ready' : 'Waiting for sales history' }}</span>
+                        </div>
+                        <p>Identify which products may be most in demand over the next 30 days. Products with the highest estimated sales appear first.</p>
+                        @php($priorityProducts = collect($aiDemandForecast['items'])->filter(fn ($item) => $item['priority_rank'] !== null)->take(3))
+                        @if($priorityProducts->isNotEmpty())
+                            <p class="future-priority"><strong>Products to watch:</strong> {{ $priorityProducts->map(fn ($item) => $item['name'].' ('.$item['sku'].')')->implode(' · ') }}</p>
+                        @else
+                            <p class="future-priority">No future-demand priorities identified yet. {{ $aiDemandForecast['available'] ? 'No positive sales estimates are available.' : 'Keep recording POS sales to build history.' }}</p>
+                        @endif
+                        <details class="future-model-details">
+                            <summary>About this update</summary>
+                            <p>{{ $aiDemandForecast['model'] }} · No hosted API is used. Predictions are estimates, not recorded demand.</p>
+                            @if($aiDemandForecast['available'])<p>Validation MAE: {{ number_format($aiDemandForecast['validation_mae'], 1) }} units; previous-30-day baseline: {{ number_format($aiDemandForecast['baseline_mae'], 1) }} units. {{ $aiDemandForecast['validation_samples'] }} later historical samples. Lower error is better.</p>@else<p>{{ $aiDemandForecast['message'] }}</p>@endif
+                        </details>
                     </div>
-                    <span class="demand-status {{ $aiDemandForecast['available'] ? 'is-ready' : 'is-learning' }}"><i class="bi bi-{{ $aiDemandForecast['available'] ? 'check-circle' : 'clock' }}" aria-hidden="true"></i> {{ $aiDemandForecast['available'] ? 'Predictions ready' : 'Collecting sales history' }}</span>
                 </div>
-                <div class="demand-context">
-                    <span><i class="bi bi-calendar3" aria-hidden="true"></i> Next 30 days</span>
-                    <span><i class="bi bi-arrow-repeat" aria-hidden="true"></i> Updates automatically</span>
-                    <span class="demand-updated">Updated {{ \Carbon\Carbon::parse($aiDemandForecast['updated_at'])->diffForHumans() }}</span>
-                </div>
-                @unless($aiDemandForecast['available'])
-                    <div class="demand-history-note"><i class="bi bi-info-circle" aria-hidden="true"></i><div><strong>A little more history is needed</strong><p>Keep recording POS sales. Estimates will appear here once there is enough history to train and check the model.</p></div></div>
-                @endunless
-                <div class="demand-table-wrap" tabindex="0" role="region" aria-label="Future product demand predictions">
-                    <table class="demand-table">
-                        <thead><tr><th scope="col">Product</th><th scope="col" class="demand-number">In stock</th><th scope="col" class="demand-number">Sold <small>Last 30 days</small></th><th scope="col" class="demand-number demand-estimate-heading">Expected sales <small>Next 30 days</small></th><th scope="col">Outlook</th></tr></thead>
+                <div class="future-outlook-table" tabindex="0" role="region" aria-label="Future product demand predictions">
+                    <table>
+                        <thead><tr><th scope="col">Product</th><th scope="col">Stock</th><th scope="col">30-day demand</th><th scope="col">Priority</th><th scope="col">Observations</th><th scope="col">Updated</th></tr></thead>
                         <tbody>
                             @forelse($aiDemandForecast['items'] as $item)
-                                @php($outlookClass = match($item['trend']) { 'Rising' => 'rising', 'Falling' => 'falling', 'Steady' => 'steady', default => 'waiting' })
-                                @php($outlookIcon = match($item['trend']) { 'Rising' => 'graph-up', 'Falling' => 'graph-down', 'Steady' => 'dash-lg', default => 'clock' })
                                 <tr>
-                                    <td class="demand-product"><strong>{{ $item['name'] }}</strong><small>{{ $item['sku'] }}</small></td>
-                                    <td class="demand-number">{{ number_format($item['stock']) }}</td>
-                                    <td class="demand-number">{{ number_format($item['recent_units']) }}</td>
-                                    <td class="demand-number demand-estimate">@if($item['predicted_units'] === null)<span class="demand-pending">Not enough history</span>@else<strong>{{ number_format($item['predicted_units']) }}</strong> <span>units</span>@endif</td>
-                                    <td><span class="demand-outlook {{ $outlookClass }}"><i class="bi bi-{{ $outlookIcon }}" aria-hidden="true"></i>{{ $item['trend'] }}</span></td>
+                                    <td><strong>{{ $item['name'] }}</strong><small>{{ $item['sku'] }}</small></td>
+                                    <td>{{ number_format($item['stock']) }}</td>
+                                    <td>@if($item['predicted_units'] === null)<span class="future-pending">Waiting for history</span>@else<strong>{{ number_format($item['predicted_units']) }} units</strong><small>{{ $item['trend'] }} · {{ number_format($item['recent_units']) }} sold in the past 30 days</small>@endif</td>
+                                    <td>@if($item['priority_rank'] !== null)<span class="future-priority-badge">#{{ $item['priority_rank'] }} by expected sales</span>@else<span class="future-muted">—</span>@endif</td>
+                                    <td>{{ $item['recommendation'] }}</td>
+                                    <td>{{ $item['predicted_units'] === null ? '—' : \Carbon\Carbon::parse($aiDemandForecast['updated_at'])->diffForHumans() }}</td>
                                 </tr>
                             @empty
-                                <tr><td colspan="5" class="demand-empty"><i class="bi bi-box-seam" aria-hidden="true"></i><strong>No products to review yet</strong><span>Add products and record POS sales to start building demand history.</span></td></tr>
+                                <tr><td colspan="6">No products yet. Add products and record paid POS sales to build demand history.</td></tr>
                             @endforelse
                         </tbody>
                     </table>
-                </div>
-                <div class="demand-footer">
-                    <p>Estimates, not guarantees. Stock shortages and seasonal changes can affect sales.</p>
-                    <details class="demand-method">
-                        <summary>How these estimates work <i class="bi bi-chevron-down" aria-hidden="true"></i></summary>
-                        <div><p>{{ $aiDemandForecast['model'] }} learns from your paid POS sales. No hosted API is used. Predictions are estimates, not recorded demand.</p>
-                            @if($aiDemandForecast['available'])
-                                <p>Validation MAE: {{ number_format($aiDemandForecast['validation_mae'], 1) }} units per product / 30 days. Previous-30-day baseline: {{ number_format($aiDemandForecast['baseline_mae'], 1) }} units. Checked against {{ $aiDemandForecast['validation_samples'] }} later historical samples. Lower error is better; this is not an accuracy percentage.</p>
-                            @else
-                                <p>{{ $aiDemandForecast['message'] }}</p>
-                            @endif
-                        </div>
-                    </details>
                 </div>
             </article>
 

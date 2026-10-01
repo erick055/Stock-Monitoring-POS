@@ -20,7 +20,7 @@ class ProductDemandMachineLearning
             ->orderBy('sales_transactions.sale_date')
             ->get(['sales_items.product_id', 'sales_items.quantity', 'sales_items.sale_id', 'sales_transactions.sale_date']);
         // Include quantities and timestamps: corrections invalidate cached training too.
-        $key = 'product-demand-ridge-v1-'.hash('sha256', $now->toDateString().$products->toJson().$sales->toJson());
+        $key = 'product-demand-ridge-v2-'.hash('sha256', $now->toDateString().$products->toJson().$sales->toJson());
 
         return Cache::remember($key, now()->addHour(), fn () => $this->build($products, $sales, $now));
     }
@@ -66,7 +66,19 @@ class ProductDemandMachineLearning
             return ['product_id' => $product->product_id, 'name' => $product->name, 'sku' => $product->sku,
                 'stock' => $product->current_stock, 'recent_units' => (int) $features[0], 'predicted_units' => $prediction,
                 'trend' => $prediction === null ? 'Waiting for history' : ($prediction > $features[0] ? 'Rising' : ($prediction < $features[0] ? 'Falling' : 'Steady'))];
-        })->values()->all();
+        })->sort(function ($a, $b) {
+            return (($b['predicted_units'] ?? -1) <=> ($a['predicted_units'] ?? -1)) ?: strcmp($a['sku'], $b['sku']);
+        })->values()->map(function ($item, $index) {
+            $item['priority_rank'] = ($item['predicted_units'] ?? 0) > 0 ? $index + 1 : null;
+            $item['stock_shortfall'] = $item['predicted_units'] === null ? null : max(0, $item['predicted_units'] - $item['stock']);
+            $item['recommendation'] = match (true) {
+                $item['predicted_units'] === null => 'More sales history is needed to identify future demand.',
+                $item['predicted_units'] === 0 => 'No unit sales predicted in the next 30 days; review before reordering.',
+                $item['stock_shortfall'] > 0 => 'Review replenishment: estimated sales exceed current stock by '.$item['stock_shortfall'].' units.',
+                default => 'Current stock covers estimated sales; monitor before reordering.',
+            };
+            return $item;
+        })->all();
 
         return ['available' => $model !== null, 'items' => $items, 'model' => 'Local ridge regression',
             'training_samples' => count($samples), 'validation_samples' => count($validation),
