@@ -1,4 +1,5 @@
 import './required-fields';
+import { backgroundReload } from './session-activity';
 
 const menu = document.querySelector('[data-menu]');
 const sidebar = document.querySelector('[data-sidebar]');
@@ -48,7 +49,7 @@ if (dashboard) {
     if (refreshMs >= 30000) {
         window.setInterval(() => {
             if (document.visibilityState === 'visible' && !document.querySelector('input:focus, textarea:focus, select:focus')) {
-                window.location.reload();
+                backgroundReload();
             }
         }, refreshMs);
     }

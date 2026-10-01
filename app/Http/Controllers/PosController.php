@@ -19,7 +19,13 @@ use Illuminate\View\View;
 
 class PosController extends Controller
 {
-    public function index(InventoryLiveService $liveInventory): View
+    private function authorizeCashierRecord(Request $request, int $staffId): void
+    {
+        abort_unless($request->user()->role === 'admin' || (int) $request->user()->id === $staffId,
+            403, 'You do not have permission to access another cashier\'s record.');
+    }
+
+    public function index(Request $request, InventoryLiveService $liveInventory): View
     {
         $inventoryProducts = $liveInventory->products();
         $sourceProducts = $inventoryProducts->where('current_stock', '>', 0)->values();
@@ -63,6 +69,7 @@ class PosController extends Controller
         $inventoryVersion = $liveInventory->version($inventoryProducts);
 
         $checkoutLogs = SalesTransaction::query()
+            ->when($request->user()->role !== 'admin', fn ($query) => $query->where('staff_id', $request->user()->id))
             ->with('staff')
             ->withCount('items')
             ->withSum('items as units_count', 'quantity')
@@ -71,6 +78,7 @@ class PosController extends Controller
             ->get();
 
         $heldOrders = HeldOrder::query()
+            ->when($request->user()->role !== 'admin', fn ($query) => $query->where('staff_id', $request->user()->id))
             ->with(['staff', 'items.product'])
             ->where('status', 'held')
             ->latest('held_at')
@@ -92,8 +100,9 @@ class PosController extends Controller
         return mb_strtolower($category, 'UTF-8');
     }
 
-    public function showReceipt(SalesTransaction $sale): View
+    public function showReceipt(Request $request, SalesTransaction $sale): View
     {
+        $this->authorizeCashierRecord($request, $sale->staff_id);
         $sale->load(['items.product', 'staff']);
 
         return view('staff.pos-receipt', compact('sale'));
@@ -153,23 +162,25 @@ class PosController extends Controller
         ], 201);
     }
 
-    public function cancelHold(HeldOrder $heldOrder): JsonResponse
+    public function cancelHold(Request $request, HeldOrder $heldOrder): JsonResponse
     {
-        if ($heldOrder->status !== 'held') {
-            throw ValidationException::withMessages(['hold' => 'This held order is no longer active.']);
-        }
-
-        $heldOrder->update([
-            'status' => 'cancelled',
-            'resolved_at' => now(),
-        ]);
+        DB::transaction(function () use ($request, $heldOrder): void {
+            $heldOrder = HeldOrder::query()->lockForUpdate()->findOrFail($heldOrder->held_order_id);
+            $this->authorizeCashierRecord($request, $heldOrder->staff_id);
+            if ($heldOrder->status !== 'held') {
+                throw ValidationException::withMessages(['hold' => 'This held order is no longer active.']);
+            }
+            $heldOrder->update(['status' => 'cancelled', 'resolved_at' => now()]);
+        });
 
         return response()->json(['message' => $this->holdNumber($heldOrder).' was cancelled.']);
     }
 
     public function store(Request $request, LowStockAlertService $alerts): JsonResponse
     {
+        $request->merge(['checkout_key' => $request->header('Idempotency-Key')]);
         $validated = $request->validate([
+            'checkout_key' => ['required', 'uuid'],
             'items' => ['nullable', 'array'],
             'items.*.product_id' => ['required', Rule::exists('products', 'product_id')->where('is_active', true)],
             'items.*.quantity' => ['required', 'integer', 'min:1'],
@@ -191,7 +202,21 @@ class PosController extends Controller
             ]);
         }
 
-        $sale = DB::transaction(function () use ($validated, $cartItems, $laborAmount, $request) {
+        $fingerprint = hash('sha256', json_encode([
+            $cartItems, $laborAmount, $validated['payment_method'] ?? 'cash', $validated['held_order_id'] ?? null,
+        ], JSON_THROW_ON_ERROR));
+        $replayed = false;
+        $sale = DB::transaction(function () use ($validated, $cartItems, $laborAmount, $request, $fingerprint, &$replayed) {
+            // Serialize checkout attempts per cashier, including labor-only sales.
+            DB::table('users')->where('id', $request->user()->id)->lockForUpdate()->first();
+            $existing = SalesTransaction::where('staff_id', $request->user()->id)
+                ->where('checkout_key', $validated['checkout_key'])->first();
+            if ($existing) {
+                abort_unless(hash_equals($existing->checkout_fingerprint, $fingerprint), 409,
+                    'This checkout key belongs to a different order.');
+                $replayed = true;
+                return $existing->load('items.product');
+            }
             $subtotal = 0;
             $saleItems = [];
             $heldOrder = null;
@@ -207,6 +232,7 @@ class PosController extends Controller
 
             if (! empty($validated['held_order_id'])) {
                 $heldOrder = HeldOrder::query()->lockForUpdate()->findOrFail($validated['held_order_id']);
+                $this->authorizeCashierRecord($request, $heldOrder->staff_id);
 
                 if ($heldOrder->status !== 'held') {
                     throw ValidationException::withMessages(['held_order_id' => 'This held order is no longer active.']);
@@ -241,6 +267,8 @@ class PosController extends Controller
             $total = round($subtotal + $laborAmount, 2);
 
             $sale = SalesTransaction::create([
+                'checkout_key' => $validated['checkout_key'],
+                'checkout_fingerprint' => $fingerprint,
                 'staff_id' => $request->user()->id,
                 'subtotal' => $subtotal,
                 'tax_amount' => 0,
@@ -282,7 +310,9 @@ class PosController extends Controller
 
         $receiptNumber = 'POS-'.str_pad((string) $sale->sale_id, 6, '0', STR_PAD_LEFT);
 
-        $sale->items->each(fn (SalesItem $item) => $alerts->checkProduct($item->product));
+        if (! $replayed) {
+            $sale->items->each(fn (SalesItem $item) => $alerts->checkProduct($item->product));
+        }
 
         return response()->json([
             'message' => "Payment processed. Receipt #{$receiptNumber} saved.",

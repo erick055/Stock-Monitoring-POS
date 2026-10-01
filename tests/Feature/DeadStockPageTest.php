@@ -14,6 +14,28 @@ class DeadStockPageTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_last_sale_age_counts_elapsed_days_and_handles_missing_or_future_dates(): void
+    {
+        $this->travelTo(\Illuminate\Support\Carbon::parse('2026-10-01 12:00:00'));
+        $product = Product::create([
+            'sku' => 'SALE-AGE', 'name' => 'Sale Age Part',
+            'unit_cost' => 100, 'unit_price' => 150, 'current_stock' => 5,
+        ]);
+        $controller = app(\App\Http\Controllers\DeadStockController::class);
+
+        foreach ([0, 1, 30, 90, 120] as $days) {
+            $analysis = $controller->scoreProduct($product, 0, 1, now()->subDays($days)->toDateTimeString());
+            $this->assertSame("{$days} day(s) ago", $analysis['last_sale']);
+        }
+        $this->assertSame('0 day(s) ago', $controller->scoreProduct(
+            $product, 0, 1, now()->subHours(23)->toDateTimeString()
+        )['last_sale']);
+        $this->assertSame('0 day(s) ago', $controller->scoreProduct(
+            $product, 0, 1, now()->addDays(2)->toDateTimeString()
+        )['last_sale']);
+        $this->assertSame('No sale recorded', $controller->scoreProduct($product, 0, 0, null)['last_sale']);
+    }
+
     public function test_admin_can_view_dead_stock_page(): void
     {
         $admin = User::factory()->create([

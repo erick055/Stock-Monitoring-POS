@@ -29,6 +29,8 @@ if (posApp) {
     let currentCategory = 'All';
     let cart = [];
     let activeHeldOrderId = null;
+    let pendingCheckout = null;
+    let checkoutLockedControls = [];
 
     function showToast(message) {
         if (!toast) return;
@@ -146,6 +148,10 @@ if (posApp) {
     }
 
     function resumeHeldOrder(hold) {
+        if (pendingCheckout) {
+            showToast('Resolve the pending payment by retrying it first.');
+            return;
+        }
         const unavailable = [];
         cart = hold.items.flatMap((item) => {
             const product = products.find((entry) => entry.id === item.product_id);
@@ -243,32 +249,6 @@ if (posApp) {
 
             card.append(head, meta, names, actions);
             heldOrderList.appendChild(card);
-        });
-    }
-
-    function renderFlatProducts() {
-        if (!grid) return;
-        const query = (searchInput?.value || '').trim().toLowerCase();
-        const filtered = products.filter((product) => {
-            const categoryMatch = currentCategory === 'All' || product.categoryKey === currentCategory;
-            const queryMatch = !query || `${product.name} ${product.sku || ''} ${product.category} ${product.shelfLocation || ''}`.toLowerCase().includes(query);
-            return categoryMatch && queryMatch;
-        });
-
-        grid.innerHTML = '';
-
-        filtered.forEach((product) => {
-            const card = document.createElement('article');
-            card.className = 'product-card';
-            card.innerHTML = `
-                <div class="product-meta">
-                    <small>${product.category} · ${product.stock} in stock${product.shelfLocation ? ` · Shelf ${product.shelfLocation}` : ''}</small>
-                    <div class="product-title">${product.name}</div>
-                </div>
-                <div class="product-price">${product.promotion ? `<small class="regular-price">${peso(product.basePrice)}</small><span>${peso(product.price)}</span><em>${product.promotion.bundleProduct ? `Free with ${product.promotion.bundleProduct.name}` : `${product.promotion.label} · ${product.promotion.discount}% off`}</em>` : peso(product.price)}</div>
-            `;
-            card.addEventListener('click', () => addToCart(product));
-            grid.appendChild(card);
         });
     }
 
@@ -400,16 +380,22 @@ if (posApp) {
             row.className = 'cart-item';
             row.innerHTML = `
                 <div class="item-details">
-                    <h4>${item.name}</h4>
-                    <p>${peso(item.price)}</p>
+                    <h4></h4>
+                    <p></p>
                 </div>
                 <div class="item-controls">
                     <button class="qty-btn" type="button" data-action="minus">-</button>
-                    <span>${item.qty}</span>
+                    <span></span>
                     <button class="qty-btn" type="button" data-action="plus">+</button>
-                    <strong class="item-total">${peso(lineTotal)}</strong>
+                    <strong class="item-total"></strong>
                 </div>
             `;
+
+            // Inventory text is untrusted, including names imported from supplier files.
+            row.querySelector('h4').textContent = item.name;
+            row.querySelector('.item-details p').textContent = peso(item.price);
+            row.querySelector('.item-controls span').textContent = String(item.qty);
+            row.querySelector('.item-total').textContent = peso(lineTotal);
 
             row.querySelector('[data-action="minus"]').addEventListener('click', () => changeQty(item.id, -1));
             row.querySelector('[data-action="plus"]').addEventListener('click', () => changeQty(item.id, 1));
@@ -511,6 +497,7 @@ if (posApp) {
     }
 
     async function syncLiveInventory() {
+        if (pendingCheckout) return;
         if (!liveInventoryUrl || document.hidden) return;
         try {
             const response = await fetch(liveInventoryUrl, { headers: { Accept: 'application/json' }, cache: 'no-store' });
@@ -615,6 +602,21 @@ if (posApp) {
         const button = event.currentTarget;
         button.disabled = true;
         button.classList.add('is-loading');
+        // Keep the exact request after an uncertain response, even if the UI changes.
+        pendingCheckout ??= {
+            key: crypto.randomUUID(),
+            body: JSON.stringify({
+                payment_method: 'cash',
+                held_order_id: activeHeldOrderId,
+                labor_amount: laborAmount(),
+                items: cart.map((item) => ({ product_id: item.id, quantity: item.qty })),
+            }),
+        };
+        if (!checkoutLockedControls.length) {
+            checkoutLockedControls = [...posApp.querySelectorAll('button, input')]
+                .filter((control) => control !== button && !control.disabled);
+            checkoutLockedControls.forEach((control) => { control.disabled = true; });
+        }
         try {
             const response = await fetch(checkoutUrl, {
                 method: 'POST',
@@ -622,20 +624,18 @@ if (posApp) {
                     'Content-Type': 'application/json',
                     Accept: 'application/json',
                     'X-CSRF-TOKEN': csrfToken,
+                    'Idempotency-Key': pendingCheckout.key,
                 },
-                body: JSON.stringify({
-                    payment_method: 'cash',
-                    held_order_id: activeHeldOrderId,
-                    labor_amount: laborAmount(),
-                    items: cart.map((item) => ({ product_id: item.id, quantity: item.qty })),
-                }),
+                body: pendingCheckout.body,
             });
             const payload = await response.json();
             if (!response.ok) {
                 const error = payload.message || Object.values(payload.errors || {})?.flat()?.[0] || 'Checkout failed.';
                 showToast(error);
+                if (response.status >= 400 && response.status < 500) pendingCheckout = null;
                 return;
             }
+            pendingCheckout = null;
             cart.forEach((item) => {
                 const product = products.find((entry) => entry.id === item.id);
                 if (product) product.stock -= item.qty;
@@ -654,8 +654,12 @@ if (posApp) {
             showReceipt(payload.receipt);
             showToast(payload.message || 'Payment processed and saved.');
         } catch (error) {
-            showToast('Could not connect to checkout backend.');
+            showToast('Payment status is uncertain. Click payment again to safely retry the same order.');
         } finally {
+            if (!pendingCheckout) {
+                checkoutLockedControls.forEach((control) => { control.disabled = false; });
+                checkoutLockedControls = [];
+            }
             button.disabled = false;
             button.classList.remove('is-loading');
         }

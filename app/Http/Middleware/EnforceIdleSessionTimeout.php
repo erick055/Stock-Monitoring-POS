@@ -31,7 +31,11 @@ class EnforceIdleSessionTimeout
                 );
             }
 
-            $request->session()->put(self::SESSION_KEY, now()->timestamp);
+            $backgroundRequest = $request->routeIs('inventory.live')
+                || ($request->isMethod('GET') && $request->query('_background') === '1');
+            if (! $backgroundRequest || ! $lastActivity) {
+                $request->session()->put(self::SESSION_KEY, now()->timestamp);
+            }
         }
 
         return $next($request);

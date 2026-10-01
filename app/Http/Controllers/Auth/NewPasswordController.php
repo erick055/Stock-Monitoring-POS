@@ -8,6 +8,7 @@ use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules;
@@ -32,12 +33,21 @@ class NewPasswordController extends Controller
         $status = Password::reset(
             $request->only('email', 'password', 'password_confirmation', 'token'),
             function (User $user, string $password): void {
-                $user->forceFill([
-                    'password' => Hash::make($password),
-                    'remember_token' => Str::random(60),
-                ])->save();
+                DB::transaction(function () use ($user, $password): void {
+                    $user->forceFill([
+                        'password' => Hash::make($password),
+                        'remember_token' => Str::random(60),
+                    ])->save();
 
-                $user->trustedLoginDevices()->delete();
+                    $user->trustedLoginDevices()->delete();
+                    $user->loginVerificationCode()->delete();
+
+                    if (config('session.driver') === 'database') {
+                        DB::connection(config('session.connection'))
+                            ->table(config('session.table', 'sessions'))
+                            ->where('user_id', $user->id)->delete();
+                    }
+                });
 
                 event(new PasswordReset($user));
             }

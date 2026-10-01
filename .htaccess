@@ -1,0 +1,7 @@
+# Defense in depth for XAMPP/Apache when the repository is under htdocs.
+# Production must still use public/ as its document root.
+Options -Indexes
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^(?!public(?:/|$)) - [F,L]
+</IfModule>

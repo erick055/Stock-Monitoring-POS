@@ -14,6 +14,7 @@ $activeIndex = $isAdmin ? 3 : 2;
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <meta name="session-activity-url" content="{{ route('session.activity') }}">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ $isAdmin ? 'Owner' : 'Staff' }} POS Checkout | MotoSync</title>

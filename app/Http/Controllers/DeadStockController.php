@@ -7,6 +7,7 @@ use App\Models\DeadStockMlModel;
 use App\Models\DeadStockMlPrediction;
 use App\Models\ProductPromotion;
 use App\Models\SalesItem;
+use Illuminate\Support\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -300,7 +301,7 @@ class DeadStockController extends Controller
     {
         $totalCost = (float) $product->unit_cost * (int) $product->current_stock;
         $inventoryAgeDays = max(0, (int) $product->created_at?->diffInDays(now()));
-        $daysSinceLastSale = $latestSale ? max(0, (int) now()->diffInDays($latestSale)) : null;
+        $daysSinceLastSale = $latestSale ? max(0, (int) Carbon::parse($latestSale)->diffInDays(now())) : null;
         $score = 0;
         $reasons = [];
 

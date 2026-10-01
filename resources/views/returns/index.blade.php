@@ -18,6 +18,8 @@ $oldReceipt = $receipts->firstWhere('id', (int) old('sale_id'));
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <meta name="session-activity-url" content="{{ route('session.activity') }}">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Return & Damage | MotoSync</title>

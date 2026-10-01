@@ -16,6 +16,29 @@ class PosCheckoutTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->withHeader('Idempotency-Key', (string) \Illuminate\Support\Str::uuid());
+    }
+
+    public function test_checkout_retry_reuses_sale_and_rejects_changed_payload(): void
+    {
+        $staff = User::factory()->create(['role' => 'staff']);
+        $product = Product::create(['sku' => 'RETRY', 'name' => 'Retry Part', 'unit_price' => 100, 'current_stock' => 5]);
+        $payload = ['items' => [['product_id' => $product->product_id, 'quantity' => 2]]];
+        $first = $this->actingAs($staff)->postJson(route('staff.pos.checkout'), $payload)->assertCreated();
+        $this->postJson(route('staff.pos.checkout'), $payload)->assertCreated()
+            ->assertJsonPath('sale_id', $first->json('sale_id'));
+        $this->assertDatabaseCount('sales_transactions', 1);
+        $this->assertDatabaseCount('sales_items', 1);
+        $this->assertSame(1, InventoryLedger::count());
+        $this->assertSame(3, $product->fresh()->current_stock);
+        $payload['items'][0]['quantity'] = 1;
+        $this->postJson(route('staff.pos.checkout'), $payload)->assertConflict();
+        $this->assertSame(3, $product->fresh()->current_stock);
+    }
+
     public function test_admin_can_open_and_complete_checkout_from_owner_pos(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);

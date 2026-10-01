@@ -26,7 +26,7 @@ if (liveInventoryPage) {
                 return;
             }
             if (snapshot.version !== currentVersion) refreshPending = true;
-            if (refreshPending && !userIsEditing()) window.location.reload();
+            if (refreshPending && !userIsEditing()) backgroundReload();
         } catch (error) {
             // Keep the current data visible and try again on the next interval.
         }
@@ -35,3 +35,5 @@ if (liveInventoryPage) {
     window.setInterval(checkInventory, 5000);
     window.setTimeout(checkInventory, 800);
 }
+import { backgroundReload } from './session-activity';
+
