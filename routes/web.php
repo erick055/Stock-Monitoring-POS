@@ -88,7 +88,6 @@ Route::middleware(['auth', 'verified', 'role:admin'])->group(function () {
     Route::delete('/admin/pos/holds/{heldOrder}', [PosController::class, 'cancelHold'])->name('admin.pos.holds.cancel');
     Route::get('/admin/pos/receipts/{sale}', [PosController::class, 'showReceipt'])->name('admin.pos.receipts.show');
     Route::get('/admin/analytics', [AnalyticsController::class, 'index'])->name('admin.analytics');
-    Route::post('/admin/analytics/demand-forecast', [AnalyticsController::class, 'generateDemandForecast'])->middleware('throttle:3,1')->name('admin.analytics.demand-forecast');
     Route::get('/admin/analytics/export/excel', [AnalyticsController::class, 'export'])->middleware('throttle:10,1')->name('admin.analytics.export');
     Route::get('/admin/low-stocks', [LowStocksController::class, 'index'])->name('admin.low-stocks');
     Route::post('/admin/low-stocks/settings', [LowStocksController::class, 'updateSettings'])->name('admin.low-stocks.settings');

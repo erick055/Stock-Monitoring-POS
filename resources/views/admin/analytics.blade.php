@@ -182,29 +182,26 @@ $navigation = [
         <section class="analytics-grid">
             <article class="panel analytics-panel ai-demand-panel">
                 <div class="section-heading">
-                    <div><span class="section-kicker">GROQ AI FORECAST</span><h2>Future Product Demand</h2><small>Next 30 days · based on 12 weeks of paid POS history</small></div>
-                    <span class="ai-only-badge">AI only</span>
+                    <div><span class="section-kicker"><i class="bi bi-graph-up" aria-hidden="true"></i> LOCAL MACHINE LEARNING</span><h2>Future Product Demand</h2><small>Next 30 days · automatically estimated from paid POS history</small></div>
+                    <span class="ai-only-badge">{{ $aiDemandForecast['available'] ? 'Model ready' : 'Learning history' }}</span>
                 </div>
-                <form method="POST" action="{{ route('admin.analytics.demand-forecast') }}" class="ai-forecast-action">
-                    @csrf
-                    <p>Generate on demand to preserve the hosted API's free quota. Results remain cached for {{ config('groq.cache_hours') }} hours.</p>
-                    <button type="submit">{{ $aiDemandForecast['available'] ? 'Refresh AI forecast' : 'Generate AI forecast' }}</button>
-                </form>
+                <p class="ai-forecast-summary">{{ $aiDemandForecast['message'] }}</p>
+                <div class="table-wrap">
+                    <table aria-label="Future product demand predictions">
+                        <thead><tr><th>Product</th><th>Stock</th><th>Sold · past 30 days</th><th>Estimated · next 30 days</th><th>Outlook</th></tr></thead>
+                        <tbody>
+                            @forelse($aiDemandForecast['items'] as $item)
+                                <tr><td><strong>{{ $item['name'] }}</strong><small>{{ $item['sku'] }}</small></td><td>{{ number_format($item['stock']) }}</td><td>{{ number_format($item['recent_units']) }}</td><td>{{ $item['predicted_units'] === null ? '—' : number_format($item['predicted_units']).' units' }}</td><td>{{ $item['trend'] }}</td></tr>
+                            @empty
+                                <tr><td colspan="5">Add products and record POS sales to build demand history.</td></tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
                 @if($aiDemandForecast['available'])
-                    <p class="ai-forecast-summary">{{ $aiDemandForecast['summary'] }}</p>
-                    <div class="ai-forecast-list">
-                        @foreach($aiDemandForecast['items'] as $item)
-                            <article class="ai-forecast-item">
-                                <div><strong>{{ $item['name'] }}</strong><small>{{ $item['sku'] }} · {{ ucfirst($item['trend']) }} trend · {{ ucfirst($item['confidence']) }} confidence</small></div>
-                                <span><strong>{{ number_format($item['predicted_units']) }}</strong> predicted units</span>
-                                <p>{{ $item['rationale'] }}</p>
-                            </article>
-                        @endforeach
-                    </div>
-                    <p class="ai-forecast-meta">Generated {{ \Carbon\Carbon::parse($aiDemandForecast['generated_at'])->diffForHumans() }} by {{ $aiDemandForecast['model'] }}. Predictions are estimates, not recorded demand.</p>
-                @else
-                    <div class="empty-analytics"><strong>AI forecast unavailable.</strong><br>{{ $aiDemandForecast['message'] }}</div>
+                    <p class="ai-forecast-meta">Validation MAE: {{ number_format($aiDemandForecast['validation_mae'], 1) }} units per product / 30 days; previous-30-day baseline: {{ number_format($aiDemandForecast['baseline_mae'], 1) }} units. {{ $aiDemandForecast['validation_samples'] }} chronological validation samples. Lower error is better; this is not an accuracy percentage.</p>
                 @endif
+                <p class="ai-forecast-meta">{{ $aiDemandForecast['model'] }} · Updated {{ \Carbon\Carbon::parse($aiDemandForecast['updated_at'])->diffForHumans() }}. Predictions are estimates, not recorded demand. No hosted API is used.</p>
             </article>
 
             <article class="panel analytics-panel">

@@ -6,9 +6,8 @@ use App\Models\InventoryLedger;
 use App\Models\Product;
 use App\Models\SalesItem;
 use App\Models\SalesTransaction;
-use App\Services\GroqDemandForecaster;
+use App\Services\ProductDemandMachineLearning;
 use Carbon\CarbonImmutable;
-use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
@@ -23,16 +22,6 @@ class AnalyticsController extends Controller
     public function index(Request $request): View
     {
         return view('admin.analytics', $this->analyticsData($request));
-    }
-
-    public function generateDemandForecast(Request $request, GroqDemandForecaster $forecaster): RedirectResponse
-    {
-        $forecast = $forecaster->generate((int) $request->user()->id);
-
-        return back()->with(
-            $forecast['available'] ? 'success' : 'error',
-            $forecast['available'] ? 'Groq AI generated a new 30-day product demand forecast.' : $forecast['message'],
-        );
     }
 
     public function export(Request $request): BinaryFileResponse
@@ -202,7 +191,7 @@ class AnalyticsController extends Controller
             'stock_out' => InventoryLedger::query()->where('reason_code', '!=', 'POS_SALE')->sum('qty_out'),
             'current' => Product::query()->where('is_active', true)->sum('current_stock'),
         ];
-        $aiDemandForecast = app(GroqDemandForecaster::class)->current();
+        $aiDemandForecast = app(ProductDemandMachineLearning::class)->current();
 
         return compact(
             'slowMovingProducts',
@@ -342,6 +331,10 @@ class AnalyticsController extends Controller
         $this->addSheet($writer, 'Demand', ['Product', 'Category', 'Demand units'], $data['demand']->map(fn ($item) => [
             $item->name, $item->category ?: 'Uncategorized', (int) $item->demand_units,
         ])->all(), $headerStyle, [25, 18, 15]);
+
+        $this->addSheet($writer, 'Future Demand', ['SKU', 'Product', 'Stock', 'Sold past 30 days', 'Estimated next 30 days', 'Outlook'], array_map(fn ($item) => [
+            $item['sku'], $item['name'], $item['stock'], $item['recent_units'], $item['predicted_units'], $item['trend'],
+        ], $data['aiDemandForecast']['items']), $headerStyle, [17, 25, 12, 20, 24, 25]);
 
         $inventoryRows = $data['highestStock']->map(fn ($product) => [
             'Highest stock', $product->sku, $product->name, (int) $product->current_stock, (int) $product->reorder_level, ucfirst($product->stock_status),

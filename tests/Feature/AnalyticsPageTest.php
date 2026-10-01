@@ -7,8 +7,6 @@ use App\Models\SalesItem;
 use App\Models\SalesTransaction;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Http\Client\Request;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
@@ -100,78 +98,17 @@ class AnalyticsPageTest extends TestCase
         $response->assertForbidden();
     }
 
-    public function test_admin_can_generate_a_strictly_ai_future_demand_forecast_with_groq(): void
+    public function test_analytics_shows_automatic_local_demand_table_without_external_requests(): void
     {
-        Cache::forget('groq-demand-forecast-v1');
-        config([
-            'groq.api_key' => 'test-groq-key',
-            'groq.model' => 'openai/gpt-oss-20b',
-            'groq.base_url' => 'https://api.groq.com/openai/v1',
-        ]);
+        Http::preventStrayRequests();
         $admin = User::factory()->create(['role' => 'admin']);
-        $staff = User::factory()->create(['role' => 'staff']);
-        $product = Product::create([
-            'sku' => 'AI-DEMAND-01', 'name' => 'AI Demand Chain', 'category' => 'Drive',
-            'unit_price' => 500, 'current_stock' => 12, 'reorder_level' => 4,
-        ]);
-        $sale = SalesTransaction::create([
-            'staff_id' => $staff->id, 'subtotal' => 1000, 'tax_amount' => 0,
-            'total_sale_amount' => 1000, 'payment_status' => 'paid', 'sale_date' => now()->subDays(3),
-        ]);
-        SalesItem::create([
-            'sale_id' => $sale->sale_id, 'product_id' => $product->product_id, 'quantity' => 2,
-            'unit_sale_price' => 500, 'unit_cost' => 300, 'line_total' => 1000,
-        ]);
-
-        Http::fake(['api.groq.com/*' => Http::response([
-            'id' => 'groq-test-response',
-            'model' => 'openai/gpt-oss-20b',
-            'choices' => [['message' => ['content' => json_encode([
-                'summary' => 'Demand is expected to remain steady over the next month.',
-                'forecasts' => [[
-                    'product_id' => $product->product_id,
-                    'predicted_units' => 9,
-                    'trend' => 'steady',
-                    'confidence' => 'medium',
-                    'rationale' => 'Recent weekly purchases show modest, recurring demand.',
-                ]],
-            ])]]],
-        ])]);
-
-        $this->actingAs($admin)->post(route('admin.analytics.demand-forecast'))
-            ->assertRedirect()->assertSessionHas('success');
-
-        $this->actingAs($admin)->get(route('admin.analytics'))
-            ->assertOk()
-            ->assertSee('Future Product Demand')
-            ->assertSee('<strong>9</strong> predicted units', false)
-            ->assertSee('Medium confidence')
-            ->assertSee('Predictions are estimates, not recorded demand');
-
-        Http::assertSent(function (Request $request) use ($product) {
-            $products = $request->data()['messages'][1]['content'] ?? '';
-
-            return $request->url() === 'https://api.groq.com/openai/v1/chat/completions'
-                && $request->hasHeader('Authorization', 'Bearer test-groq-key')
-                && data_get($request->data(), 'response_format.json_schema.strict') === true
-                && str_contains($products, 'AI Demand Chain')
-                && str_contains($products, (string) $product->product_id);
-        });
-    }
-
-    public function test_analytics_does_not_call_groq_until_admin_requests_a_forecast(): void
-    {
-        Cache::forget('groq-demand-forecast-v1');
-        config(['groq.api_key' => 'test-groq-key']);
-        Http::fake();
-        $admin = User::factory()->create(['role' => 'admin']);
-
-        $this->actingAs($admin)->get(route('admin.analytics'))
-            ->assertOk()
-            ->assertSee('Generate AI forecast')
-            ->assertSee('No AI forecast has been generated yet');
-
+        Product::create(['sku' => 'LOCAL-DEMAND', 'name' => 'Local Demand Part', 'current_stock' => 12]);
+        $this->actingAs($admin)->get(route('admin.analytics'))->assertOk()
+            ->assertSee('Future Product Demand')->assertSee('LOCAL MACHINE LEARNING')
+            ->assertSee('Local Demand Part')->assertSee('Waiting for history')
+            ->assertSee('Future product demand predictions')->assertDontSee('Generate AI forecast')->assertDontSee('GROQ');
         Http::assertNothingSent();
+        $this->assertFalse(\Illuminate\Support\Facades\Route::has('admin.analytics.demand-forecast'));
     }
 
     public function test_sales_chart_supports_weekly_monthly_and_yearly_views(): void
