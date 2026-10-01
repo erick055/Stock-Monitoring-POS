@@ -266,16 +266,33 @@ class StockManagementController extends Controller
 
     public function updateShelfLocation(Request $request, Product $product): RedirectResponse
     {
+        abort_unless($product->is_active, 404);
         $validated = $request->validate([
             'shelf_location' => ['nullable', 'string', 'max:100'],
+            'new_shelf_location' => ['nullable', 'required_if:shelf_location,__new__', 'string', 'max:100', 'regex:/\S/u'],
         ]);
 
-        $location = preg_replace('/\s+/u', ' ', trim((string) ($validated['shelf_location'] ?? '')));
+        $location = $this->normalizedShelf(($validated['shelf_location'] ?? '') === '__new__'
+            ? $validated['new_shelf_location'] : ($validated['shelf_location'] ?? null), $product) ?? '';
         $product->update(['shelf_location' => $location !== '' ? $location : null]);
 
         return back()->with('success', $location !== ''
             ? "Shelf location for {$product->name} updated to {$location}."
             : "Shelf location for {$product->name} was cleared.");
+    }
+
+    public function updateCategory(Request $request, Product $product): RedirectResponse
+    {
+        abort_unless($product->is_active, 404);
+        $validated = $request->validate([
+            'category' => ['nullable', 'string', 'max:100'],
+            'new_category' => ['nullable', 'required_if:category,__new__', 'string', 'max:100', 'regex:/\S/u'],
+        ]);
+        $category = $this->normalizedCategory(($validated['category'] ?? '') === '__new__'
+            ? $validated['new_category'] : ($validated['category'] ?? null), $product);
+        $product->update(['category' => $category]);
+
+        return back()->with('success', "Category for {$product->name} updated.");
     }
 
     private function normalizedCategory(?string $value, ?Product $except = null): ?string

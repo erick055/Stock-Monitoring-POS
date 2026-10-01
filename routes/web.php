@@ -73,6 +73,7 @@ Route::middleware(['auth', 'verified', 'role:admin'])->group(function () {
     Route::post('/admin/inventory/products', [StockManagementController::class, 'storeProduct'])->name('admin.inventory.products.store');
     Route::patch('/admin/inventory/products/{product}', [StockManagementController::class, 'updateProduct'])->name('admin.inventory.products.update');
     Route::patch('/admin/inventory/products/{product}/shelf-location', [StockManagementController::class, 'updateShelfLocation'])->name('admin.inventory.products.shelf-location');
+    Route::patch('/admin/inventory/products/{product}/category', [StockManagementController::class, 'updateCategory'])->name('admin.inventory.products.category');
     Route::delete('/admin/inventory/products/{product}', [StockManagementController::class, 'destroyProduct'])->middleware('throttle:5,1')->name('admin.inventory.products.destroy');
     Route::post('/admin/inventory/movements', [StockManagementController::class, 'storeMovement'])->name('admin.inventory.movements.store');
     Route::get('/admin/products', [ProductsController::class, 'index'])->name('admin.products');

@@ -13,6 +13,32 @@ class StockManagementTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_inline_category_and_shelf_controls_update_only_product_organization(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $staff = User::factory()->create(['role' => 'staff']);
+        $product = Product::create(['sku' => 'INLINE-ORG', 'name' => 'Inline Part', 'current_stock' => 7, 'unit_price' => 200]);
+        Product::create(['sku' => 'INLINE-REF', 'name' => 'Reference Part', 'category' => 'Brakes', 'shelf_location' => 'Rack A']);
+        $this->actingAs($admin)->get(route('admin.inventory'))->assertOk()
+            ->assertSee(route('admin.inventory.products.category', $product));
+        $categoryUrl = route('admin.inventory.products.category', $product);
+        $shelfUrl = route('admin.inventory.products.shelf-location', $product);
+        $this->patch($categoryUrl, ['category' => '__new__', 'new_category' => '  Engine   Parts '])->assertSessionHasNoErrors();
+        $this->assertSame('Engine Parts', $product->fresh()->category);
+        $this->patch($categoryUrl, ['category' => ' brakes '])->assertSessionHasNoErrors();
+        $this->assertSame('Brakes', $product->fresh()->category);
+        $this->patch($categoryUrl, ['category' => '__new__', 'new_category' => ''])->assertSessionHasErrors('new_category');
+        $this->patch($shelfUrl, ['shelf_location' => 'Rack A'])->assertSessionHasNoErrors();
+        $this->assertSame('Rack A', $product->fresh()->shelf_location);
+        $this->patch($shelfUrl, ['shelf_location' => '__new__', 'new_shelf_location' => ' Rack   B '])->assertSessionHasNoErrors();
+        $this->assertSame('Rack B', $product->fresh()->shelf_location);
+        $this->patch($shelfUrl, ['shelf_location' => '__new__'])->assertSessionHasErrors('new_shelf_location');
+        $this->actingAs($staff)->patch($categoryUrl, ['category' => 'Forbidden'])->assertForbidden();
+        $this->assertSame('Brakes', $product->fresh()->category);
+        $this->assertSame(7, $product->fresh()->current_stock);
+        $this->assertEquals(200, $product->fresh()->unit_price);
+    }
+
     public function test_admin_can_view_stock_management_page(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);

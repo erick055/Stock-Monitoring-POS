@@ -86,12 +86,30 @@ $editErrorProduct = $errors->getBag('editProduct')->any()
                         <tr>
                             <td>#{{ $product->product_id }}</td>
                             <td><strong>{{ $product->name }}</strong><small>{{ $product->sku }}</small></td>
-                            <td>{{ $product->category ?: 'Uncategorized' }}</td>
                             <td>
-                                <form class="shelf-location-form" method="POST" action="{{ route('admin.inventory.products.shelf-location', $product) }}">
+                                <form class="shelf-location-form inline-option-form" method="POST" action="{{ route('admin.inventory.products.category', $product) }}">
                                     @csrf @method('PATCH')
-                                    <input name="shelf_location" value="{{ $product->shelf_location }}" maxlength="100" aria-label="Shelf location for {{ $product->name }}" placeholder="Not assigned">
-                                    <button type="submit">Save</button>
+                                    <select name="category" aria-label="Category for {{ $product->name }}" data-option-select data-new-value="__new__" data-new-field="row-category-{{ $product->product_id }}">
+                                        <option value="">Uncategorized</option>
+                                        @foreach($categories as $category)<option value="{{ $category }}" @selected($product->category === $category)>{{ $category }}</option>@endforeach
+                                        @if($product->category && !$categories->contains($product->category))<option value="{{ $product->category }}" selected>{{ $product->category }}</option>@endif
+                                        <option value="__new__">+ Add new category</option>
+                                    </select>
+                                    <label hidden data-new-option-field="row-category-{{ $product->product_id }}">New category<input name="new_category" maxlength="100" disabled aria-label="New category for {{ $product->name }}"></label>
+                                    <button type="submit"><i class="bi bi-check-lg" aria-hidden="true"></i> Save</button>
+                                </form>
+                            </td>
+                            <td>
+                                <form class="shelf-location-form inline-option-form" method="POST" action="{{ route('admin.inventory.products.shelf-location', $product) }}">
+                                    @csrf @method('PATCH')
+                                    <select name="shelf_location" aria-label="Shelf location for {{ $product->name }}" data-option-select data-new-value="__new__" data-new-field="row-shelf-{{ $product->product_id }}">
+                                        <option value="">Not assigned</option>
+                                        @foreach($shelves as $shelf)<option value="{{ $shelf }}" @selected($product->shelf_location === $shelf)>{{ $shelf }}</option>@endforeach
+                                        @if($product->shelf_location && !$shelves->contains($product->shelf_location))<option value="{{ $product->shelf_location }}" selected>{{ $product->shelf_location }}</option>@endif
+                                        <option value="__new__">+ Add new shelf</option>
+                                    </select>
+                                    <label hidden data-new-option-field="row-shelf-{{ $product->product_id }}">New shelf<input name="new_shelf_location" maxlength="100" disabled aria-label="New shelf for {{ $product->name }}"></label>
+                                    <button type="submit"><i class="bi bi-check-lg" aria-hidden="true"></i> Save</button>
                                 </form>
                             </td>
                             <td><div class="stock-level"><span>{{ number_format($product->current_stock) }} units</span><div><i style="width:{{ min(100, $product->reorder_level ? ($product->current_stock / ($product->reorder_level * 3)) * 100 : 100) }}%"></i></div></div></td>
