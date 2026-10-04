@@ -34,6 +34,10 @@ class PosCheckoutTest extends TestCase
         $this->assertDatabaseCount('sales_items', 1);
         $this->assertSame(1, InventoryLedger::count());
         $this->assertSame(3, $product->fresh()->current_stock);
+        $product->update(['is_active' => false]);
+        $this->postJson(route('staff.pos.checkout'), $payload)->assertCreated()
+            ->assertJsonPath('sale_id', $first->json('sale_id'));
+        $this->assertDatabaseCount('sales_transactions', 1);
         $payload['items'][0]['quantity'] = 1;
         $this->postJson(route('staff.pos.checkout'), $payload)->assertConflict();
         $this->assertSame(3, $product->fresh()->current_stock);

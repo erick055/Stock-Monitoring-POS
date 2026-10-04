@@ -10,7 +10,26 @@ use Illuminate\Support\Facades\Cache;
 
 class ProductDemandMachineLearning
 {
+    private const RESULT_KEY = 'product-demand:latest-v2';
+
     public function current(): array
+    {
+        $result = Cache::get(self::RESULT_KEY);
+        if ($result) return $result;
+        // No sales-history scan or training in an HTTP request.
+        $items = Product::where('is_active', true)->orderBy('name')->get()->map(fn ($product) => [
+            'product_id' => $product->product_id, 'name' => $product->name, 'sku' => $product->sku,
+            'stock' => $product->current_stock, 'recent_units' => 0, 'predicted_units' => null,
+            'trend' => 'Waiting for history', 'priority_rank' => null, 'stock_shortfall' => null,
+            'recommendation' => 'Waiting for the scheduled model update.',
+        ])->all();
+        return ['available' => false, 'items' => $items, 'model' => 'Local ridge regression',
+            'training_samples' => 0, 'validation_samples' => 0, 'validation_mae' => null, 'baseline_mae' => null,
+            'coefficients' => null, 'updated_at' => now()->toIso8601String(),
+            'message' => 'Predictions are prepared in the background. Waiting for the next scheduled update.'];
+    }
+
+    public function refresh(): array
     {
         $now = CarbonImmutable::now();
         $products = Product::where('is_active', true)->orderBy('name')->get();
@@ -22,7 +41,9 @@ class ProductDemandMachineLearning
         // Include quantities and timestamps: corrections invalidate cached training too.
         $key = 'product-demand-ridge-v2-'.hash('sha256', $now->toDateString().$products->toJson().$sales->toJson());
 
-        return Cache::remember($key, now()->addHour(), fn () => $this->build($products, $sales, $now));
+        $result = Cache::remember($key, now()->addHour(), fn () => $this->build($products, $sales, $now));
+        Cache::forever(self::RESULT_KEY, $result);
+        return $result;
     }
 
     private function build(Collection $products, Collection $sales, CarbonImmutable $now): array

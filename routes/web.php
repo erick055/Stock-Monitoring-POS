@@ -101,7 +101,9 @@ Route::middleware(['auth', 'verified', 'role:admin'])->group(function () {
     Route::patch('/admin/dead-stock/{product}/restore', [DeadStockController::class, 'restore'])->name('admin.dead-stock.restore');
     Route::get('/admin/returns', [ReturnsController::class, 'index'])->name('admin.returns');
     Route::post('/admin/returns/customer', [ReturnsController::class, 'storeReturn'])->name('admin.returns.customer.store');
+    Route::patch('/admin/returns/customer/{customerReturn}/review', [ReturnsController::class, 'reviewReturn'])->name('admin.returns.customer.review');
     Route::post('/admin/returns/damage', [ReturnsController::class, 'storeDamage'])->name('admin.returns.damage.store');
+    Route::patch('/admin/returns/damage/{damagedGood}/review', [ReturnsController::class, 'reviewDamage'])->name('admin.returns.damage.review');
     Route::get('/admin/suppliers', [SupplierPriceController::class, 'index'])->name('admin.suppliers');
     Route::post('/admin/suppliers/imports', [SupplierPriceController::class, 'upload'])->name('admin.suppliers.imports.upload');
     Route::post('/admin/suppliers/imports/{supplierImport}/approve', [SupplierPriceController::class, 'approve'])->name('admin.suppliers.imports.approve');

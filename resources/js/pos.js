@@ -1,3 +1,5 @@
+import { checkoutStorage, canDiscardCheckout } from './pending-checkout';
+
 const posApp = document.querySelector('[data-pos-app]');
 
 if (posApp) {
@@ -31,6 +33,37 @@ if (posApp) {
     let activeHeldOrderId = null;
     let pendingCheckout = null;
     let checkoutLockedControls = [];
+    const savedCheckout = checkoutStorage({
+        getItem: (key) => window.localStorage.getItem(key),
+        setItem: (key, value) => window.localStorage.setItem(key, value),
+        removeItem: (key) => window.localStorage.removeItem(key),
+    }, `motosync:checkout:${posApp.dataset.cashierId}:${checkoutUrl}`);
+    let recoveryBlocked = false;
+    try {
+        pendingCheckout = savedCheckout.load();
+        if (pendingCheckout) {
+            cart = pendingCheckout.cart;
+            const order = JSON.parse(pendingCheckout.body);
+            laborInput.value = order.labor_amount || '';
+            activeHeldOrderId = order.held_order_id;
+        }
+    } catch {
+        recoveryBlocked = true;
+    }
+
+    function lockPendingCheckout() {
+        if (!pendingCheckout && !recoveryBlocked) return;
+        const paymentButton = posApp.querySelector('[data-process-payment]');
+        if (!checkoutLockedControls.length) checkoutLockedControls = [...posApp.querySelectorAll('button, input')]
+            .filter((control) => control !== paymentButton && !control.disabled);
+        checkoutLockedControls.forEach((control) => { control.disabled = true; });
+        paymentButton.disabled = recoveryBlocked;
+        const notice = posApp.querySelector('[data-pending-checkout]');
+        notice.hidden = false;
+        notice.textContent = recoveryBlocked
+            ? 'Checkout recovery data could not be read. Do not retry as a new sale; ask the owner to check recent receipts first.'
+            : 'A payment is unresolved. Retry payment to recover the original receipt; do not create a new sale.';
+    }
 
     function showToast(message) {
         if (!toast) return;
@@ -595,16 +628,23 @@ if (posApp) {
         if (event.key === 'Escape' && receiptModal && !receiptModal.hidden) closeReceipt();
     });
     posApp.querySelector('[data-process-payment]')?.addEventListener('click', async (event) => {
-        if (!cart.length && laborAmount() <= 0) {
+          if (recoveryBlocked) return;
+          if (!pendingCheckout && !cart.length && laborAmount() <= 0) {
             showToast('Add a product or enter a labor charge before checkout.');
             return;
         }
         const button = event.currentTarget;
         button.disabled = true;
         button.classList.add('is-loading');
+        try {
+        if (!pendingCheckout && savedCheckout.load()) {
+            recoveryBlocked = true;
+            throw new Error('Another tab has a pending checkout');
+        }
         // Keep the exact request after an uncertain response, even if the UI changes.
         pendingCheckout ??= {
             key: crypto.randomUUID(),
+            cart: cart.map((item) => ({ ...item })),
             body: JSON.stringify({
                 payment_method: 'cash',
                 held_order_id: activeHeldOrderId,
@@ -612,12 +652,13 @@ if (posApp) {
                 items: cart.map((item) => ({ product_id: item.id, quantity: item.qty })),
             }),
         };
+        // Fail closed if durable recovery storage is unavailable: do not send a sale.
+        savedCheckout.save(pendingCheckout);
         if (!checkoutLockedControls.length) {
             checkoutLockedControls = [...posApp.querySelectorAll('button, input')]
                 .filter((control) => control !== button && !control.disabled);
             checkoutLockedControls.forEach((control) => { control.disabled = true; });
         }
-        try {
             const response = await fetch(checkoutUrl, {
                 method: 'POST',
                 headers: {
@@ -632,15 +673,18 @@ if (posApp) {
             if (!response.ok) {
                 const error = payload.message || Object.values(payload.errors || {})?.flat()?.[0] || 'Checkout failed.';
                 showToast(error);
-                if (response.status >= 400 && response.status < 500) pendingCheckout = null;
+                if (canDiscardCheckout(response.status)) {
+                    savedCheckout.clear(pendingCheckout);
+                    pendingCheckout = null;
+                }
                 return;
             }
+            if (!payload.sale_id || !payload.receipt?.number || !Array.isArray(payload.receipt.items)) {
+                throw new Error('Invalid checkout response');
+            }
+            savedCheckout.clear(pendingCheckout);
             pendingCheckout = null;
-            cart.forEach((item) => {
-                const product = products.find((entry) => entry.id === item.id);
-                if (product) product.stock -= item.qty;
-            });
-            renderProducts();
+            inventoryVersion = null;
             cart = [];
             laborInput.value = '';
             if (activeHeldOrderId) {
@@ -653,6 +697,7 @@ if (posApp) {
             prependCheckoutLog(payload.receipt);
             showReceipt(payload.receipt);
             showToast(payload.message || 'Payment processed and saved.');
+            syncLiveInventory();
         } catch (error) {
             showToast('Payment status is uncertain. Click payment again to safely retry the same order.');
         } finally {
@@ -662,6 +707,8 @@ if (posApp) {
             }
             button.disabled = false;
             button.classList.remove('is-loading');
+            if (pendingCheckout || recoveryBlocked) lockPendingCheckout();
+            else posApp.querySelector('[data-pending-checkout]').hidden = true;
         }
     });
 
@@ -670,6 +717,7 @@ if (posApp) {
     renderCart();
     renderHeldOrders();
     updateActiveHold();
+    lockPendingCheckout();
     window.setInterval(syncLiveInventory, 5000);
     window.setTimeout(syncLiveInventory, 800);
 }

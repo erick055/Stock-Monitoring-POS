@@ -182,7 +182,7 @@ class PosController extends Controller
         $validated = $request->validate([
             'checkout_key' => ['required', 'uuid'],
             'items' => ['nullable', 'array'],
-            'items.*.product_id' => ['required', Rule::exists('products', 'product_id')->where('is_active', true)],
+            'items.*.product_id' => ['required', 'integer'],
             'items.*.quantity' => ['required', 'integer', 'min:1'],
             'payment_method' => ['nullable', 'string', 'max:50'],
             'held_order_id' => ['nullable', 'integer', 'exists:held_orders,held_order_id'],
@@ -224,6 +224,7 @@ class PosController extends Controller
             $products = Product::query()
                 ->with('activePromotion')
                 ->whereIn('product_id', collect($cartItems)->pluck('product_id'))
+                ->where('is_active', true)
                 ->lockForUpdate()
                 ->get()
                 ->keyBy('product_id');

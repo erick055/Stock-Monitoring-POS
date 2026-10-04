@@ -10,3 +10,4 @@ Artisan::command('inspire', function () {
 
 Schedule::command('stock-alerts:check')->everyMinute()->withoutOverlapping();
 Schedule::command('stock-alerts:daily-summary')->everyMinute()->withoutOverlapping();
+Schedule::command('ml:refresh')->hourly()->withoutOverlapping(60);

@@ -16,6 +16,93 @@ class ReturnsPageTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_staff_damage_is_hidden_until_owner_accepts_and_rejection_releases_quantity(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $staff = User::factory()->create(['role' => 'staff']);
+        $product = Product::create(['sku' => 'DAMAGE-QUEUE', 'name' => 'Damage Queue Part', 'unit_price' => 100, 'current_stock' => 5]);
+        $sale = $this->createSale($staff, $product, 2, 100);
+        $payload = ['sale_id' => $sale->sale_id, 'product_id' => $product->product_id, 'quantity' => 1,
+            'damage_reason' => 'Broken', 'replacement_status' => 'pending', 'status' => 'reviewed'];
+        $this->actingAs($staff)->post(route('staff.returns.damage.store'), $payload)->assertSessionHasNoErrors();
+        $damage = DamagedGood::firstOrFail();
+        $this->assertSame('pending', $damage->status);
+        $this->get(route('staff.returns'))->assertViewHas('damageLogs', fn ($rows) => $rows->isEmpty())
+            ->assertViewHas('pendingDamages', fn ($rows) => $rows->isEmpty());
+        $url = route('admin.returns.damage.review', $damage);
+        $this->patch($url, ['decision' => 'accepted'])->assertForbidden();
+        $this->actingAs($admin)->get(route('admin.returns'))->assertViewHas('pendingDamages', fn ($rows) => $rows->count() === 1);
+        $this->patch($url, ['decision' => 'accepted'])->assertSessionHasNoErrors();
+        $this->assertSame('reviewed', $damage->fresh()->status);
+        $this->get(route('admin.returns'))->assertViewHas('damageLogs', fn ($rows) => $rows->count() === 1);
+        $this->patch($url, ['decision' => 'rejected'])->assertSessionHasErrors('decision');
+        $this->actingAs($staff)->post(route('staff.returns.damage.store'), $payload)->assertSessionHasNoErrors();
+        $second = DamagedGood::latest('damage_id')->first();
+        $this->actingAs($admin)->patch(route('admin.returns.damage.review', $second), ['decision' => 'rejected'])->assertSessionHasNoErrors();
+        $this->get(route('admin.returns'))->assertViewHas('damageLogs', fn ($rows) => $rows->count() === 1)
+            ->assertViewHas('receipts', fn ($rows) => $rows->first()['items']->first()['available_quantity'] === 1);
+        $this->assertSame(5, $product->fresh()->current_stock);
+    }
+
+    public function test_staff_returns_require_owner_review_even_with_forged_approval(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $cashier = User::factory()->create(['role' => 'staff']);
+        $staff = User::factory()->create(['role' => 'staff']);
+        $product = Product::create(['sku' => 'REVIEW-RET', 'name' => 'Review Return', 'unit_price' => 100, 'current_stock' => 5]);
+        $sale = $this->createSale($cashier, $product, 2, 100);
+        $this->actingAs($staff)->post(route('staff.returns.customer.store'), [
+            'sale_id' => $sale->sale_id, 'product_id' => $product->product_id, 'quantity' => 1,
+            'reason' => 'Customer exchange', 'item_condition' => 'sellable', 'refund_amount' => 100, 'status' => 'approved',
+        ])->assertSessionHasNoErrors();
+        $return = CustomerReturn::firstOrFail();
+        $this->assertSame('pending', $return->status);
+        $this->assertSame(5, $product->fresh()->current_stock);
+        $this->assertSame(0, InventoryLedger::where('reason_code', 'CUSTOMER_RETURN')->count());
+        $url = route('admin.returns.customer.review', $return);
+        $this->patch($url, ['decision' => 'approved'])->assertForbidden();
+        $this->actingAs($admin)->get(route('admin.returns'))->assertOk()->assertSee($url);
+        $this->patch($url, ['decision' => 'approved'])->assertSessionHasNoErrors();
+        $this->assertSame('approved', $return->fresh()->status);
+        $this->assertSame(6, $product->fresh()->current_stock);
+        $this->assertDatabaseHas('inventory_ledgers', ['user_id' => $admin->id, 'reason_code' => 'CUSTOMER_RETURN']);
+        $this->patch($url, ['decision' => 'approved'])->assertSessionHasErrors('decision');
+        $this->assertSame(6, $product->fresh()->current_stock);
+        $this->assertSame(1, InventoryLedger::where('reason_code', 'CUSTOMER_RETURN')->count());
+    }
+
+    public function test_owner_rejection_releases_reserved_quantity_without_restoring_stock(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $product = Product::create(['sku' => 'REJECT-RET', 'name' => 'Reject Return', 'unit_price' => 100, 'current_stock' => 5]);
+        $sale = $this->createSale($admin, $product, 1, 100);
+        $return = CustomerReturn::create(['sale_id' => $sale->sale_id, 'product_id' => $product->product_id,
+            'user_id' => $admin->id, 'quantity' => 1, 'reason' => 'Test', 'item_condition' => 'sellable',
+            'refund_amount' => 100, 'status' => 'pending', 'returned_at' => now()]);
+        $url = route('admin.returns.customer.review', $return);
+        $this->actingAs($admin)->patch($url, ['decision' => 'rejected'])->assertSessionHasNoErrors();
+        $this->assertSame('rejected', $return->fresh()->status);
+        $this->assertSame(5, $product->fresh()->current_stock);
+        $this->get(route('admin.returns'))->assertViewHas('receipts', fn ($rows) => $rows->first()['items']->first()['available_quantity'] === 1);
+        $this->patch($url, ['decision' => 'approved'])->assertSessionHasErrors('decision');
+        $this->assertSame(5, $product->fresh()->current_stock);
+    }
+
+    public function test_owner_approval_of_damaged_return_does_not_restore_sellable_stock(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $product = Product::create(['sku' => 'DAMAGED-REVIEW', 'name' => 'Damaged Return', 'unit_price' => 100, 'current_stock' => 5]);
+        $sale = $this->createSale($admin, $product, 1, 100);
+        $return = CustomerReturn::create(['sale_id' => $sale->sale_id, 'product_id' => $product->product_id,
+            'user_id' => $admin->id, 'quantity' => 1, 'reason' => 'Broken', 'item_condition' => 'damaged',
+            'refund_amount' => 100, 'status' => 'pending', 'returned_at' => now()]);
+        $this->actingAs($admin)->patch(route('admin.returns.customer.review', $return), ['decision' => 'approved'])
+            ->assertSessionHasNoErrors();
+        $this->assertSame('approved', $return->fresh()->status);
+        $this->assertSame(5, $product->fresh()->current_stock);
+        $this->assertSame(0, InventoryLedger::where('reason_code', 'CUSTOMER_RETURN')->count());
+    }
+
     public function test_admin_can_view_returns_page(): void
     {
         $admin = User::factory()->create([

@@ -18,6 +18,53 @@ class AuthenticationTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_even_a_correct_code_cannot_bypass_the_attempt_limit(): void
+    {
+        $user = User::factory()->create();
+        $user->loginVerificationCode()->create([
+            'code_hash' => \Illuminate\Support\Facades\Hash::make('123456'), 'attempts' => 5,
+            'expires_at' => now()->addMinutes(10), 'last_sent_at' => now(),
+        ]);
+        $this->withSession(['login_verification.user_id' => $user->id, 'login_verification.started_at' => now()->timestamp])
+            ->post(route('login.verify.store'), ['code' => '123456'])
+            ->assertRedirect(route('login'))->assertSessionHasErrors('email');
+        $this->assertGuest();
+        $this->assertDatabaseMissing('login_verification_codes', ['user_id' => $user->id]);
+    }
+
+    public function test_incorrect_code_commits_its_attempt_before_returning_validation_error(): void
+    {
+        $user = User::factory()->create();
+        $user->loginVerificationCode()->create([
+            'code_hash' => \Illuminate\Support\Facades\Hash::make('123456'), 'attempts' => 0,
+            'expires_at' => now()->addMinutes(10), 'last_sent_at' => now(),
+        ]);
+        $this->withSession(['login_verification.user_id' => $user->id, 'login_verification.started_at' => now()->timestamp])
+            ->post(route('login.verify.store'), ['code' => '000000'])->assertSessionHasErrors('code');
+        $this->assertDatabaseHas('login_verification_codes', ['user_id' => $user->id, 'attempts' => 1]);
+        $this->assertGuest();
+    }
+
+    public function test_resending_invalidates_old_code_and_enforces_cooldown(): void
+    {
+        Notification::fake();
+        $user = User::factory()->create();
+        $oldHash = \Illuminate\Support\Facades\Hash::make('000000');
+        $user->loginVerificationCode()->create([
+            'code_hash' => $oldHash, 'attempts' => 0,
+            'expires_at' => now()->addMinutes(10), 'last_sent_at' => now()->subSeconds(61),
+        ]);
+        $this->withSession(['login_verification.user_id' => $user->id, 'login_verification.started_at' => now()->timestamp])
+            ->post(route('login.verify.resend'))->assertSessionHas('status');
+        $newHash = $user->loginVerificationCode()->first()->code_hash;
+        $this->assertNotSame($oldHash, $newHash);
+        $this->post(route('login.verify.resend'))->assertSessionHasErrors('code');
+        $this->assertSame($newHash, $user->loginVerificationCode()->first()->code_hash);
+        Notification::assertSentToTimes($user, LoginVerificationCodeNotification::class, 1);
+        $this->post(route('login.verify.store'), ['code' => '000000'])->assertSessionHasErrors('code');
+        $this->assertGuest();
+    }
+
     private const STRONG_PASSWORD = 'Secure!Password123';
 
     public function test_public_registration_creates_a_pending_staff_request_without_logging_in(): void

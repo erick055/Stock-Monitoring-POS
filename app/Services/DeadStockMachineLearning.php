@@ -19,7 +19,9 @@ class DeadStockMachineLearning
     {
         $sales = SalesItem::query()->select('sales_items.product_id', 'sales_items.quantity', 'sales_items.sale_id', 'sales_transactions.sale_date')
             ->join('sales_transactions', 'sales_items.sale_id', '=', 'sales_transactions.sale_id')
-            ->where('sales_transactions.payment_status', 'paid')->orderBy('sales_transactions.sale_date')->get();
+            ->where('sales_transactions.payment_status', 'paid')
+            ->where('sales_transactions.sale_date', '<=', now())
+            ->orderBy('sales_transactions.sale_date')->get();
         if ($sales->isEmpty()) throw new RuntimeException('Not enough POS history. Record paid product sales before training the ML model.');
 
         $products = Product::query()->where('is_active', true)->get();
@@ -32,15 +34,18 @@ class DeadStockMachineLearning
                 $features = $this->features($sales->where('product_id', $product->product_id), $cutoff);
                 $futureUnits = $sales->where('product_id', $product->product_id)->filter(fn ($row) => CarbonImmutable::parse($row->sale_date)->gt($cutoff)
                     && CarbonImmutable::parse($row->sale_date)->lte($cutoff->addDays(90)))->sum('quantity');
-                $samples->push(['x' => array_values($features), 'y' => $futureUnits === 0 ? 1.0 : 0.0]);
+                $samples->push(['cutoff' => $cutoff, 'target_end' => $cutoff->addDays(90),
+                    'x' => array_values($features), 'y' => $futureUnits === 0 ? 1.0 : 0.0]);
             }
         }
         if ($samples->count() < 20 || $samples->pluck('y')->unique()->count() < 2) {
             throw new RuntimeException('ML training needs at least 20 historical product snapshots containing both stagnant and selling outcomes. Keep collecting POS history.');
         }
 
-        $split = max(1, (int) floor($samples->count() * .8));
-        $train = $samples->take($split); $validation = $samples->slice($split);
+        [$train, $validation] = $this->validationSplit($samples);
+        if ($train->count() < 20 || $validation->count() < 5 || $train->pluck('y')->unique()->count() < 2) {
+            throw new RuntimeException('ML validation needs at least 20 earlier training snapshots with both outcomes and 5 later validation snapshots, separated by a 90-day outcome window. Keep collecting POS history.');
+        }
         $means = []; $scales = [];
         foreach (array_keys(self::FEATURES) as $i) {
             $values = $train->pluck("x.{$i}"); $means[$i] = (float) $values->avg();
@@ -61,9 +66,9 @@ class DeadStockMachineLearning
             return ($p >= .5 ? 1.0 : 0.0) === $sample['y'];
         })->count();
 
-        return DB::transaction(function () use ($products, $sales, $samples, $validation, $correct, $weights, $means, $scales) {
-            $model = DeadStockMlModel::create(['version' => 'dsml-'.now()->format('YmdHis').'-'.str()->lower(str()->random(4)), 'coefficients' => $weights,
-                'means' => $means, 'scales' => $scales, 'training_samples' => $samples->count(),
+        return DB::transaction(function () use ($products, $sales, $train, $validation, $correct, $weights, $means, $scales) {
+            $model = DeadStockMlModel::create(['version' => 'dsml-v2-'.now()->format('YmdHis').'-'.str()->lower(str()->random(4)), 'coefficients' => $weights,
+                'means' => $means, 'scales' => $scales, 'training_samples' => $train->count(),
                 'validation_accuracy' => $validation->count() ? $correct / $validation->count() : null, 'trained_at' => now()]);
             foreach ($products as $product) {
                 $features = $this->features($sales->where('product_id', $product->product_id), CarbonImmutable::now());
@@ -74,8 +79,21 @@ class DeadStockMachineLearning
                     'stagnation_probability' => $p, 'classification' => $classification,
                     'factors' => $this->factors($features, $capital), 'predicted_at' => now()]);
             }
-            return ['model' => $model, 'predictions' => $products->count()];
+            return ['model' => $model, 'predictions' => $products->count(),
+                'validation_samples' => $validation->count(),
+                'training_target_end' => $train->max('target_end')->toDateTimeString(),
+                'validation_start' => $validation->min('cutoff')->toDateTimeString()];
         });
+    }
+
+    private function validationSplit(Collection $samples): array
+    {
+        $dates = $samples->pluck('cutoff')->unique(fn ($date) => $date->toDateString())->values();
+        $validationStart = $dates->get((int) floor($dates->count() * .8));
+        if (! $validationStart) return [collect(), collect()];
+        // Keep each cutoff date wholly in one partition; purge overlapping outcomes.
+        return [$samples->filter(fn ($sample) => $sample['target_end']->lte($validationStart))->values(),
+            $samples->filter(fn ($sample) => $sample['cutoff']->gte($validationStart))->values()];
     }
 
     private function features(Collection $sales, CarbonImmutable $cutoff): array

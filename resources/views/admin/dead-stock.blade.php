@@ -65,7 +65,7 @@ $navigation = [
                 </div>
                 <p class="demand-insight-summary">
                     @if($latestMlModel)
-                        Predictions refresh automatically when this page is opened, up to once an hour. Products with the highest risk appear first.
+                        Predictions update hourly in the background when the scheduler is running. Products with the highest risk appear first.
                     @else
                         Once there is enough POS history, this tool learns from what sold and what stayed on the shelf to estimate the next 90 days.
                     @endif
@@ -76,7 +76,7 @@ $navigation = [
                         <p>
                             Updated {{ $latestMlModel->trained_at->diffForHumans() }} using {{ number_format($latestMlModel->training_samples) }} historical product snapshots
                             @if($latestMlModel->validation_accuracy !== null)
-                                , with {{ number_format($latestMlModel->validation_accuracy * 100, 1) }}% test accuracy
+                                , with {{ number_format($latestMlModel->validation_accuracy * 100, 1) }}% chronological holdout accuracy (90-day training outcomes do not overlap the validation period)
                             @endif.
                         </p>
                     </details>

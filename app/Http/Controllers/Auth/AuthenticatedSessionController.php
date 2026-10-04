@@ -71,7 +71,6 @@ class AuthenticatedSessionController extends Controller
         try {
             LoginVerificationController::issueCode($user);
         } catch (\Throwable $exception) {
-            $user->loginVerificationCode()->delete();
             report($exception);
 
             throw ValidationException::withMessages([

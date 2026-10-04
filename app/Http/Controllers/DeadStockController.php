@@ -22,14 +22,7 @@ class DeadStockController extends Controller
 {
     public function index(Request $request): View
     {
-        // Check history once an hour; insufficient history stays an honest empty state.
-        if (\Illuminate\Support\Facades\Cache::add('dead-stock-ml:auto-refresh', true, now()->addHour())) {
-            try {
-                app(DeadStockMachineLearning::class)->trainAndPredict();
-            } catch (RuntimeException $exception) {
-                // Existing predictions remain available while more history is collected.
-            }
-        }
+        // Scheduled training prepares results; HTTP requests only read them.
         $search = trim((string) $request->query('search'));
         $classification = (string) $request->query('classification', 'all');
         $status = in_array((string) $request->query('status', 'queue'), ['queue', 'archived'], true)
@@ -48,8 +41,10 @@ class DeadStockController extends Controller
         $salesLastThirtyDays = $this->soldUnitsByProduct(30);
         $latestSales = $this->latestSaleByProduct();
 
-        $mlPredictions = DeadStockMlPrediction::query()->get()->keyBy('product_id');
-        $latestMlModel = DeadStockMlModel::query()->latest('trained_at')->first();
+        $latestMlModel = DeadStockMlModel::query()->where('version', 'like', 'dsml-v2-%')->latest('trained_at')->first();
+        $mlPredictions = $latestMlModel
+            ? DeadStockMlPrediction::where('model_id', $latestMlModel->id)->get()->keyBy('product_id')
+            : collect();
         $scoredProducts = $products
             ->map(function (Product $product) use ($salesLastThirtyDays, $salesLastNinetyDays, $latestSales, $mlPredictions) {
                 $item = $this->scoreProduct(
@@ -145,12 +140,11 @@ class DeadStockController extends Controller
 
     public function trainModel(DeadStockMachineLearning $ml): RedirectResponse
     {
-        try {
-            $result = $ml->trainAndPredict();
-            return back()->with('success', "ML model trained from {$result['model']->training_samples} historical snapshots and refreshed {$result['predictions']} predictions.");
-        } catch (RuntimeException $exception) {
-            return back()->withErrors(['ml' => $exception->getMessage()]);
+        if (! \App\Models\SalesItem::whereHas('sale', fn ($q) => $q->where('payment_status', 'paid'))->exists()) {
+            return back()->withErrors(['ml' => 'Not enough POS history. Record paid product sales before training the ML model.']);
         }
+        \App\Jobs\RefreshInventoryPredictions::dispatch()->onConnection('ml')->onQueue('ml');
+        return back()->with('success', 'Model refresh queued. Predictions will update after the background worker finishes.');
     }
 
     public function applyPromotion(Request $request, Product $product): RedirectResponse

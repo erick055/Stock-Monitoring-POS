@@ -43,7 +43,7 @@ $activeIndex = $isAdmin ? 3 : 2;
             <div><p class="welcome">POS WORKSPACE</p><h1>POS Checkout</h1><p>Process orders, manage the cart, and complete payments.</p></div>
         </header>
 
-        <section class="pos-layout" data-pos-app data-products='@json($products)' data-held-orders='@json($heldOrders)' data-inventory-version="{{ $inventoryVersion }}" data-live-inventory-url="{{ route('inventory.live') }}" data-checkout-url="{{ route($posRoutePrefix.'.checkout') }}" data-hold-url="{{ route($posRoutePrefix.'.holds.store') }}">
+        <section class="pos-layout" data-pos-app data-cashier-id="{{ auth()->id() }}" data-products='@json($products)' data-held-orders='@json($heldOrders)' data-inventory-version="{{ $inventoryVersion }}" data-live-inventory-url="{{ route('inventory.live') }}" data-checkout-url="{{ route($posRoutePrefix.'.checkout') }}" data-hold-url="{{ route($posRoutePrefix.'.holds.store') }}">
             <div class="pos-catalog panel">
                 <div class="pos-catalog-head">
                     <div>
@@ -67,6 +67,7 @@ $activeIndex = $isAdmin ? 3 : 2;
             </div>
 
             <aside class="pos-cart panel">
+                <p data-pending-checkout hidden role="alert" style="color:#e7c775;font-size:12px;line-height:1.6;padding:12px;border:1px solid #665530;border-radius:8px"></p>
                 <div class="cart-header">
                     <div>
                         <span class="section-kicker">ACTIVE ORDER</span>

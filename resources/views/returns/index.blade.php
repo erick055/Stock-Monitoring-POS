@@ -79,12 +79,18 @@ $oldReceipt = $receipts->firstWhere('id', (int) old('sale_id'));
                     </label>
                     <div class="refund-value-card wide" data-refund-value hidden aria-live="polite"></div>
                     <label>Qty<input name="quantity" type="number" min="1" value="{{ old('quantity', 1) }}" required data-item-quantity></label>
-                    <label>Refund Amount<input name="refund_amount" type="number" step="0.01" min="0" value="{{ old('refund_amount', 0) }}" data-refund-amount></label>
+                    <label>{{ $viewRole === 'admin' ? 'Refund Amount' : 'Requested Refund Amount' }}<input name="refund_amount" type="number" step="0.01" min="0" value="{{ old('refund_amount', 0) }}" data-refund-amount></label>
                     <label>Condition<select name="item_condition" required><option value="sellable" @selected(old('item_condition') === 'sellable')>Sellable</option><option value="damaged" @selected(old('item_condition') === 'damaged')>Damaged</option></select></label>
-                    <label>Status<select name="status" required><option value="approved" @selected(old('status') === 'approved')>Approved</option><option value="pending" @selected(old('status') === 'pending')>Pending</option><option value="rejected" @selected(old('status') === 'rejected')>Rejected</option></select></label>
+                    @if($viewRole === 'admin')
+                        <label>Status<select name="status" required><option value="approved" @selected(old('status') === 'approved')>Approved</option><option value="pending" @selected(old('status') === 'pending')>Pending</option><option value="rejected" @selected(old('status') === 'rejected')>Rejected</option></select></label>
+                    @else
+                        <input type="hidden" name="status" value="pending">
+                        <label>Status<span class="inventory-note">Pending owner approval</span></label>
+                    @endif
                     <label class="wide">Reason<input name="reason" maxlength="255" value="{{ old('reason') }}" placeholder="Defective, wrong item, customer exchange..." required></label>
                 </div>
-                <button class="panel-action" type="submit" @disabled($receipts->isEmpty())>+ Save Product Return</button>
+                @if($viewRole !== 'admin')<p class="inventory-note">You can submit a return from any cashier's receipt. The owner must approve the requested refund and stock restoration.</p>@endif
+                <button class="panel-action" type="submit" @disabled($receipts->isEmpty())><i class="bi bi-check2" aria-hidden="true"></i> {{ $viewRole === 'admin' ? 'Save Product Return' : 'Submit for owner review' }}</button>
             </form>
 
             <form class="panel return-form-card" method="POST" action="{{ $damageRoute }}" data-receipt-form data-form-kind="damage">
@@ -102,14 +108,31 @@ $oldReceipt = $receipts->firstWhere('id', (int) old('sale_id'));
                     <div class="refund-value-card wide" data-refund-value hidden aria-live="polite"></div>
                     <label>Qty<input name="quantity" type="number" min="1" value="{{ old('quantity', 1) }}" required data-item-quantity></label>
                     <label>Replacement<select name="replacement_status" required><option value="pending" @selected(old('replacement_status') === 'pending')>Pending</option><option value="ordered" @selected(old('replacement_status') === 'ordered')>Ordered</option><option value="replaced" @selected(old('replacement_status') === 'replaced')>Replaced</option><option value="not_replaceable" @selected(old('replacement_status') === 'not_replaceable')>Not replaceable</option></select></label>
-                    <label>Status<select name="status" required><option value="reported" @selected(old('status') === 'reported')>Reported</option><option value="reviewed" @selected(old('status') === 'reviewed')>Reviewed</option><option value="disposed" @selected(old('status') === 'disposed')>Disposed</option></select></label>
+                    @if($viewRole === 'admin')
+                        <label>Status<select name="status" required><option value="reported" @selected(old('status') === 'reported')>Reported</option><option value="reviewed" @selected(old('status') === 'reviewed')>Reviewed</option><option value="disposed" @selected(old('status') === 'disposed')>Disposed</option></select></label>
+                    @else
+                        <input type="hidden" name="status" value="reported"><label>Status<span class="inventory-note">Pending owner acceptance</span></label>
+                    @endif
                     <label class="wide">Damage Reason<input name="damage_reason" maxlength="255" value="{{ old('damage_reason') }}" placeholder="Broken, defective, or damaged after purchase..." required></label>
                 </div>
                 <p class="inventory-note">This documents an item already sold on the receipt. Current inventory will not be deducted again.</p>
-                <button class="panel-action" type="submit" @disabled($receipts->isEmpty())>+ Save Damage Log</button>
+                @if($viewRole !== 'admin')<p class="inventory-note">The owner must accept this report before it appears in the Damage Log.</p>@endif
+                <button class="panel-action" type="submit" @disabled($receipts->isEmpty())>{{ $viewRole === 'admin' ? 'Save Damage Log' : 'Submit damage for review' }}</button>
             </form>
         </section>
 
+        @if($viewRole === 'admin' && $pendingDamages->isNotEmpty())
+            <section class="panel returns-panel">
+                <div class="section-heading"><div><span class="section-kicker">OWNER REVIEW</span><h2>Pending Damage Reports</h2></div></div>
+                <div class="case-list">
+                    @foreach($pendingDamages as $damage)
+                        <article class="case-card"><div class="case-main"><strong>{{ $damage->product?->name }}</strong><small>Report #{{ $damage->damage_id }} · Receipt #{{ $damage->sale_id }} · Submitted by {{ $damage->user?->name }}</small><div class="case-meta"><span>{{ $damage->quantity }} units</span><span>{{ $damage->damage_reason }}</span><span>Replacement: {{ ucfirst($damage->replacement_status) }}</span></div></div>
+                            <form class="return-review-actions" method="POST" action="{{ route('admin.returns.damage.review', $damage) }}">@csrf @method('PATCH')<button name="decision" value="accepted" type="submit"><i class="bi bi-check-lg" aria-hidden="true"></i> Accept</button><button name="decision" value="rejected" type="submit"><i class="bi bi-x-lg" aria-hidden="true"></i> Reject</button></form>
+                        </article>
+                    @endforeach
+                </div>
+            </section>
+        @endif
         <datalist id="customer-receipts">
             @foreach($receipts as $receipt)
                 <option value="{{ $receipt['label'] }}">{{ $receipt['cashier'] }} · {{ $receipt['items']->count() }} available item(s)</option>
@@ -129,8 +152,16 @@ $oldReceipt = $receipts->firstWhere('id', (int) old('sale_id'));
                         </div>
                         <div class="case-side">
                             <strong class="amount">₱{{ number_format($return->refund_amount, 2) }}</strong>
+                            @if($return->status === 'pending')<small>Requested refund · not approved</small>@endif
                             <span class="status {{ $return->status === 'approved' ? 'approved' : 'pending' }}">{{ ucfirst($return->status) }}</span>
                             <small>{{ $return->user?->name ?? 'System' }}</small>
+                            @if($viewRole === 'admin' && $return->status === 'pending')
+                                <form class="return-review-actions" method="POST" action="{{ route('admin.returns.customer.review', $return) }}">
+                                    @csrf @method('PATCH')
+                                    <button type="submit" name="decision" value="approved" aria-label="Approve return {{ $return->return_id }}"><i class="bi bi-check-lg" aria-hidden="true"></i> Approve</button>
+                                    <button type="submit" name="decision" value="rejected" aria-label="Reject return {{ $return->return_id }}"><i class="bi bi-x-lg" aria-hidden="true"></i> Reject</button>
+                                </form>
+                            @endif
                         </div>
                     </article>
                 @empty

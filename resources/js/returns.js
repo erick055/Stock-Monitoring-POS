@@ -111,6 +111,7 @@ document.querySelectorAll('[data-receipt-form]').forEach((form) => {
     product.addEventListener('change', updateLimits);
     quantity.addEventListener('input', updateLimits);
 
+
     form.addEventListener('submit', (event) => {
         const receipt = findReceipt(search.value);
         if (!receipt) {

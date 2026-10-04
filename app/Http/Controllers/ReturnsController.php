@@ -37,6 +37,7 @@ class ReturnsController extends Controller
             ->get()
             ->keyBy(fn (CustomerReturn $return) => "{$return->sale_id}:{$return->product_id}");
         $damagedQuantities = DamagedGood::query()
+            ->where('status', '!=', 'rejected')
             ->whereIn('sale_id', $saleIds)
             ->selectRaw('sale_id, product_id, SUM(quantity) as quantity')
             ->groupBy('sale_id', 'product_id')
@@ -82,32 +83,41 @@ class ReturnsController extends Controller
         })->filter(fn (array $receipt) => $receipt['items']->isNotEmpty())->values();
         $customerReturns = CustomerReturn::query()
             ->with(['product', 'sale', 'user'])
+            ->orderByRaw("CASE WHEN status = 'pending' THEN 0 ELSE 1 END")
             ->latest('returned_at')
             ->limit(20)
             ->get();
         $damageLogs = DamagedGood::query()
+            ->whereNotIn('status', ['pending', 'rejected'])
             ->with(['product', 'sale', 'user'])
             ->latest('reported_at')
             ->limit(20)
             ->get();
 
+        $pendingDamages = $request->user()->role === 'admin'
+            ? DamagedGood::with(['product', 'sale', 'user'])->where('status', 'pending')->oldest('reported_at')->limit(50)->get()
+            : collect();
         $monthStart = now()->startOfMonth();
         $monthlyReturns = CustomerReturn::query()->where('returned_at', '>=', $monthStart)->count();
         $monthlySales = max(SalesTransaction::query()->where('sale_date', '>=', $monthStart)->count(), 1);
 
         $summary = [
             ['TOTAL RETURN THIS MONTH', number_format($monthlyReturns), 'Processed customer returns', 'purple'],
-            ['DAMAGE ITEMS', number_format(DamagedGood::query()->sum('quantity')), 'Items flagged as damaged', 'violet'],
+            ['DAMAGE ITEMS', number_format(DamagedGood::query()->whereNotIn('status', ['pending', 'rejected'])->sum('quantity')), 'Owner-accepted damage items', 'violet'],
             ['RETURN RATES', number_format(($monthlyReturns / $monthlySales) * 100, 1).'%', 'Returns vs monthly POS transactions', 'orange'],
         ];
 
         $viewRole = $request->user()->role;
 
-        return view('returns.index', compact('receipts', 'customerReturns', 'damageLogs', 'summary', 'viewRole'));
+        return view('returns.index', compact('receipts', 'customerReturns', 'damageLogs', 'pendingDamages', 'summary', 'viewRole'));
     }
 
     public function storeReturn(Request $request, LowStockAlertService $alerts): RedirectResponse
     {
+        // Never trust a staff-supplied approval/rejection status.
+        if ($request->user()->role !== 'admin') {
+            $request->merge(['status' => 'pending']);
+        }
         $validated = $request->validate([
             'sale_id' => ['required', 'integer', 'exists:sales_transactions,sale_id'],
             'product_id' => ['required', 'integer', 'exists:products,product_id'],
@@ -165,7 +175,39 @@ class ReturnsController extends Controller
 
         $alerts->checkProduct($product);
 
-        return back()->with('success', 'Customer return recorded successfully.');
+        return back()->with('success', $validated['status'] === 'pending'
+            ? 'Return submitted for owner review. No refund has been approved and stock is unchanged.'
+            : 'Customer return recorded successfully.');
+    }
+
+    public function reviewReturn(Request $request, CustomerReturn $customerReturn, LowStockAlertService $alerts): RedirectResponse
+    {
+        abort_unless($request->user()->role === 'admin', 403);
+        $validated = $request->validate(['decision' => ['required', Rule::in(['approved', 'rejected'])]]);
+        $product = DB::transaction(function () use ($customerReturn, $validated, $request) {
+            // Match receipt-first lock order used by return/damage submissions.
+            $sale = SalesTransaction::where('payment_status', 'paid')->lockForUpdate()->findOrFail($customerReturn->sale_id);
+            $return = CustomerReturn::lockForUpdate()->findOrFail($customerReturn->return_id);
+            if ($return->status !== 'pending') {
+                throw ValidationException::withMessages(['decision' => 'This return has already been reviewed.']);
+            }
+            $product = Product::lockForUpdate()->findOrFail($return->product_id);
+            $return->update(['status' => $validated['decision']]);
+            if ($validated['decision'] === 'approved' && $return->item_condition === 'sellable') {
+                $product->increment('current_stock', $return->quantity);
+                InventoryLedger::create([
+                    'product_id' => $product->product_id, 'user_id' => $request->user()->id,
+                    'qty_in' => $return->quantity, 'qty_out' => 0, 'reason_code' => 'CUSTOMER_RETURN',
+                    'logs' => "Owner approved customer return #{$return->return_id} from {$this->receiptNumber($sale->sale_id)} and added sellable items back to stock.",
+                ]);
+            }
+            return $product->fresh();
+        });
+        if ($validated['decision'] === 'approved') $alerts->checkProduct($product);
+
+        return back()->with('success', $validated['decision'] === 'approved'
+            ? 'Return and requested refund approved. Only sellable items were added back to stock.'
+            : 'Return rejected. Stock is unchanged and the receipt quantity is available again.');
     }
 
     public function storeDamage(Request $request): RedirectResponse
@@ -192,12 +234,32 @@ class ReturnsController extends Controller
 
             DamagedGood::create([
                 ...$validated,
+                'status' => $request->user()->role === 'admin' ? $validated['status'] : 'pending',
                 'user_id' => $request->user()->id,
                 'reported_at' => now(),
             ]);
         });
 
-        return back()->with('success', 'Receipt damage recorded successfully. Inventory was not deducted again because this item was already sold.');
+        return back()->with('success', $request->user()->role === 'admin'
+            ? 'Damage recorded. Inventory was not deducted again.'
+            : 'Damage submitted for owner review. It will appear in the Damage Log only after acceptance.');
+    }
+
+    public function reviewDamage(Request $request, DamagedGood $damagedGood): RedirectResponse
+    {
+        abort_unless($request->user()->role === 'admin', 403);
+        $validated = $request->validate(['decision' => ['required', Rule::in(['accepted', 'rejected'])]]);
+        DB::transaction(function () use ($damagedGood, $validated) {
+            SalesTransaction::lockForUpdate()->findOrFail($damagedGood->sale_id);
+            $damage = DamagedGood::lockForUpdate()->findOrFail($damagedGood->damage_id);
+            if ($damage->status !== 'pending') {
+                throw ValidationException::withMessages(['decision' => 'This damage report has already been reviewed.']);
+            }
+            $damage->update(['status' => $validated['decision'] === 'accepted' ? 'reviewed' : 'rejected']);
+        });
+        return back()->with('success', $validated['decision'] === 'accepted'
+            ? 'Damage accepted and displayed in the Damage Log. Stock is unchanged.'
+            : 'Damage rejected. It will not appear in the Damage Log; receipt quantity is available again.');
     }
 
     private function lockedReceiptItem(int $saleId, int $productId): array
@@ -227,6 +289,7 @@ class ReturnsController extends Controller
             ->where('status', '!=', 'rejected')
             ->sum('quantity');
         $damaged = (int) DamagedGood::query()
+            ->where('status', '!=', 'rejected')
             ->where('sale_id', $saleId)
             ->where('product_id', $productId)
             ->sum('quantity');

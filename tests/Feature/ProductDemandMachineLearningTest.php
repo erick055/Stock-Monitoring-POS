@@ -18,7 +18,7 @@ class ProductDemandMachineLearningTest extends TestCase
     public function test_sparse_history_does_not_invent_predictions(): void
     {
         Product::create(['sku' => 'NEW-DEMAND', 'name' => 'New Demand Part']);
-        $result = app(ProductDemandMachineLearning::class)->current();
+        $result = app(ProductDemandMachineLearning::class)->refresh();
         $this->assertFalse($result['available']);
         $this->assertNull($result['items'][0]['predicted_units']);
         $this->assertNull($result['validation_mae']);
@@ -44,7 +44,7 @@ class ProductDemandMachineLearningTest extends TestCase
             }
         }
         $service = app(ProductDemandMachineLearning::class);
-        $result = $service->current();
+        $result = $service->refresh();
         $this->assertTrue($result['available']);
         $this->assertGreaterThanOrEqual(20, $result['training_samples']);
         $this->assertGreaterThanOrEqual(5, $result['validation_samples']);
@@ -56,17 +56,17 @@ class ProductDemandMachineLearningTest extends TestCase
         $this->assertSame('ML-DEMAND-5', $result['items'][0]['sku']);
         $this->assertSame(1, $result['items'][0]['priority_rank']);
         $this->assertSame(0, $result['items'][0]['stock_shortfall']);
-        $this->assertSame($result, $service->current());
+        $this->assertSame($result, $service->refresh());
         $newSale = SalesTransaction::create(['staff_id' => $staff->id, 'subtotal' => 100, 'total_sale_amount' => 100,
             'payment_status' => 'paid', 'sale_date' => now()]);
         SalesItem::create(['sale_id' => $newSale->sale_id, 'product_id' => $products->first()->product_id,
             'quantity' => 2, 'unit_sale_price' => 100, 'unit_cost' => 50, 'line_total' => 200]);
-        $updated = $service->current();
+        $updated = $service->refresh();
         $beforeRow = collect($result['items'])->firstWhere('product_id', $products->first()->product_id);
         $updatedRow = collect($updated['items'])->firstWhere('product_id', $products->first()->product_id);
         $this->assertSame($beforeRow['recent_units'] + 2, $updatedRow['recent_units']);
         $newSale->update(['payment_status' => 'unpaid']);
-        $this->assertSame($beforeRow['recent_units'], collect($service->current()['items'])->firstWhere('product_id', $products->first()->product_id)['recent_units']);
+        $this->assertSame($beforeRow['recent_units'], collect($service->refresh()['items'])->firstWhere('product_id', $products->first()->product_id)['recent_units']);
         Http::assertNothingSent();
     }
 }

@@ -35,6 +35,24 @@ return [
             'driver' => 'sync',
         ],
 
+        'ml' => [
+            'driver' => 'database',
+            'connection' => env('DB_QUEUE_CONNECTION'),
+            'table' => env('DB_QUEUE_TABLE', 'jobs'),
+            'queue' => 'ml',
+            'retry_after' => 1900,
+            'after_commit' => true,
+        ],
+
+        'ml' => [
+            'driver' => 'database',
+            'connection' => env('DB_QUEUE_CONNECTION'),
+            'table' => env('DB_QUEUE_TABLE', 'jobs'),
+            'queue' => 'ml',
+            'retry_after' => 1900,
+            'after_commit' => true,
+        ],
+
         'database' => [
             'driver' => 'database',
             'connection' => env('DB_QUEUE_CONNECTION'),
