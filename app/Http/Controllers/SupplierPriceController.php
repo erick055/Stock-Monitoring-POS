@@ -28,6 +28,7 @@ class SupplierPriceController extends Controller
         $productMatcher->linkUnmatchedPricesBySku();
 
         $search = trim((string) $request->query('search'));
+        $importSearch = trim((string) $request->query('import_search'));
         $sort = (string) $request->query('sort', 'updated_desc');
         $sorts = [
             'updated_desc' => ['last_updated_at', 'desc'],
@@ -86,6 +87,14 @@ class SupplierPriceController extends Controller
                 ->with('supplier')
                 ->findOrFail($request->integer('import'));
             $importRows = $selectedImport->rows()->with('product')
+                ->when($importSearch !== '', fn ($query) => $query->where(function ($query) use ($importSearch) {
+                    $query->where('product_name', 'like', "%{$importSearch}%")
+                        ->orWhere('supplier_sku', 'like', "%{$importSearch}%")
+                        ->orWhere('internal_sku', 'like', "%{$importSearch}%")
+                        ->orWhereHas('product', fn ($product) => $product
+                            ->where('name', 'like', "%{$importSearch}%")
+                            ->orWhere('sku', 'like', "%{$importSearch}%"));
+                }))
                 ->orderBy('row_number')->orderBy('supplier_import_row_id')
                 ->paginate(25, ['*'], 'import_page')->withQueryString();
         }
@@ -97,7 +106,7 @@ class SupplierPriceController extends Controller
             'stale' => $prices->filter(fn ($price) => $price->last_updated_at->lt(now()->subDays(30)))->count(),
         ];
 
-        return view('admin.suppliers', compact('prices', 'imports', 'selectedImport', 'importRows', 'summary', 'catalogProducts', 'sort', 'search'));
+        return view('admin.suppliers', compact('prices', 'imports', 'selectedImport', 'importRows', 'summary', 'catalogProducts', 'sort', 'search', 'importSearch'));
     }
 
     public function upload(Request $request, SupplierSpreadsheetImporter $importer): RedirectResponse

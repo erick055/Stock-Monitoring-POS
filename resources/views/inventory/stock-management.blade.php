@@ -378,5 +378,6 @@ $editErrorProduct = $errors->getBag('editProduct')->any()
         </form>
     </section>
 </div>
+@include('partials.login-stock-alert')
 </body>
 </html>

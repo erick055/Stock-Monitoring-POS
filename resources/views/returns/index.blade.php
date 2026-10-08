@@ -195,5 +195,6 @@ $oldReceipt = $receipts->firstWhere('id', (int) old('sale_id'));
         <div class="returns-toast" data-returns-toast hidden role="status">Return and damage action saved.</div>
     </main>
 </div>
+@include('partials.login-stock-alert')
 </body>
 </html>

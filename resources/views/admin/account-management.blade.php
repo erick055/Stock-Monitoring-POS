@@ -89,5 +89,6 @@ $navigation = [
         </section>
     </main>
 </div>
+@include('partials.login-stock-alert')
 </body>
 </html>

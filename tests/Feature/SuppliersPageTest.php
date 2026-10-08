@@ -51,6 +51,30 @@ class SuppliersPageTest extends TestCase
         $this->get($response->viewData('importRows')->nextPageUrl())->assertOk()
             ->assertSee('Original item 26')->assertSee('PHP 123.45');
         $this->assertSame('123.45', $oldImport->rows()->first()->unit_price);
+
+        foreach (['Original item 26', 'OLD-26'] as $term) {
+            $filtered = $this->get(route('admin.suppliers', [
+                'import' => $oldImport->supplier_import_id, 'import_search' => $term,
+            ]));
+            $filtered->assertOk()->assertSee('Search imported prices')->assertSee('Original item 26')
+                ->assertSee('Clear search')->assertDontSee('Original item 1');
+            $this->assertSame(1, $filtered->viewData('importRows')->total());
+        }
+
+        $oldImport->rows()->where('row_number', 26)->update(['internal_sku' => 'INTERNAL-26']);
+        $this->get(route('admin.suppliers', [
+            'import' => $oldImport->supplier_import_id, 'import_search' => 'INTERNAL-26',
+        ]))->assertOk()->assertSee('Original item 26')->assertDontSee('Original item 1');
+
+        $filtered = $this->get(route('admin.suppliers', [
+            'import' => $oldImport->supplier_import_id, 'import_search' => 'Original item',
+        ]));
+        $this->get($filtered->viewData('importRows')->nextPageUrl())->assertOk()
+            ->assertSee('Original item 26')->assertViewHas('importSearch', 'Original item');
+
+        $this->get(route('admin.suppliers', [
+            'import' => $oldImport->supplier_import_id, 'import_search' => 'missing product',
+        ]))->assertOk()->assertSee('No imported prices match your search.');
     }
 
     public function test_admin_can_view_supplier_price_page(): void

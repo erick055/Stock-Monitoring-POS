@@ -269,5 +269,6 @@ $navigation = [
         <div class="dead-stock-toast" data-dead-stock-toast hidden role="status">Recommendation summary refreshed in UI preview.</div>
     </main>
 </div>
+@include('partials.login-stock-alert')
 </body>
 </html>

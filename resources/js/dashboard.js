@@ -1,4 +1,5 @@
 import './required-fields';
+import './login-stock-alert';
 import { backgroundReload } from './session-activity';
 
 const menu = document.querySelector('[data-menu]');
@@ -48,7 +49,7 @@ if (dashboard) {
     const refreshMs = Number(dashboard.dataset.refreshMs || 0);
     if (refreshMs >= 30000) {
         window.setInterval(() => {
-            if (document.visibilityState === 'visible' && !document.querySelector('input:focus, textarea:focus, select:focus')) {
+            if (document.visibilityState === 'visible' && !document.querySelector('input:focus, textarea:focus, select:focus, dialog[open]')) {
                 backgroundReload();
             }
         }, refreshMs);

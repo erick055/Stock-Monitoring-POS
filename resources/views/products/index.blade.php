@@ -175,5 +175,6 @@ $productDetailRecords = [];
         <footer><span>This popup does not allow product changes.</span><button type="button" popovertarget="product-details-{{ $detail['id'] }}" popovertargetaction="hide">Close</button></footer>
     </section>
 @endforeach
+@include('partials.login-stock-alert')
 </body>
 </html>

@@ -62,6 +62,7 @@ class AuthenticatedSessionController extends Controller
             Auth::login($user, false);
             $request->session()->regenerate();
             $request->session()->put('auth.last_activity_at', now()->timestamp);
+            $request->session()->put('stock.login_alert_pending', $user->role === 'admin');
             Auth::guard()->getProvider()->updateRememberToken($user, Str::random(60));
 
             return redirect()->intended(route($user->role.'.dashboard'))

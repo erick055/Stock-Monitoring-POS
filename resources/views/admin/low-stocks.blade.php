@@ -160,5 +160,6 @@ $navigation = [
         @if(session('success'))<div class="alerts-toast" data-alerts-toast role="status">{{ session('success') }}</div>@endif
     </main>
 </div>
+@include('partials.login-stock-alert')
 </body>
 </html>

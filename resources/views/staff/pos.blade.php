@@ -193,5 +193,6 @@ $activeIndex = $isAdmin ? 3 : 2;
         </div>
     </div>
 </div>
+@include('partials.login-stock-alert')
 </body>
 </html>

@@ -98,6 +98,7 @@ $navigation = [
             <p class="archive-note">Choose an upload date and file to view its saved prices. Newest imports appear first.</p>
             <form class="archive-filter" method="GET" action="{{ route('admin.suppliers') }}">
                 <input type="hidden" name="sort" value="{{ $sort }}">
+                <input type="hidden" name="search" value="{{ $search }}">
                 <label for="archive-import">Import date / file
                     <select id="archive-import" name="import" required @disabled($imports->isEmpty())>
                         <option value="">{{ $imports->isEmpty() ? 'No imports available' : 'Select an import' }}</option>
@@ -110,7 +111,11 @@ $navigation = [
                         @endforeach
                     </select>
                 </label>
+                <label for="archive-search">Search imported prices
+                    <input id="archive-search" type="search" name="import_search" value="{{ $importSearch }}" placeholder="Product name, supplier SKU, or internal SKU" @disabled($imports->isEmpty())>
+                </label>
                 <button class="apply-button" type="submit" @disabled($imports->isEmpty())>Fetch records</button>
+                @if($selectedImport && $importSearch !== '')<a href="{{ route('admin.suppliers', ['import' => $selectedImport->supplier_import_id, 'sort' => $sort, 'search' => $search]) }}">Clear search</a>@endif
                 @if($selectedImport)<a href="{{ route('admin.suppliers') }}">Close archive</a>@endif
             </form>
         </section>
@@ -126,12 +131,12 @@ $navigation = [
                         @endif
                     </div>
                 </div>
-                <p class="archive-note">Uploaded {{ $selectedImport->created_at->format('M d, Y h:i A') }} · {{ $selectedImport->archived_at ? 'Archived '.strtolower($selectedImport->status) : ucfirst($selectedImport->status) }} · {{ $importRows->total() }} records. Prices below are from this import.</p>
+                <p class="archive-note">Uploaded {{ $selectedImport->created_at->format('M d, Y h:i A') }} · {{ $selectedImport->archived_at ? 'Archived '.strtolower($selectedImport->status) : ucfirst($selectedImport->status) }} · {{ $importRows->total() }} {{ $importSearch !== '' ? 'matching records' : 'records' }}. Prices below are from this import.</p>
                 <div class="supplier-table-wrap">
                     <table>
                         <thead><tr><th>Row</th><th>Supplier SKU</th><th>Product</th><th>MotoSync match</th><th>Price</th><th>Availability</th><th>Status</th></tr></thead>
                         <tbody>
-                        @foreach($importRows as $row)
+                        @forelse($importRows as $row)
                             <tr class="{{ $row->validation_errors ? 'row-error' : '' }}">
                                 <td>{{ $row->row_number }}</td>
                                 <td>{{ $row->supplier_sku }}</td>
@@ -153,7 +158,9 @@ $navigation = [
                                     @endif
                                 </td>
                             </tr>
-                        @endforeach
+                        @empty
+                            <tr><td colspan="7" class="empty-state">{{ $importSearch !== '' ? 'No imported prices match your search. Try another product name or SKU.' : 'No records in this import.' }}</td></tr>
+                        @endforelse
                         </tbody>
                     </table>
                 </div>
@@ -186,6 +193,7 @@ $navigation = [
                 <div><span class="section-kicker">CURRENT DATA</span><h2>Published supplier prices</h2></div>
                 <form class="supplier-sort-form" method="GET" action="{{ route('admin.suppliers') }}">
                     @if($selectedImport)<input type="hidden" name="import" value="{{ $selectedImport->supplier_import_id }}">@endif
+                    @if($importSearch !== '')<input type="hidden" name="import_search" value="{{ $importSearch }}">@endif
                     <label class="supplier-price-search" for="supplier-price-search">Search products
                         <input id="supplier-price-search" name="search" type="search" value="{{ $search }}" placeholder="Product, SKU, category, part number, or supplier">
                     </label>
@@ -203,7 +211,7 @@ $navigation = [
                         </select>
                     </label>
                     <button class="supplier-sort-button" type="submit">Search &amp; sort</button>
-                    @if($search)<a class="supplier-search-clear" href="{{ route('admin.suppliers', array_filter(['sort' => $sort, 'import' => $selectedImport?->supplier_import_id])) }}">Clear</a>@endif
+                    @if($search)<a class="supplier-search-clear" href="{{ route('admin.suppliers', array_filter(['sort' => $sort, 'import' => $selectedImport?->supplier_import_id, 'import_search' => $importSearch])) }}">Clear</a>@endif
                 </form>
             </div>
             @if($prices->contains(fn ($price) => ! $price->product_id && strtoupper($price->currency) === 'PHP'))
@@ -378,5 +386,6 @@ $navigation = [
         </section>
     </main>
 </div>
+@include('partials.login-stock-alert')
 </body>
 </html>

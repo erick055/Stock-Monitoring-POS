@@ -174,6 +174,7 @@ class AuthenticationTest extends TestCase
 
         $response->assertRedirect(route('admin.dashboard'))
             ->assertCookieExpired(Auth::guard()->getRecallerName())
+            ->assertSessionHas('stock.login_alert_pending', true)
             ->assertSessionHas('auth.last_activity_at');
         $this->assertAuthenticated();
         $this->assertNotSame('old-persistent-token', $user->fresh()->getRememberToken());
@@ -259,7 +260,8 @@ class AuthenticationTest extends TestCase
         $this->withHeader('User-Agent', 'MotoSyncTestBrowser')
             ->withCookie(TrustedLoginDeviceService::COOKIE_NAME, $token)
             ->post('/login', ['email' => $user->email, 'password' => self::STRONG_PASSWORD])
-            ->assertRedirect(route('staff.dashboard'));
+            ->assertRedirect(route('staff.dashboard'))
+            ->assertSessionHas('stock.login_alert_pending', false);
 
         $this->assertAuthenticatedAs($user);
         Notification::assertNothingSent();
