@@ -9,7 +9,7 @@ function showDeadStockToast() {
     }, 2200);
 }
 
-refreshSummaryButton?.addEventListener('click', showDeadStockToast);
+refreshSummaryButton?.addEventListener('click', () => window.location.reload());
 document.querySelectorAll('[data-ai-action]').forEach((button) => {
     button.addEventListener('click', showDeadStockToast);
 });

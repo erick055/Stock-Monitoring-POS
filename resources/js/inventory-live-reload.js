@@ -8,7 +8,9 @@ if (liveInventoryPage) {
         const active = document.activeElement;
         const formFieldActive = active?.matches?.('input, textarea, select');
         const dialogOpen = document.body.classList.contains('modal-open')
-            || document.querySelector(':popover-open, [data-fallback-open]');
+            || document.body.classList.contains('supplier-modal-open')
+            || document.querySelector('[data-fallback-open]')
+            || (typeof HTMLElement.prototype.showPopover === 'function' && document.querySelector(':popover-open'));
 
         return Boolean(formFieldActive || dialogOpen || document.hidden);
     }

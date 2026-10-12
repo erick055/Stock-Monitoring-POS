@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Product;
+use App\Models\SalesItem;
 use App\Services\InventoryLiveService;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -34,14 +35,16 @@ class ProductsController extends Controller
         $products = (clone $baseQuery)
             ->with([
                 'activePromotion.bundleProduct',
+                'activePromotion.administrator',
+                'deadStockArchivedBy',
                 'supplierPrices.supplier',
                 'latestLedger.user',
             ])
             ->withCount(['ledgers', 'supplierPrices'])
-            ->withSum('saleItems as units_sold', 'quantity')
-            ->withSum('saleItems as sales_revenue', 'line_total')
-            ->withSum('customerReturns as returned_units', 'quantity')
-            ->withSum('damagedGoods as damaged_units', 'quantity')
+            ->withSum(['saleItems as units_sold' => fn ($query) => $query->whereHas('sale', fn ($sale) => $sale->where('payment_status', 'paid'))], 'quantity')
+            ->withSum(['saleItems as sales_revenue' => fn ($query) => $query->whereHas('sale', fn ($sale) => $sale->where('payment_status', 'paid'))], 'line_total')
+            ->withSum(['customerReturns as returned_units' => fn ($query) => $query->where('status', 'approved')], 'quantity')
+            ->withSum(['damagedGoods as damaged_units' => fn ($query) => $query->whereNotIn('status', ['pending', 'rejected'])], 'quantity')
             ->when($search, fn ($query) => $query->where(function ($query) use ($search) {
                 $query->where('sku', 'like', "%{$search}%")
                     ->orWhere('name', 'like', "%{$search}%")
@@ -53,6 +56,29 @@ class ProductsController extends Controller
             ->orderBy('product_id')
             ->paginate(10)
             ->withQueryString();
+
+        $now = now();
+        $movement = SalesItem::query()
+            ->join('sales_transactions', 'sales_items.sale_id', '=', 'sales_transactions.sale_id')
+            ->whereIn('sales_items.product_id', $products->pluck('product_id'))
+            ->where('sales_transactions.payment_status', 'paid')
+            ->where('sales_transactions.sale_date', '<=', $now)
+            ->select('sales_items.product_id')
+            ->selectRaw('SUM(CASE WHEN sales_transactions.sale_date >= ? THEN sales_items.quantity ELSE 0 END) as monthly_units', [$now->copy()->subDays(30)])
+            ->selectRaw('SUM(CASE WHEN sales_transactions.sale_date >= ? THEN sales_items.quantity ELSE 0 END) as quarter_units', [$now->copy()->subDays(90)])
+            ->selectRaw('MAX(sales_transactions.sale_date) as latest_sale')
+            ->groupBy('sales_items.product_id')->get()->keyBy('product_id');
+        $deadStockStatuses = $products->getCollection()->mapWithKeys(function (Product $product) use ($movement) {
+            if ($product->current_stock <= 0) {
+                return [$product->product_id => 'No stock to assess'];
+            }
+
+            $sales = $movement->get($product->product_id);
+            $analysis = app(DeadStockController::class)->scoreProduct($product,
+                (int) ($sales?->monthly_units ?? 0), (int) ($sales?->quarter_units ?? 0), $sales?->latest_sale);
+
+            return [$product->product_id => $analysis['classification']];
+        });
 
         $allProducts = (clone $baseQuery)->get();
         $categories = (clone $baseQuery)->whereNotNull('category')->where('category', '<>', '')
@@ -70,6 +96,6 @@ class ProductsController extends Controller
         $view = $request->user()->role === 'admin' ? 'admin.products' : 'staff.products';
         $inventoryVersion = $liveInventory->version();
 
-        return view($view, compact('products', 'categories', 'summary', 'search', 'category', 'sort', 'inventoryVersion'));
+        return view($view, compact('products', 'categories', 'summary', 'search', 'category', 'sort', 'inventoryVersion', 'deadStockStatuses'));
     }
 }

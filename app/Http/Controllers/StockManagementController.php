@@ -101,10 +101,10 @@ class StockManagementController extends Controller
             'manufacturer' => ['nullable', 'string', 'max:150'],
             'manufacturer_part_number' => ['required', 'string', 'max:150'],
             'description' => ['nullable', 'string', 'max:5000'],
-            'unit_cost' => ['required', 'numeric', 'min:0'],
-            'unit_price' => ['required', 'numeric', 'min:0'],
-            'reorder_level' => ['required', 'integer', 'min:0'],
-            'qty_in' => ['required', 'integer', 'min:0'],
+            'unit_cost' => ['required', 'numeric', 'min:0', 'max:9999999999.99'],
+            'unit_price' => ['required', 'numeric', 'min:0', 'max:9999999999.99'],
+            'reorder_level' => ['required', 'integer', 'min:0', 'max:2147483647'],
+            'qty_in' => ['required', 'integer', 'min:0', 'max:2147483647'],
             'reason_code' => ['required', 'string', 'max:50'],
             'logs' => ['nullable', 'string', 'max:1000'],
         ]);
@@ -194,7 +194,7 @@ class StockManagementController extends Controller
             'description' => ['nullable', 'string', 'max:5000'],
             'unit_cost' => ['required', 'numeric', 'min:0', 'max:9999999999.99'],
             'unit_price' => ['required', 'numeric', 'min:0', 'max:9999999999.99'],
-            'reorder_level' => ['required', 'integer', 'min:0'],
+            'reorder_level' => ['required', 'integer', 'min:0', 'max:2147483647'],
         ]);
 
         $fields = [
@@ -403,7 +403,7 @@ class StockManagementController extends Controller
         $validated = $request->validate([
             'product_id' => ['required', Rule::exists('products', 'product_id')->where('is_active', true)],
             'movement_type' => ['required', Rule::in(['in', 'out', 'adjustment'])],
-            'quantity' => ['required', 'integer', 'not_in:0'],
+            'quantity' => ['required', 'integer', 'not_in:0', 'min:-2147483647', 'max:2147483647'],
             'reason_code' => ['required', 'string', 'max:50'],
             'reference' => ['nullable', 'string', 'max:100'],
             'counterparty' => ['nullable', 'string', 'max:150'],
@@ -417,7 +417,7 @@ class StockManagementController extends Controller
         }
 
         $product = DB::transaction(function () use ($validated, $request) {
-            $product = Product::query()->lockForUpdate()->findOrFail($validated['product_id']);
+            $product = Product::query()->where('is_active', true)->lockForUpdate()->findOrFail($validated['product_id']);
             $quantity = (int) $validated['quantity'];
 
             if ($validated['movement_type'] === 'in' && $quantity < 0) {
@@ -436,6 +436,9 @@ class StockManagementController extends Controller
 
             if ($product->current_stock + $change < 0) {
                 throw ValidationException::withMessages(['quantity' => 'This movement would make the stock negative.']);
+            }
+            if ($product->current_stock + $change > 2147483647) {
+                throw ValidationException::withMessages(['quantity' => 'This movement exceeds the maximum supported stock balance.']);
             }
 
             $product->update(['current_stock' => $product->current_stock + $change]);

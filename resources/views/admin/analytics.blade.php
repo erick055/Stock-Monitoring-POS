@@ -102,11 +102,11 @@ $navigation = [
                 <div class="chart-insight" data-chart-insight aria-live="polite">
                     <span>Select a day</span><strong>View its paid sales total</strong>
                 </div>
+                <div class="day-chart-scroll" tabindex="0" role="region" aria-label="{{ $chartPeriodLabel }} sales chart; scroll horizontally to view all dates">
                 <div class="day-chart period-{{ $salesPeriod }}" data-day-chart role="group" aria-label="Interactive {{ strtolower($chartPeriodLabel) }} bar chart of paid sales" style="--chart-columns: {{ $weeklySales->count() }}">
                     @foreach($weeklySales as $index => $day)
-                        @php($showAxisLabel = $salesPeriod !== 'month' || $index === 0 || ($index + 1) % 5 === 0 || $index + 1 === $weeklySales->count())
                         <button
-                            class="day-column {{ $showAxisLabel ? 'show-axis-label' : '' }}"
+                            class="day-column"
                             type="button"
                             data-day-bar
                             data-day="{{ $day['label'] }} · {{ $day['date'] }}"
@@ -121,18 +121,19 @@ $navigation = [
                         </button>
                     @endforeach
                 </div>
+                </div>
             </article>
         </section>
 
         <section class="panel analytics-panel velocity-panel">
             <div class="section-heading velocity-heading">
-                <div><span class="section-kicker">SELLING SPEED</span><h2>Fast-Moving Item Ranking</h2><small>Ranked by purchase frequency (60%) and units bought (40%).</small></div>
+                <div><span class="section-kicker">SELLING SPEED</span><h2>Fast-Moving Item Ranking</h2><small>Fast-moving percentage relative to the highest purchase frequency (60%) and units bought (40%).</small></div>
                 <span class="period">Last 30 days · paid receipts only</span>
             </div>
             <div class="velocity-table-wrap">
                 <table class="velocity-table">
                     <thead>
-                        <tr><th>Rank</th><th>Product</th><th>Purchase frequency</th><th>Units bought</th><th>Buying amount</th><th>Selling pace</th><th>Speed score</th></tr>
+                        <tr><th>Rank</th><th>Product</th><th>Purchase frequency</th><th>Units bought</th><th>Buying amount</th><th>Selling pace</th><th>Fast-moving percentage</th></tr>
                     </thead>
                     <tbody>
                     @forelse($sellingSpeedRanking as $index => $item)
@@ -144,7 +145,7 @@ $navigation = [
                             <td><strong>₱{{ number_format($item->sales_total, 2) }}</strong><small>sales value</small></td>
                             <td><strong>{{ number_format($item->units_per_day, 2) }}</strong><small>units per day</small></td>
                             <td>
-                                <div class="speed-score"><span><strong>{{ $item->speed_score }}</strong>/100</span><i><b style="width: {{ $item->speed_score }}%"></b></i></div>
+                                <div class="speed-score"><span><strong>{{ $item->speed_score }}%</strong></span><i><b style="width: {{ $item->speed_score }}%"></b></i></div>
                             </td>
                         </tr>
                     @empty
@@ -249,7 +250,7 @@ $navigation = [
         </section>
         <section class="panel analytics-panel slow-products-panel">
             <div class="section-heading">
-                <div><span class="section-kicker">INVENTORY TURNOVER</span><h2><i class="bi bi-hourglass-split" aria-hidden="true"></i> Slow-Moving Products</h2><small>Based on paid sales over the last 30 and 90 days, stock levels, and inventory age.</small></div>
+                <div><span class="section-kicker">INVENTORY TURNOVER</span><h2><i class="bi bi-hourglass-split" aria-hidden="true"></i> Slow-Moving / Non-moving Products</h2><small>Based on paid sales over the last 30 and 90 days, stock levels, and inventory age.</small></div>
                 <a href="{{ route('admin.dead-stock', ['classification' => 'slow']) }}">Review products <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
             </div>
             <div class="velocity-table-wrap">

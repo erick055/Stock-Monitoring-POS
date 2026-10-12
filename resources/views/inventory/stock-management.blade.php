@@ -184,9 +184,9 @@ $editErrorProduct = $errors->getBag('editProduct')->any()
                             @endforeach
                         </select>
                     </label>
-                    <label><span data-quantity-label>3. Quantity received</span>
+                    <label><span data-quantity-label>3. Quantity received (+)</span>
                         <input name="quantity" value="{{ old('quantity') }}" type="number" min="1" placeholder="Enter a positive quantity" required data-movement-quantity>
-                        <small data-quantity-help>Entered units will be added to current stock.</small>
+                        <small data-quantity-help>Adds (+) units to stock. Enter a positive quantity, such as 5, to add 5 units.</small>
                     </label>
                     <label>4. Reason
                         <select name="reason_code" required data-movement-reason data-old-reason="{{ old('reason_code') }}">

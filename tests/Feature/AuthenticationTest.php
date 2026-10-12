@@ -67,28 +67,15 @@ class AuthenticationTest extends TestCase
 
     private const STRONG_PASSWORD = 'Secure!Password123';
 
-    public function test_public_registration_creates_a_pending_staff_request_without_logging_in(): void
+    public function test_public_registration_is_removed(): void
     {
-        $response = $this->post('/register', [
-            'name' => 'Test Staff',
-            'email' => 'STAFF@example.com ',
-            'role' => 'admin',
-            'password' => self::STRONG_PASSWORD,
-            'password_confirmation' => self::STRONG_PASSWORD,
-            'auth_mode' => 'register',
-        ]);
-
-        $response->assertRedirect(route('login'))
-            ->assertSessionHas('status', 'Registration received. The owner must approve your staff account before you can log in.');
+        $this->get(route('login'))->assertOk()->assertDontSee('Create one')->assertDontSee('data-switch-mode', false);
+        $this->get('/register')->assertNotFound();
+        $this->post('/register', ['name' => 'Test Staff', 'email' => 'staff@example.com',
+            'password' => self::STRONG_PASSWORD, 'password_confirmation' => self::STRONG_PASSWORD])->assertNotFound();
         $this->assertGuest();
-        $this->assertDatabaseHas('users', [
-            'email' => 'staff@example.com',
-            'role' => 'staff',
-            'account_status' => 'pending',
-            'email_verified_at' => null,
-        ]);
+        $this->assertDatabaseMissing('users', ['email' => 'staff@example.com']);
     }
-
     public function test_pending_and_disabled_staff_cannot_start_login_verification(): void
     {
         Notification::fake();
@@ -108,19 +95,6 @@ class AuthenticationTest extends TestCase
 
         Notification::assertNothingSent();
         $this->assertGuest();
-    }
-
-    public function test_registration_rejects_a_weak_password(): void
-    {
-        $this->post('/register', [
-            'name' => 'Test Staff',
-            'email' => 'staff@example.com',
-            'password' => 'password',
-            'password_confirmation' => 'password',
-        ])->assertSessionHasErrors('password');
-
-        $this->assertGuest();
-        $this->assertDatabaseMissing('users', ['email' => 'staff@example.com']);
     }
 
     public function test_login_uses_email_and_redirects_to_the_account_role_dashboard(): void

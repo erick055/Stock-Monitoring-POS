@@ -35,21 +35,36 @@ $navigation = [
     <main class="dashboard-main accounts-main">
         <header class="accounts-header">
             <button class="menu-button" type="button" data-menu aria-label="Toggle navigation"><i class="bi bi-list" aria-hidden="true"></i></button>
-            <div><p class="welcome">OWNER CONTROL</p><h1>Account Management</h1><p>Approve new staff registrations and immediately remove access when needed.</p></div>
+            <div><p class="welcome">OWNER CONTROL</p><h1>Account Management</h1><p>Create staff accounts, edit their details and passwords, and manage access.</p></div>
         </header>
 
         @if(session('success'))<div class="account-message success" role="status">{{ session('success') }}</div>@endif
         @if($errors->any())<div class="account-message error" role="alert">{{ $errors->first() }}</div>@endif
 
         <section class="stat-grid accounts-stats" aria-label="Account summary">
-            <article class="stat-card purple"><div class="stat-head"><span>TOTAL STAFF</span></div><strong>{{ number_format($summary->total ?? 0) }}</strong><small>All registration records</small></article>
+            <article class="stat-card purple"><div class="stat-head"><span>TOTAL STAFF</span></div><strong>{{ number_format($summary->total ?? 0) }}</strong><small>All staff accounts</small></article>
             <article class="stat-card orange"><div class="stat-head"><span>PENDING APPROVAL</span></div><strong>{{ number_format($summary->pending ?? 0) }}</strong><small>Waiting for owner review</small></article>
             <article class="stat-card cyan"><div class="stat-head"><span>ACTIVE STAFF</span></div><strong>{{ number_format($summary->active ?? 0) }}</strong><small>Can currently access MotoSync</small></article>
             <article class="stat-card red"><div class="stat-head"><span>DISABLED</span></div><strong>{{ number_format($summary->disabled ?? 0) }}</strong><small>Access has been removed</small></article>
         </section>
 
+        <section class="panel accounts-panel account-create-panel">
+            <div class="section-heading"><div><span class="section-kicker">OWNER ONLY</span><h2>Create staff account</h2></div></div>
+            <p class="account-form-note">Staff access is active immediately. The staff member must verify their email before accessing the system.</p>
+            @if($errors->createAccount->any())<div class="account-message error" role="alert"><ul>@foreach($errors->createAccount->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
+            <form class="staff-account-form" method="POST" action="{{ route('admin.accounts.store') }}">
+                @csrf
+                <label>Full name<input name="name" value="{{ $errors->createAccount->any() ? old('name') : '' }}" minlength="2" maxlength="100" autocomplete="name" required></label>
+                <label>Email address<input type="email" name="email" value="{{ $errors->createAccount->any() ? old('email') : '' }}" maxlength="255" autocomplete="email" required></label>
+                <label>Password<input type="password" name="password" minlength="12" autocomplete="new-password" required></label>
+                <label>Confirm password<input type="password" name="password_confirmation" minlength="12" autocomplete="new-password" required></label>
+                <p class="account-form-note">Use at least 12 characters with uppercase, lowercase, a number, and a symbol.</p>
+                <button type="submit">Create staff account</button>
+            </form>
+        </section>
+
         <section class="panel accounts-panel">
-            <div class="section-heading"><div><span class="section-kicker">STAFF ACCESS</span><h2>Registration and account status</h2></div></div>
+            <div class="section-heading"><div><span class="section-kicker">STAFF ACCESS</span><h2>Staff accounts and status</h2></div></div>
             <form class="account-toolbar" method="GET">
                 <label><span>Search</span><input type="search" name="search" value="{{ $search }}" placeholder="Name or email"></label>
                 <label><span>Status</span><select name="status"><option value="all">All accounts</option>@foreach(['pending','active','disabled'] as $option)<option value="{{ $option }}" @selected($status === $option)>{{ ucfirst($option) }}</option>@endforeach</select></label>
@@ -80,9 +95,22 @@ $navigation = [
                                 <form method="POST" action="{{ route('admin.accounts.reactivate', $account) }}">@csrf @method('PATCH')<button class="reactivate-button" type="submit">Restore staff access</button></form>
                             @endif
                         </div>
+                        <details class="account-edit" @if($errors->getBag('editAccount'.$account->id)->any()) open @endif>
+                            <summary>Edit staff account</summary>
+                            @if($errors->getBag('editAccount'.$account->id)->any())<div class="account-message error" role="alert"><ul>@foreach($errors->getBag('editAccount'.$account->id)->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
+                            <form class="staff-account-form" method="POST" action="{{ route('admin.accounts.update', $account) }}">
+                                @csrf @method('PATCH')
+                                <label>Full name<input name="name" value="{{ $errors->getBag('editAccount'.$account->id)->any() ? old('name', $account->name) : $account->name }}" minlength="2" maxlength="100" required></label>
+                                <label>Email address<input type="email" name="email" value="{{ $errors->getBag('editAccount'.$account->id)->any() ? old('email', $account->email) : $account->email }}" maxlength="255" required></label>
+                                <label>New password<input type="password" name="password" minlength="12" autocomplete="new-password" placeholder="Leave blank to keep current password"></label>
+                                <label>Confirm new password<input type="password" name="password_confirmation" minlength="12" autocomplete="new-password"></label>
+                                <p class="account-form-note">Passwords require 12 characters, uppercase, lowercase, a number, and a symbol. Changing email or password signs staff out. A changed email requires verification.</p>
+                                <button type="submit">Save staff account</button>
+                            </form>
+                        </details>
                     </article>
                 @empty
-                    <div class="empty-accounts"><strong>No staff accounts found</strong><span>New registrations will appear here for owner approval.</span></div>
+                    <div class="empty-accounts"><strong>No staff accounts found</strong><span>Create a staff account above to grant access.</span></div>
                 @endforelse
             </div>
             @if($staff->hasPages())<div class="account-pagination">{{ $staff->links() }}</div>@endif

@@ -197,7 +197,7 @@ $navigation = [
                     <label class="supplier-price-search" for="supplier-price-search">Search products
                         <input id="supplier-price-search" name="search" type="search" value="{{ $search }}" placeholder="Product, SKU, category, part number, or supplier">
                     </label>
-                    <label for="supplier-sort">Sort prices
+                    <label for="supplier-sort">Sort
                         <select id="supplier-sort" name="sort">
                             <option value="updated_desc" @selected($sort === 'updated_desc')>Recently updated</option>
                             <option value="updated_asc" @selected($sort === 'updated_asc')>Oldest updated</option>

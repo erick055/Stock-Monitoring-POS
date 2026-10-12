@@ -3,6 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\Product;
+use App\Models\SalesItem;
+use App\Models\SalesTransaction;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -39,6 +41,34 @@ class ProductsPageTest extends TestCase
     {
         $staff = User::factory()->create(['role' => 'staff']);
         $this->actingAs($staff)->get('/admin/products')->assertForbidden();
+    }
+
+    public function test_product_details_show_dead_stock_status_using_paid_sales_only(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $product = Product::create([
+            'sku' => 'STATUS-01', 'name' => 'Status Product', 'current_stock' => 5,
+            'unit_cost' => 100, 'unit_price' => 150, 'reorder_level' => 5,
+        ]);
+        $empty = Product::create(['sku' => 'EMPTY-01', 'name' => 'Empty Product', 'current_stock' => 0]);
+        $sale = SalesTransaction::create([
+            'receipt_number' => 'STATUS-RECEIPT', 'user_id' => $admin->id,
+            'sale_date' => now(), 'payment_status' => 'pending',
+            'total_sale_amount' => 1500, 'payment_method' => 'cash',
+        ]);
+        SalesItem::create([
+            'sale_id' => $sale->sale_id, 'product_id' => $product->product_id,
+            'quantity' => 10, 'unit_sale_price' => 150, 'unit_cost' => 100, 'line_total' => 1500,
+        ]);
+
+        $response = $this->actingAs($admin)->get('/admin/products')->assertOk();
+        $response->assertSee('Dead Stock Status');
+        $this->assertSame('Dead Stock', $response->viewData('deadStockStatuses')[$product->product_id]);
+        $this->assertSame('No stock to assess', $response->viewData('deadStockStatuses')[$empty->product_id]);
+
+        $sale->update(['payment_status' => 'paid']);
+        $response = $this->get('/admin/products')->assertOk();
+        $this->assertSame('Healthy', $response->viewData('deadStockStatuses')[$product->product_id]);
     }
 
     public function test_guest_is_redirected_to_login(): void

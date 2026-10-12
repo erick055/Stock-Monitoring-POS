@@ -74,12 +74,12 @@ class SupplierSpreadsheetImporter
 
                     $import->rows()->create([
                         'row_number' => $rowIndex,
-                        'supplier_sku' => $data['supplier_sku'],
-                        'product_name' => $data['product_name'],
-                        'internal_sku' => $product?->sku ?? ($data['internal_sku'] ?: null),
+                        'supplier_sku' => mb_substr((string) $data['supplier_sku'], 0, 255),
+                        'product_name' => mb_substr((string) $data['product_name'], 0, 255),
+                        'internal_sku' => $product?->sku ?? ($data['internal_sku'] ? mb_substr($data['internal_sku'], 0, 255) : null),
                         'product_id' => $product?->product_id,
-                        'currency' => strtoupper($data['currency'] ?: 'PHP'),
-                        'unit_price' => is_numeric($data['unit_price']) ? $data['unit_price'] : 0,
+                        'currency' => strtoupper(mb_substr($data['currency'] ?: 'PHP', 0, 3)),
+                        'unit_price' => is_numeric($data['unit_price']) && (float) $data['unit_price'] > 0 && (float) $data['unit_price'] <= 9999999999.99 ? $data['unit_price'] : 0,
                         'available_quantity' => $this->nullableInteger($data['available_quantity']),
                         'minimum_order_quantity' => $this->nullableInteger($data['minimum_order_quantity']),
                         'lead_time_days' => $this->nullableInteger($data['lead_time_days']),
@@ -134,8 +134,14 @@ class SupplierSpreadsheetImporter
         if (blank($data['product_name'])) {
             $errors[] = 'product_name is required.';
         }
+        foreach (['supplier_sku', 'product_name', 'internal_sku'] as $field) {
+            if (mb_strlen((string) $data[$field]) > 255) $errors[] = "{$field} cannot exceed 255 characters.";
+        }
         if (! is_numeric($data['unit_price']) || (float) $data['unit_price'] <= 0) {
             $errors[] = 'unit_price must be greater than zero.';
+        }
+        if (is_numeric($data['unit_price']) && (float) $data['unit_price'] > 9999999999.99) {
+            $errors[] = 'unit_price exceeds the maximum supported amount.';
         }
         if (filled($data['currency']) && ! preg_match('/^[A-Za-z]{3}$/', $data['currency'])) {
             $errors[] = 'currency must be a three-letter code.';
@@ -143,6 +149,10 @@ class SupplierSpreadsheetImporter
         foreach (['available_quantity', 'minimum_order_quantity', 'lead_time_days'] as $field) {
             if (filled($data[$field]) && filter_var($data[$field], FILTER_VALIDATE_INT) === false) {
                 $errors[] = "{$field} must be a whole number.";
+            }
+            if (filled($data[$field]) && filter_var($data[$field], FILTER_VALIDATE_INT) !== false
+                && ((int) $data[$field] < 0 || (int) $data[$field] > 2147483647)) {
+                $errors[] = "{$field} must be between 0 and 2147483647.";
             }
         }
         if (filled($data['effective_date']) && $this->nullableDate($data['effective_date']) === null) {
@@ -169,7 +179,8 @@ class SupplierSpreadsheetImporter
 
     private function nullableInteger(mixed $value): ?int
     {
-        return filled($value) && filter_var($value, FILTER_VALIDATE_INT) !== false ? (int) $value : null;
+        return filled($value) && filter_var($value, FILTER_VALIDATE_INT) !== false
+            && (int) $value >= 0 && (int) $value <= 2147483647 ? (int) $value : null;
     }
 
     private function nullableDate(mixed $value): ?string

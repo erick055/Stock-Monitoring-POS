@@ -19,7 +19,7 @@ use Illuminate\View\View;
 
 class PosController extends Controller
 {
-    private function authorizeCashierRecord(Request $request, int $staffId): void
+    private function authorizeCashierRecord(Request $request, ?int $staffId): void
     {
         abort_unless($request->user()->role === 'admin' || (int) $request->user()->id === $staffId,
             403, 'You do not have permission to access another cashier\'s record.');
@@ -112,8 +112,8 @@ class PosController extends Controller
     {
         $validated = $request->validate([
             'items' => ['required', 'array', 'min:1'],
-            'items.*.product_id' => ['required', Rule::exists('products', 'product_id')->where('is_active', true)],
-            'items.*.quantity' => ['required', 'integer', 'min:1'],
+            'items.*.product_id' => ['required', 'integer', 'distinct', Rule::exists('products', 'product_id')->where('is_active', true)],
+            'items.*.quantity' => ['required', 'integer', 'min:1', 'max:2147483647'],
             'labor_amount' => ['nullable', 'numeric', 'min:0', 'max:9999999999.99'],
         ]);
 
@@ -121,6 +121,7 @@ class PosController extends Controller
             $products = Product::query()
                 ->with('activePromotion')
                 ->whereIn('product_id', collect($validated['items'])->pluck('product_id'))
+                ->where('is_active', true)
                 ->get()
                 ->keyBy('product_id');
 
@@ -182,8 +183,8 @@ class PosController extends Controller
         $validated = $request->validate([
             'checkout_key' => ['required', 'uuid'],
             'items' => ['nullable', 'array'],
-            'items.*.product_id' => ['required', 'integer'],
-            'items.*.quantity' => ['required', 'integer', 'min:1'],
+            'items.*.product_id' => ['required', 'integer', 'distinct'],
+            'items.*.quantity' => ['required', 'integer', 'min:1', 'max:2147483647'],
             'payment_method' => ['nullable', 'string', 'max:50'],
             'held_order_id' => ['nullable', 'integer', 'exists:held_orders,held_order_id'],
             'labor_amount' => ['nullable', 'numeric', 'min:0', 'max:9999999999.99'],
@@ -266,6 +267,9 @@ class PosController extends Controller
             }
 
             $total = round($subtotal + $laborAmount, 2);
+            if ($total > 9999999999.99) {
+                throw ValidationException::withMessages(['checkout' => 'The order total exceeds the maximum supported receipt amount.']);
+            }
 
             $sale = SalesTransaction::create([
                 'checkout_key' => $validated['checkout_key'],
@@ -345,6 +349,7 @@ class PosController extends Controller
         $quantities = collect($items)
             ->groupBy('product_id')
             ->map(fn ($lines) => $lines->sum('quantity'));
+        $requiredCompanions = [];
 
         foreach ($products as $product) {
             $promotion = $product->activePromotion;
@@ -353,9 +358,16 @@ class PosController extends Controller
             }
 
             $freeQuantity = (int) ($quantities[$product->product_id] ?? 0);
+            $companion = $products->get($promotion->bundle_product_id);
+            if (! $companion || $companion->selling_price <= 0) {
+                throw ValidationException::withMessages([
+                    'items' => "{$product->name} requires a paid companion product for its free bundle.",
+                ]);
+            }
+            $requiredCompanions[$promotion->bundle_product_id] = ($requiredCompanions[$promotion->bundle_product_id] ?? 0) + $freeQuantity;
             $companionQuantity = (int) ($quantities[$promotion->bundle_product_id] ?? 0);
 
-            if ($companionQuantity < $freeQuantity) {
+            if ($companionQuantity < $requiredCompanions[$promotion->bundle_product_id]) {
                 $companion = Product::query()->find($promotion->bundle_product_id);
                 throw ValidationException::withMessages([
                     'items' => "{$product->name} is free only when bundled with "

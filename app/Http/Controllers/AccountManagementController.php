@@ -6,12 +6,77 @@ use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
 use Illuminate\View\View;
 use Throwable;
 
 class AccountManagementController extends Controller
 {
+    public function store(Request $request): RedirectResponse
+    {
+        $request->merge(['email' => Str::lower(trim((string) $request->input('email')))]);
+        $validated = $request->validateWithBag('createAccount', [
+            'name' => ['required', 'string', 'min:2', 'max:100'],
+            'email' => ['required', 'email:rfc', 'max:255', Rule::unique('users')],
+            'password' => ['required', 'confirmed', Password::min(12)->mixedCase()->numbers()->symbols()],
+        ]);
+        $user = User::create($validated + [
+            'role' => 'staff', 'account_status' => 'active',
+            'approved_by' => $request->user()->id, 'approved_at' => now(),
+        ]);
+
+        return redirect()->route('admin.accounts')->with('success', "{$user->name}'s staff account was created.".$this->sendVerification($user));
+    }
+
+    public function update(Request $request, User $user): RedirectResponse
+    {
+        abort_unless($user->role === 'staff', 404);
+        $request->merge(['email' => Str::lower(trim((string) $request->input('email')))]);
+        $validated = $request->validateWithBag('editAccount'.$user->id, [
+            'name' => ['required', 'string', 'min:2', 'max:100'],
+            'email' => ['required', 'email:rfc', 'max:255', Rule::unique('users')->ignore($user->id)],
+            'password' => ['nullable', 'confirmed', Password::min(12)->mixedCase()->numbers()->symbols()],
+        ]);
+        $emailChanged = $validated['email'] !== $user->email;
+        $passwordChanged = ! empty($validated['password']);
+        if (! $passwordChanged) unset($validated['password']);
+
+        DB::transaction(function () use ($user, $validated, $emailChanged, $passwordChanged) {
+            if ($emailChanged) DB::table('password_reset_tokens')->where('email', $user->email)->delete();
+            $user->fill($validated);
+            if ($emailChanged) $user->email_verified_at = null;
+            if ($emailChanged || $passwordChanged) $user->remember_token = Str::random(60);
+            $user->save();
+            if ($emailChanged || $passwordChanged) $this->revokeAccess($user);
+        });
+
+        return back()->with('success', "{$user->name}'s staff account was updated.".($emailChanged ? $this->sendVerification($user) : ''));
+    }
+
+    private function sendVerification(User $user): string
+    {
+        try {
+            $user->sendEmailVerificationNotification();
+            return ' A verification email was sent.';
+        } catch (Throwable $error) {
+            report($error);
+            return ' The verification email could not be sent; staff can request it when logging in.';
+        }
+    }
+
+    private function revokeAccess(User $user): void
+    {
+        $user->loginVerificationCode()->delete();
+        $user->trustedLoginDevices()->delete();
+        if (config('session.driver') === 'database') {
+            DB::connection(config('session.connection'))->table(config('session.table', 'sessions'))
+                ->where('user_id', $user->id)->delete();
+        }
+        DB::table('password_reset_tokens')->where('email', $user->email)->delete();
+    }
+
     public function index(Request $request): View
     {
         $status = (string) $request->query('status', 'all');
@@ -72,15 +137,17 @@ class AccountManagementController extends Controller
             'disabled_reason' => ['required', 'string', 'min:3', 'max:500'],
         ]);
 
-        $user->update([
-            'account_status' => 'disabled',
-            'disabled_by' => $request->user()->id,
-            'disabled_at' => now(),
-            'disabled_reason' => trim($validated['disabled_reason']),
-        ]);
-        $user->loginVerificationCode()->delete();
-        $user->trustedLoginDevices()->delete();
-        DB::table('sessions')->where('user_id', $user->id)->delete();
+        DB::transaction(function () use ($user, $request, $validated) {
+            $user = User::query()->lockForUpdate()->findOrFail($user->id);
+            $user->forceFill([
+                'account_status' => 'disabled',
+                'disabled_by' => $request->user()->id,
+                'disabled_at' => now(),
+                'disabled_reason' => trim($validated['disabled_reason']),
+                'remember_token' => Str::random(60),
+            ])->save();
+            $this->revokeAccess($user);
+        });
 
         return back()->with('success', "{$user->name}'s staff access was disabled.");
     }

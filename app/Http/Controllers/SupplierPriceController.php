@@ -279,11 +279,11 @@ class SupplierPriceController extends Controller
 
         $validated = $request->validate([
             'sku' => ['required', 'string', 'max:100'],
-            'selling_price' => ['required', 'numeric', 'min:0'],
+            'selling_price' => ['required', 'numeric', 'min:0', 'max:9999999999.99'],
             'manufacturer_part_number' => ['required', 'string', 'max:150'],
             'category' => ['nullable', 'string', 'max:100'],
             'shelf_location' => ['nullable', 'string', 'max:100'],
-            'reorder_level' => ['required', 'integer', 'min:0'],
+            'reorder_level' => ['required', 'integer', 'min:0', 'max:2147483647'],
         ]);
 
         $validated['sku'] = trim($validated['sku']);
@@ -357,7 +357,7 @@ class SupplierPriceController extends Controller
             'markup_percent' => ['required', 'numeric', 'min:0', 'max:1000'],
             'category' => ['nullable', 'string', 'max:100'],
             'shelf_location' => ['nullable', 'string', 'max:100'],
-            'reorder_level' => ['required', 'integer', 'min:0'],
+            'reorder_level' => ['required', 'integer', 'min:0', 'max:2147483647'],
         ]);
 
         $prices = SupplierPrice::query()
@@ -375,6 +375,9 @@ class SupplierPriceController extends Controller
 
         foreach ($prices as $price) {
             $this->ensurePesoPrice($price);
+            if (round((float) $price->unit_price * (1 + ((float) $validated['markup_percent'] / 100)), 2) > 9999999999.99) {
+                throw ValidationException::withMessages(['markup_percent' => 'The markup produces a selling price above the maximum supported amount.']);
+            }
         }
 
         $created = DB::transaction(function () use ($prices, $validated, $request, $duplicates) {

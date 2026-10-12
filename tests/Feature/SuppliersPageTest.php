@@ -592,7 +592,7 @@ class SuppliersPageTest extends TestCase
 
         $this->actingAs($admin)->get(route('admin.suppliers', ['sort' => 'price_high']))
             ->assertOk()
-            ->assertSee('Sort prices')
+            ->assertSee('for="supplier-sort">Sort', false)
             ->assertSeeInOrder(['Premium Part', 'Affordable Part']);
 
         $this->actingAs($admin)->get(route('admin.suppliers', ['sort' => 'product']))

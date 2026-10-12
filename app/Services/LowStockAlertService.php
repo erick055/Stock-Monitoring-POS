@@ -54,6 +54,10 @@ class LowStockAlertService
                 'immediate',
                 $product,
             );
+            if ($sent === 0) {
+                // Keep the previous notification severity so a failed delivery is retried.
+                $state->update(['severity' => $previousSeverity]);
+            }
         }
 
         return $sent;

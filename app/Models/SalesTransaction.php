@@ -16,8 +16,6 @@ class SalesTransaction extends Model
     protected $fillable = [
         'checkout_key',
         'checkout_fingerprint',
-        'checkout_key',
-        'checkout_fingerprint',
         'staff_id',
         'customer_id',
         'subtotal',

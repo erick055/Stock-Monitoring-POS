@@ -25,9 +25,15 @@ class InventoryLiveService
             $product->product_id,
             $product->updated_at?->format('Y-m-d H:i:s.u'),
             $product->current_stock,
+            $product->name,
+            $product->sku,
+            $product->category,
+            $product->shelf_location,
             $product->unit_price,
             $product->is_active,
-            $product->activePromotion?->promotion_id,
+            $product->activePromotion?->product_promotion_id,
+            $product->activePromotion?->promotional_price,
+            $product->activePromotion?->bundle_product_id,
             $product->activePromotion?->updated_at?->format('Y-m-d H:i:s.u'),
         ])->values()->toJson());
     }

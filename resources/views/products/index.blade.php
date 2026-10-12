@@ -65,7 +65,7 @@ $productDetailRecords = [];
             </div>
             <div class="products-table-wrap">
                 <table>
-                    <thead><tr><th>Product ID</th><th>Product</th><th>Category</th><th>Shelf location</th><th>Unit cost</th><th>Selling price</th><th>Stock</th><th>Profit</th><th>Status</th><th>Details</th></tr></thead>
+                    <thead><tr><th>Product ID</th><th>Product</th><th>Category</th><th>Shelf location</th><th>Unit cost</th><th>Selling price</th><th>Stock</th><th>Profit</th><th>Status</th><th>Dead Stock Status</th><th>Details</th></tr></thead>
                     <tbody>
                     @forelse($products as $product)
                         @php
@@ -98,6 +98,7 @@ $productDetailRecords = [];
                                 'manufacturerPartNumber' => $product->manufacturer_part_number ?: 'Not provided',
                                 'description' => $product->description ?: 'No description provided',
                                 'catalogStatus' => $product->is_active ? 'Active' : 'Inactive',
+                                'deadStockStatus' => $deadStockStatuses[$product->product_id],
                                 'unitCost' => number_format($product->unit_cost, 2),
                                 'unitPrice' => number_format($product->unit_price, 2),
                                 'grossProfit' => ($grossProfit < 0 ? '-₱' : '₱').number_format(abs($grossProfit), 0),
@@ -129,10 +130,11 @@ $productDetailRecords = [];
                             <td>{{ number_format($product->current_stock) }} units</td>
                             <td><span class="profit-badge">{{ $grossProfit < 0 ? '-₱' : '₱' }}{{ number_format(abs($grossProfit), 0) }}</span></td>
                             <td><span class="product-status {{ $status === 'healthy' ? 'active' : 'low' }}">{{ $status === 'healthy' ? 'In stock' : ($status === 'warning' ? 'Low stock' : 'Critical') }}</span></td>
+                            <td><span class="product-status {{ $detailData['deadStockStatus'] === 'Healthy' ? 'active' : ($detailData['deadStockStatus'] === 'Dead Stock' ? 'low' : '') }}">{{ $detailData['deadStockStatus'] }}</span></td>
                             <td><button class="view-product" type="button" popovertarget="product-details-{{ $product->product_id }}">View</button></td>
                         </tr>
                     @empty
-                        <tr><td colspan="10"><div class="empty-products"><span>⌕</span><strong>No products found</strong><small>Try another name, SKU, category, shelf, or filter.</small></div></td></tr>
+                        <tr><td colspan="11"><div class="empty-products"><span>⌕</span><strong>No products found</strong><small>Try another name, SKU, category, shelf, or filter.</small></div></td></tr>
                     @endforelse
                     </tbody>
                 </table>
@@ -154,6 +156,7 @@ $productDetailRecords = [];
             <div><small>Category</small><strong>{{ $detail['category'] }}</strong></div><div><small>Shelf Location</small><strong>{{ $detail['shelfLocation'] }}</strong></div>
             <div><small>Manufacturer</small><strong>{{ $detail['manufacturer'] }}</strong></div><div><small>Manufacturer Part Number</small><strong>{{ $detail['manufacturerPartNumber'] }}</strong></div>
             <div><small>Catalog Status</small><strong>{{ $detail['catalogStatus'] }}</strong></div><div><small>Stock Status</small><strong>{{ $detail['status'] }}</strong></div>
+            <div><small>Dead Stock Status</small><strong>{{ $detail['deadStockStatus'] }}</strong></div>
             <div class="wide detail-description"><small>Description</small><strong>{{ $detail['description'] }}</strong></div>
 
             <h3 class="details-section">Pricing and inventory</h3>

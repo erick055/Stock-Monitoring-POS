@@ -21,13 +21,14 @@ class EnforceIdleSessionTimeout
             $expired = $lastActivity > 0 && now()->timestamp - $lastActivity >= $idleSeconds;
 
             if ($expired || Auth::viaRemember()) {
+                $idleLabel = $idleMinutes % 1440 === 0 ? ($idleMinutes / 1440).' days' : $idleMinutes.' minutes';
                 Auth::logout();
                 $request->session()->invalidate();
                 $request->session()->regenerateToken();
 
                 return redirect()->route('login')->with(
                     'status',
-                    'You were logged out after '.($role === 'staff' ? '30 days' : '60 minutes').' of inactivity. Please log in again.'
+                    'You were logged out after '.$idleLabel.' of inactivity. Please log in again.'
                 );
             }
 

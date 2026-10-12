@@ -47,6 +47,7 @@
 .mini-action.muted{border-color:#4c2d7d;background:#38205f;color:#d2c6f2}
 .empty-dead-stock{padding:18px;border:1px dashed #383b4e;border-radius:9px;background:#10121b;color:#858a9c;font-size:10px}
 .recommendation-list{display:grid;gap:10px;min-height:110px}
+.ai-summary-panel{border:1px solid #7850ae;background:linear-gradient(135deg,#251737,#13131f 75%);box-shadow:0 0 22px rgba(139,86,223,.12)}.ai-summary-panel .section-kicker{color:#c9a8ff}.ai-summary-panel h2{color:#eadcff}.ai-summary-description{margin:0 0 14px;color:#b5a9c7;font-size:10px;line-height:1.5}.ai-summary-panel .apply-button{padding:9px 16px;border-color:#a375e4;border-radius:7px;background:#763bbd;color:#fff;font-weight:700}.ai-summary-panel .apply-button:hover{background:#8b4dd4}.ai-summary-panel .apply-button:focus-visible{outline:2px solid #d9bdff;outline-offset:3px}.ai-summary-panel .recommendation-list p{border-color:#473257;background:#1a1425}
 .recommendation-list p{margin:0;padding:13px 14px;border:1px solid var(--line);border-radius:9px;background:#10121b;color:#cdd0da;font-size:10px;line-height:1.5}
 .dead-stock-toast{position:fixed;right:22px;bottom:22px;z-index:40;padding:11px 15px;border:1px solid #3e8e79;border-radius:8px;background:#11231e;color:#72e0bf;font-size:10px;box-shadow:0 15px 40px #000}
 .promotion-message{margin-bottom:14px;padding:11px 13px;border:1px solid;border-radius:8px;font-size:10px}.promotion-message.success{border-color:#287963;background:#10231e;color:#72e0bf}.promotion-message.error{border-color:#8e3948;background:#261217;color:#ff8793}

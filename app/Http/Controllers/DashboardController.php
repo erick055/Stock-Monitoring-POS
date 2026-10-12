@@ -50,7 +50,7 @@ class DashboardController extends Controller
                 ['arrow-repeat', 'Returns & Damages', CustomerReturn::whereDate('returned_at', today())->count().' return(s) today', '/admin/returns'],
                 ['tags', 'Supplier Price', 'Import and compare supplier pricing', '/admin/suppliers'],
                 ['gear', 'Part Compatibility', 'Search current inventory with AI', '/admin/compatibility'],
-                ['people', 'Account Management', User::where('role', 'staff')->where('account_status', 'pending')->count().' registration(s) pending approval', '/admin/accounts'],
+                ['people', 'Account Management', 'Create and manage staff accounts', '/admin/accounts'],
             ],
             'chart_kicker' => 'PERFORMANCE',
             'chart_title' => 'Sales — Last 7 Days',
@@ -149,6 +149,7 @@ class DashboardController extends Controller
     private function recentActivity(?int $userId = null): array
     {
         $sales = SalesTransaction::query()->with('staff')
+            ->where('payment_status', 'paid')
             ->when($userId, fn ($query) => $query->where('staff_id', $userId))
             ->latest('sale_date')->limit(5)->get()
             ->map(fn (SalesTransaction $sale) => [

@@ -90,13 +90,13 @@ class AnalyticsController extends Controller
             ->get();
 
         $demand = SalesItem::query()
-            ->select('products.name', 'products.category')
+            ->select('products.product_id', 'products.name', 'products.category')
             ->selectRaw('SUM(sales_items.quantity) as demand_units')
             ->join('products', 'sales_items.product_id', '=', 'products.product_id')
             ->join('sales_transactions', 'sales_items.sale_id', '=', 'sales_transactions.sale_id')
             ->where('sales_transactions.payment_status', 'paid')
             ->whereBetween('sales_transactions.sale_date', [now()->subDays(30), now()])
-            ->groupBy('products.name', 'products.category')
+            ->groupBy('products.product_id', 'products.name', 'products.category')
             ->orderByDesc('demand_units')
             ->limit(5)
             ->get();
@@ -318,10 +318,10 @@ class AnalyticsController extends Controller
             $day['label'], $day['date'], (float) $day['total'],
         ])->all(), $headerStyle, [12, 16, 18], [2 => $currencyStyle]);
 
-        $this->addSheet($writer, 'Selling Speed', ['Rank', 'SKU', 'Product', 'Category', 'Paid receipts', 'Units bought', 'Units per purchase', 'Sales value', 'Units per day', 'Speed score'], $data['sellingSpeedRanking']->map(fn ($item, $index) => [
+        $this->addSheet($writer, 'Selling Speed', ['Rank', 'SKU', 'Product', 'Category', 'Paid receipts', 'Units bought', 'Units per purchase', 'Sales value', 'Units per day', 'Fast-moving percentage'], $data['sellingSpeedRanking']->map(fn ($item, $index) => [
             $index + 1, $item->sku, $item->name, $item->category ?: 'Uncategorized', (int) $item->purchase_frequency,
             (int) $item->units_sold, (float) $item->units_per_purchase, (float) $item->sales_total,
-            (float) $item->units_per_day, (int) $item->speed_score,
+            (float) $item->units_per_day, $item->speed_score.'%',
         ])->all(), $headerStyle, [8, 17, 25, 18, 15, 14, 19, 17, 15, 13], [6 => $oneDecimalStyle, 7 => $currencyStyle, 8 => $decimalStyle]);
 
         $this->addSheet($writer, 'Best Sellers', ['SKU', 'Product', 'Units sold', 'Sales value'], $data['bestSellers']->map(fn ($item) => [

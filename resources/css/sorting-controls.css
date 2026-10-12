@@ -28,6 +28,23 @@
     margin-left: auto;
 }
 
+.supplier-sort-form .supplier-sort-button {
+    min-height: 36px;
+    border-color: #8751d3;
+    background: #6d35b5;
+    color: #fff;
+    font-weight: 700;
+}
+
+.supplier-sort-form .supplier-sort-button:hover {
+    background: #8043cb;
+}
+
+.supplier-sort-form .supplier-sort-button:focus-visible {
+    outline: 2px solid #c9a8ff;
+    outline-offset: 3px;
+}
+
 .supplier-sort-form label {
     display: grid;
     gap: 5px;

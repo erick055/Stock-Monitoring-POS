@@ -7,7 +7,7 @@
     @vite(['resources/css/role-access.css', 'resources/css/responsive.css', 'resources/js/role-access.js'])
 </head>
 <body>
-<main class="auth-shell" data-old-mode="{{ old('auth_mode', 'login') }}" data-base-url="{{ request()->getBaseUrl() }}" data-has-errors="{{ $errors->any() ? 'true' : 'false' }}">
+<main class="auth-shell">getBaseUrl() }}" data-has-errors="{{ $errors->any() ? 'true' : 'false' }}">
     <a class="brand" href="{{ route('login') }}"><span>M</span> MotoSync</a>
     <section class="auth-card">
         @if(session('status'))<div class="success-box" role="status">{{ session('status') }}</div>@endif
@@ -21,12 +21,7 @@
 
         <form class="account-form" method="POST" action="{{ route('login.store') }}" data-account-form>
             @csrf
-            <input type="hidden" name="auth_mode" value="{{ old('auth_mode', 'login') }}" data-mode-input>
 
-            <label data-name-field hidden>
-                Full name
-                <input type="text" name="name" value="{{ old('name') }}" autocomplete="name" maxlength="100" placeholder="Enter your full name">
-            </label>
             <label>
                 Email address
                 <input type="email" name="email" value="{{ old('email') }}" autocomplete="email" maxlength="255" placeholder="you@example.com" required autofocus>
@@ -36,14 +31,9 @@
                 <input type="password" name="password" autocomplete="current-password" placeholder="Enter your password" required>
             </label>
             <a class="forgot-link" href="{{ route('password.request') }}" data-login-only>Forgot password?</a>
-            <label data-confirm-field hidden>
-                Confirm password
-                <input type="password" name="password_confirmation" autocomplete="new-password" placeholder="Repeat your password">
-            </label>
-            <p class="password-hint" data-password-hint hidden>Use at least 12 characters with uppercase, lowercase, a number, and a symbol.</p>
             <p class="session-note">Inactive owner sessions expire after 60 minutes. Staff POS sessions expire after 30 days.</p>
             <button class="primary-button" type="submit" data-submit-label>Log in</button>
-            <p class="switch-copy"><span data-switch-text>Need a staff account?</span> <button type="button" data-switch-mode>Create one</button></p>
+            <p class="switch-copy">Need a staff account? Contact the owner.</p>
         </form>
     </section>
 </main>

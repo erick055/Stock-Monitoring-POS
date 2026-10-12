@@ -254,11 +254,12 @@ $navigation = [
             @endif
         </section>
 
-        <section class="panel summary-panel">
+        <section class="panel summary-panel ai-summary-panel" aria-labelledby="ai-summary-title">
             <div class="section-heading">
-                <div><span class="section-kicker">RECOVERY GUIDANCE</span><h2>Recommendation Summary</h2></div>
+                <div><span class="section-kicker"><i class="bi bi-stars" aria-hidden="true"></i> AI RECOMMENDATIONS</span><h2 id="ai-summary-title">AI Recommendation Summary</h2></div>
                 <button class="apply-button" type="button" data-refresh-summary>Refresh</button>
             </div>
+            <p class="ai-summary-description">Recovery guidance based on recorded sales, stock levels, and inventory rules.</p>
             <div class="recommendation-list">
                 @foreach($recommendations as $recommendation)
                     <p>{{ $recommendation }}</p>

@@ -98,13 +98,17 @@ class ReturnsController extends Controller
             ? DamagedGood::with(['product', 'sale', 'user'])->where('status', 'pending')->oldest('reported_at')->limit(50)->get()
             : collect();
         $monthStart = now()->startOfMonth();
-        $monthlyReturns = CustomerReturn::query()->where('returned_at', '>=', $monthStart)->count();
-        $monthlySales = max(SalesTransaction::query()->where('sale_date', '>=', $monthStart)->count(), 1);
+        $approvedReturns = CustomerReturn::query()->where('status', 'approved')->where('returned_at', '>=', $monthStart);
+        $monthlyReturns = (clone $approvedReturns)->count();
+        $monthlySales = max(SalesTransaction::query()->where('payment_status', 'paid')->where('sale_date', '>=', $monthStart)->count(), 1);
+        $returnedReceipts = (clone $approvedReturns)
+            ->whereHas('sale', fn ($query) => $query->where('payment_status', 'paid')->where('sale_date', '>=', $monthStart))
+            ->distinct()->count('sale_id');
 
         $summary = [
             ['TOTAL RETURN THIS MONTH', number_format($monthlyReturns), 'Processed customer returns', 'purple'],
             ['DAMAGE ITEMS', number_format(DamagedGood::query()->whereNotIn('status', ['pending', 'rejected'])->sum('quantity')), 'Owner-accepted damage items', 'violet'],
-            ['RETURN RATES', number_format(($monthlyReturns / $monthlySales) * 100, 1).'%', 'Returns vs monthly POS transactions', 'orange'],
+            ['RETURN RATES', number_format(($returnedReceipts / $monthlySales) * 100, 1).'%', 'Monthly paid receipts with approved returns', 'orange'],
         ];
 
         $viewRole = $request->user()->role;
@@ -121,7 +125,7 @@ class ReturnsController extends Controller
         $validated = $request->validate([
             'sale_id' => ['required', 'integer', 'exists:sales_transactions,sale_id'],
             'product_id' => ['required', 'integer', 'exists:products,product_id'],
-            'quantity' => ['required', 'integer', 'min:1'],
+            'quantity' => ['required', 'integer', 'min:1', 'max:2147483647'],
             'reason' => ['required', 'string', 'max:255'],
             'item_condition' => ['required', Rule::in(['sellable', 'damaged'])],
             'refund_amount' => ['nullable', 'numeric', 'min:0'],
@@ -215,7 +219,7 @@ class ReturnsController extends Controller
         $validated = $request->validate([
             'sale_id' => ['required', 'integer', 'exists:sales_transactions,sale_id'],
             'product_id' => ['required', 'integer', 'exists:products,product_id'],
-            'quantity' => ['required', 'integer', 'min:1'],
+            'quantity' => ['required', 'integer', 'min:1', 'max:2147483647'],
             'damage_reason' => ['required', 'string', 'max:255'],
             'replacement_status' => ['required', Rule::in(['pending', 'ordered', 'replaced', 'not_replaceable'])],
             'status' => ['required', Rule::in(['reported', 'reviewed', 'disposed'])],

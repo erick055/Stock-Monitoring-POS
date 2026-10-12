@@ -6,7 +6,6 @@ use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\LoginVerificationController;
 use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
-use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\CompatibilityController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DeadStockController;
@@ -37,9 +36,6 @@ Route::middleware('guest')->group(function () {
     Route::post('/reset-password', [NewPasswordController::class, 'store'])
         ->middleware('throttle:5,1')
         ->name('password.update');
-    Route::post('/register', [RegisteredUserController::class, 'store'])
-        ->middleware('throttle:3,1')
-        ->name('register.store');
 });
 
 Route::middleware('auth')->group(function () {
@@ -65,9 +61,11 @@ Route::middleware('auth')->group(function () {
 
 Route::middleware(['auth', 'verified', 'role:admin'])->group(function () {
     Route::get('/admin/accounts', [AccountManagementController::class, 'index'])->name('admin.accounts');
-    Route::patch('/admin/accounts/{user}/approve', [AccountManagementController::class, 'approve'])->name('admin.accounts.approve');
-    Route::patch('/admin/accounts/{user}/disable', [AccountManagementController::class, 'disable'])->name('admin.accounts.disable');
-    Route::patch('/admin/accounts/{user}/reactivate', [AccountManagementController::class, 'reactivate'])->name('admin.accounts.reactivate');
+    Route::post('/admin/accounts', [AccountManagementController::class, 'store'])->middleware('throttle:20,1')->name('admin.accounts.store');
+    Route::patch('/admin/accounts/{user}', [AccountManagementController::class, 'update'])->middleware('throttle:20,1')->name('admin.accounts.update');
+    Route::patch('/admin/accounts/{user}/approve', [AccountManagementController::class, 'approve'])->middleware('throttle:20,1')->name('admin.accounts.approve');
+    Route::patch('/admin/accounts/{user}/disable', [AccountManagementController::class, 'disable'])->middleware('throttle:20,1')->name('admin.accounts.disable');
+    Route::patch('/admin/accounts/{user}/reactivate', [AccountManagementController::class, 'reactivate'])->middleware('throttle:20,1')->name('admin.accounts.reactivate');
     Route::get('/admin/dashboard', [DashboardController::class, 'admin'])->name('admin.dashboard');
     Route::get('/admin/inventory', [StockManagementController::class, 'index'])->name('admin.inventory');
     Route::post('/admin/inventory/products', [StockManagementController::class, 'storeProduct'])->name('admin.inventory.products.store');
@@ -77,11 +75,6 @@ Route::middleware(['auth', 'verified', 'role:admin'])->group(function () {
     Route::delete('/admin/inventory/products/{product}', [StockManagementController::class, 'destroyProduct'])->middleware('throttle:5,1')->name('admin.inventory.products.destroy');
     Route::post('/admin/inventory/movements', [StockManagementController::class, 'storeMovement'])->name('admin.inventory.movements.store');
     Route::get('/admin/products', [ProductsController::class, 'index'])->name('admin.products');
-    Route::get('/admin/pos', [PosController::class, 'index'])->name('admin.pos');
-    Route::post('/admin/pos/checkout', [PosController::class, 'store'])->name('admin.pos.checkout');
-    Route::post('/admin/pos/holds', [PosController::class, 'storeHold'])->name('admin.pos.holds.store');
-    Route::delete('/admin/pos/holds/{heldOrder}', [PosController::class, 'cancelHold'])->name('admin.pos.holds.cancel');
-    Route::get('/admin/pos/receipts/{sale}', [PosController::class, 'showReceipt'])->name('admin.pos.receipts.show');
     Route::get('/admin/pos', [PosController::class, 'index'])->name('admin.pos');
     Route::post('/admin/pos/checkout', [PosController::class, 'store'])->name('admin.pos.checkout');
     Route::post('/admin/pos/holds', [PosController::class, 'storeHold'])->name('admin.pos.holds.store');
