@@ -306,3 +306,20 @@ h2 {
     color: var(--text);
     cursor: pointer;
 }
+
+.verification-actions {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.verification-actions form {
+    margin: 0;
+}
+
+.verification-actions .secondary-button {
+    display: block;
+    margin: 0;
+    text-align: center;
+    text-decoration: none;
+    line-height: 1.5;
+}

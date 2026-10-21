@@ -22,6 +22,17 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        RateLimiter::for('email-verification-status', fn (Request $request) =>
+            Limit::perMinute(30)->by((string) $request->user()->id));
+        RateLimiter::for('email-verification-resend', function (Request $request) {
+            return Limit::perMinute(1)->by((string) $request->user()->id)
+                ->response(function (Request $request, array $headers) {
+                    $seconds = max(1, (int) ($headers['Retry-After'] ?? 60));
+                    $message = "Please wait {$seconds} seconds before requesting another verification email.";
+                    if ($request->expectsJson()) return response()->json(['message' => $message, 'retry_after' => $seconds], 429, $headers);
+                    return redirect()->route('verification.notice')->withErrors(['verification' => $message])->withHeaders($headers);
+                });
+        });
         foreach (['staff-account-changes' => 20, 'staff-account-deletion' => 10] as $name => $attempts) {
             RateLimiter::for($name, function (Request $request) use ($attempts) {
                 return Limit::perMinute($attempts)->by((string) $request->user()->id)

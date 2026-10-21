@@ -21,7 +21,12 @@
             <div class="success-box" role="status">A new verification link has been sent.</div>
         @endif
 
+        @if ($errors->any())
+            <div class="error-box" role="alert">{{ $errors->first() }}</div>
+        @endif
+
         <p class="session-note" data-verification-status role="status">Waiting for email verification…</p>
+        <div class="verification-actions">
         <a class="secondary-button" href="{{ route('verification.notice') }}">I've verified my email — continue</a>
         <form method="POST" action="{{ route('verification.send') }}">
             @csrf
@@ -32,6 +37,7 @@
             @csrf
             <button class="secondary-button" type="submit">Log out</button>
         </form>
+        </div>
     </section>
 </main>
 </body>

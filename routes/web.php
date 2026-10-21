@@ -51,7 +51,7 @@ Route::middleware('auth')->group(function () {
         ->middleware(['verified', 'throttle:10,1'])->name('session.activity');
     Route::get('/verify-email', [EmailVerificationController::class, 'notice'])->name('verification.notice');
     Route::get('/email/verification-status', [EmailVerificationController::class, 'status'])
-        ->middleware('throttle:30,1')->name('verification.status');
+        ->middleware('throttle:email-verification-status')->name('verification.status');
 
     Route::post('/email/verification-notification', function (Request $request) {
         if (! $request->user()->hasVerifiedEmail()) {
@@ -59,7 +59,7 @@ Route::middleware('auth')->group(function () {
         }
 
         return back()->with('status', 'verification-link-sent');
-    })->middleware('throttle:6,1')->name('verification.send');
+    })->middleware('throttle:email-verification-resend')->name('verification.send');
     Route::get('/inventory/live', InventoryLiveController::class)->middleware(['verified', 'throttle:120,1'])->name('inventory.live');
 });
 
