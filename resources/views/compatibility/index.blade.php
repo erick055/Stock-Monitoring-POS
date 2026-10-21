@@ -46,6 +46,7 @@ $statuses = [
     <main class="dashboard-main compatibility-main">
         <header class="compatibility-header">
             <button class="menu-button" type="button" data-menu aria-label="Toggle navigation"><i class="bi bi-list" aria-hidden="true"></i></button>
+            <span class="compatibility-ai-icon" aria-hidden="true"><i class="bi bi-stars"></i></span>
             <div>
                 <p class="welcome">OPENAI-POWERED PART RESEARCH</p>
                 <h1>AI Motorcycle Parts Compatibility</h1>
@@ -68,12 +69,12 @@ $statuses = [
             <form class="checker-form" method="POST" action="{{ $aiRoute }}">
                 @csrf
                 <div class="vehicle-search-grid">
-                    <label>Brand<input name="brand" value="{{ $vehicleInput['brand'] }}" required placeholder="Honda"></label>
-                    <label>Model<input name="model" value="{{ $vehicleInput['model'] }}" required placeholder="Click 160"></label>
-                    <label>Year<input name="year" type="number" min="1950" max="{{ now()->year + 2 }}" value="{{ $vehicleInput['year'] }}" required placeholder="2025"></label>
+                    <label>Brand<input name="brand" value="{{ old('brand', $vehicleInput['brand']) }}" required placeholder="Honda"></label>
+                    <label>Model<input name="model" value="{{ old('model', $vehicleInput['model']) }}" required placeholder="Click 160"></label>
+                    <label>Year<input name="year" type="number" min="1950" max="{{ now()->year + 2 }}" value="{{ old('year', $vehicleInput['year']) }}" required placeholder="2025"></label>
                 </div>
                 <div class="checker-actions">
-                    <label>Part name, SKU, brand, or category (optional)<input name="part_search" type="search" value="{{ request('part_search') }}" placeholder="e.g. brake pad, spark plug, or OEM number"></label>
+                    <label>Part name, SKU, brand, or category (optional)<input name="part_search" type="search" value="{{ old('part_search', request('part_search')) }}" placeholder="e.g. brake pad, spark plug, or OEM number"></label>
                     <button class="search-action" type="submit">Ask AI for Recommendations</button>
                 </div>
             </form>

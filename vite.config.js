@@ -13,6 +13,7 @@ export default defineConfig({
                 'resources/js/dashboard.js',
                 'resources/css/role-access.css',
                 'resources/js/role-access.js',
+                'resources/js/email-verification.js',
                 'resources/css/stock-management.css',
                 'resources/js/stock-management.js',
                 'resources/css/products.css',

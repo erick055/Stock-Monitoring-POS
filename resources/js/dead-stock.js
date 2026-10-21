@@ -1,6 +1,60 @@
 const refreshSummaryButton = document.querySelector('[data-refresh-summary]');
 const deadStockToast = document.querySelector('[data-dead-stock-toast]');
 
+let deadStockDialogTrigger = null;
+function closeDeadStockDialog(dialog) {
+    if (typeof dialog.close === 'function') dialog.close();
+    else dialog.removeAttribute('open');
+    document.body.classList.remove('deadstock-dialog-open');
+    deadStockDialogTrigger?.focus();
+}
+
+document.querySelectorAll('[data-deadstock-open]').forEach((button) => {
+    button.addEventListener('click', () => {
+        const dialog = document.getElementById(button.dataset.deadstockOpen);
+        if (!dialog) return;
+        deadStockDialogTrigger = button;
+        if (typeof dialog.showModal === 'function') dialog.showModal();
+        else {
+            dialog.setAttribute('open', '');
+            dialog.setAttribute('role', 'dialog');
+            dialog.setAttribute('aria-modal', 'true');
+        }
+        document.body.classList.add('deadstock-dialog-open');
+        dialog.querySelector('button, input, textarea, select')?.focus();
+    });
+});
+
+document.querySelectorAll('.deadstock-dialog').forEach((dialog) => {
+    dialog.querySelectorAll('[data-deadstock-close]').forEach((button) => {
+        button.addEventListener('click', () => closeDeadStockDialog(dialog));
+    });
+    dialog.addEventListener('cancel', (event) => {
+        event.preventDefault();
+        closeDeadStockDialog(dialog);
+    });
+    dialog.addEventListener('click', (event) => {
+        if (event.target !== dialog) return;
+        const bounds = dialog.getBoundingClientRect();
+        if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) {
+            closeDeadStockDialog(dialog);
+        }
+    });
+    dialog.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            closeDeadStockDialog(dialog);
+        }
+        if (event.key !== 'Tab') return;
+        const controls = [...dialog.querySelectorAll('button, input:not([type="hidden"]), textarea, select, a[href]')]
+            .filter((control) => !control.disabled && control.getClientRects().length);
+        const first = controls[0];
+        const last = controls[controls.length - 1];
+        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+    });
+});
+
 function showDeadStockToast() {
     if (!deadStockToast) return;
     deadStockToast.hidden = false;

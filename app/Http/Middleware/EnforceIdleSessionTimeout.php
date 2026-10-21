@@ -33,6 +33,8 @@ class EnforceIdleSessionTimeout
             }
 
             $backgroundRequest = $request->routeIs('inventory.live')
+                || $request->routeIs('verification.status')
+                || $request->routeIs('session.status')
                 || ($request->isMethod('GET') && $request->query('_background') === '1');
             if (! $backgroundRequest || ! $lastActivity) {
                 $request->session()->put(self::SESSION_KEY, now()->timestamp);

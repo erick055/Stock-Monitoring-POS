@@ -8,6 +8,34 @@ export function backgroundReload() {
 const activityUrl = document.querySelector('meta[name="session-activity-url"]')?.content;
 const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
 if (activityUrl && csrfToken) {
+    const statusUrl = new URL(activityUrl, window.location.href);
+    statusUrl.pathname = statusUrl.pathname.replace(/\/session\/activity\/?$/, '/session/status');
+    const loginUrl = new URL(activityUrl, window.location.href);
+    loginUrl.pathname = loginUrl.pathname.replace(/\/session\/activity\/?$/, '/');
+    let checkingSession = false;
+    const checkSession = async () => {
+        if (document.hidden || checkingSession) return;
+        checkingSession = true;
+        const controller = new AbortController();
+        const timeout = window.setTimeout(() => controller.abort(), 10000);
+        try {
+            const response = await fetch(statusUrl.href, {
+                headers: { Accept: 'application/json' }, cache: 'no-store', signal: controller.signal,
+            });
+            if (response.status === 401 || response.status === 419 || response.redirected) {
+                window.location.replace(loginUrl.href);
+            }
+        } catch {
+            // A connection failure alone does not sign the user out.
+        } finally {
+            window.clearTimeout(timeout);
+            checkingSession = false;
+        }
+    };
+    window.setInterval(checkSession, 10000);
+    window.addEventListener('focus', checkSession);
+    document.addEventListener('visibilitychange', checkSession);
+
     // Clear the marker after the request; manual navigation remains ordinary activity.
     const url = new URL(window.location.href);
     if (url.searchParams.has('_background')) {

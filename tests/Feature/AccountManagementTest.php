@@ -14,6 +14,75 @@ class AccountManagementTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_owner_can_disable_a_temporary_password_account_without_a_reason(): void
+    {
+        Notification::fake();
+        $owner = User::factory()->create(['role' => 'admin']);
+        $staff = User::factory()->create(['role' => 'staff', 'must_change_password' => true, 'password' => 'Temporary!Password123']);
+        $this->actingAs($owner)->patch(route('admin.accounts.disable', $staff))
+            ->assertSessionHasNoErrors()->assertSessionHas('success');
+        $this->assertSame('disabled', $staff->fresh()->account_status);
+        $this->assertSame('Access disabled by the owner.', $staff->fresh()->disabled_reason);
+        $this->post(route('logout'));
+        $this->post(route('login.store'), ['email' => $staff->email, 'password' => 'Temporary!Password123'])
+            ->assertSessionHasErrors('email');
+        $this->assertGuest();
+        Notification::assertNothingSent();
+    }
+
+    public function test_disabled_staff_cannot_continue_the_password_change_popup(): void
+    {
+        $owner = User::factory()->create(['role' => 'admin']);
+        $staff = User::factory()->create(['role' => 'staff', 'must_change_password' => true]);
+        $this->actingAs($owner)->patch(route('admin.accounts.disable', $staff))->assertSessionHas('success');
+        $this->actingAs($staff->fresh())->get(route('staff.password.edit'))->assertRedirect(route('login'));
+        $this->assertGuest();
+    }
+
+    public function test_deleting_staff_removes_the_database_row_and_access_but_preserves_business_history(): void
+    {
+        config(['session.driver' => 'database']);
+        $owner = User::factory()->create(['role' => 'admin']);
+        $staff = User::factory()->create(['role' => 'staff', 'must_change_password' => true]);
+        $sale = \App\Models\SalesTransaction::create(['staff_id' => $staff->id, 'sale_date' => now(), 'total_sale_amount' => 100]);
+        $supplier = \App\Models\Supplier::create(['name' => 'History Supplier', 'code' => 'STAFF-DELETE']);
+        $import = \App\Models\SupplierImport::create(['supplier_id' => $supplier->supplier_id, 'uploaded_by' => $staff->id,
+            'source_filename' => 'history.csv', 'status' => 'approved']);
+        $product = \App\Models\Product::create(['sku' => 'DELETE-HISTORY', 'name' => 'History Part']);
+        $promotion = \App\Models\ProductPromotion::create(['product_id' => $product->product_id, 'applied_by' => $staff->id,
+            'action_type' => 'discount', 'discount_percent' => 10, 'original_price' => 100,
+            'promotional_price' => 90, 'status' => 'active', 'started_at' => now()]);
+        $staff->loginVerificationCode()->create(['code_hash' => Hash::make('123456'),
+            'expires_at' => now()->addMinutes(10), 'last_sent_at' => now()]);
+        $staff->trustedLoginDevices()->create(['token_hash' => hash('sha256', 'delete-device'), 'ip_address' => '127.0.0.1',
+            'user_agent_hash' => hash('sha256', 'Test'), 'last_used_at' => now(), 'expires_at' => now()->addDays(30)]);
+        DB::table('sessions')->insert(['id' => 'delete-session', 'user_id' => $staff->id, 'payload' => '', 'last_activity' => now()->timestamp]);
+        DB::table('password_reset_tokens')->insert(['email' => $staff->email, 'token' => 'test-token', 'created_at' => now()]);
+
+        $this->actingAs($owner)->delete(route('admin.accounts.destroy', $staff), ['confirm_delete' => '1'])
+            ->assertRedirect(route('admin.accounts'))->assertSessionHas('success');
+        $this->assertDatabaseMissing('users', ['id' => $staff->id]);
+        $this->assertDatabaseMissing('sessions', ['id' => 'delete-session']);
+        $this->assertDatabaseMissing('login_verification_codes', ['user_id' => $staff->id]);
+        $this->assertDatabaseMissing('trusted_login_devices', ['user_id' => $staff->id]);
+        $this->assertDatabaseMissing('password_reset_tokens', ['email' => $staff->email]);
+        $this->assertNotNull($sale->fresh());
+        $this->assertNull($sale->fresh()->staff_id);
+        $this->assertNull($import->fresh()->uploaded_by);
+        $this->assertNull($promotion->fresh()->applied_by);
+        $this->get(route('admin.pos.receipts.show', $sale))->assertOk()->assertSee('Former staff');
+    }
+
+    public function test_staff_deletion_requires_confirmation_and_only_owners_can_delete_staff(): void
+    {
+        $owner = User::factory()->create(['role' => 'admin']);
+        $staff = User::factory()->create(['role' => 'staff']);
+        $this->actingAs($staff)->delete(route('admin.accounts.destroy', $staff), ['confirm_delete' => '1'])->assertForbidden();
+        $this->actingAs($owner)->delete(route('admin.accounts.destroy', $owner), ['confirm_delete' => '1'])->assertNotFound();
+        $this->delete(route('admin.accounts.destroy', $staff))->assertSessionHasErrors('confirm_delete');
+        $this->assertDatabaseHas('users', ['id' => $staff->id]);
+    }
+
     public function test_owner_creates_an_active_staff_account_and_sends_verification(): void
     {
         Notification::fake();

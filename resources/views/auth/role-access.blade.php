@@ -7,7 +7,7 @@
     @vite(['resources/css/role-access.css', 'resources/css/responsive.css', 'resources/js/role-access.js'])
 </head>
 <body>
-<main class="auth-shell">getBaseUrl() }}" data-has-errors="{{ $errors->any() ? 'true' : 'false' }}">
+<main class="auth-shell">
     <a class="brand" href="{{ route('login') }}"><span>M</span> MotoSync</a>
     <section class="auth-card">
         @if(session('status'))<div class="success-box" role="status">{{ session('status') }}</div>@endif
@@ -30,7 +30,6 @@
                 Password
                 <input type="password" name="password" autocomplete="current-password" placeholder="Enter your password" required>
             </label>
-            <a class="forgot-link" href="{{ route('password.request') }}" data-login-only>Forgot password?</a>
             <p class="session-note">Inactive owner sessions expire after 60 minutes. Staff POS sessions expire after 30 days.</p>
             <button class="primary-button" type="submit" data-submit-label>Log in</button>
             <p class="switch-copy">Need a staff account? Contact the owner.</p>

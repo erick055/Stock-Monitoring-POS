@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Services\TrustedLoginDeviceService;
+use App\Services\SingleSessionLogin;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -58,13 +59,17 @@ class AuthenticatedSessionController extends Controller
             throw ValidationException::withMessages(['email' => $message]);
         }
 
-        if ($trustedDevices->isTrusted($request, $user)) {
-            Auth::login($user, false);
-            $request->session()->regenerate();
-            $request->session()->put('auth.last_activity_at', now()->timestamp);
-            $request->session()->put('stock.login_alert_pending', $user->role === 'admin');
-            Auth::guard()->getProvider()->updateRememberToken($user, Str::random(60));
+        if ($user->role === 'admin' || $trustedDevices->isTrusted($request, $user)) {
+            if ($user->role === 'admin') {
+                // Owners use locally provisioned credentials without an email challenge.
+                if (! $user->hasVerifiedEmail()) $user->markEmailAsVerified();
+                $user->loginVerificationCode()->delete();
+            }
+            app(SingleSessionLogin::class)->start($request, $user);
 
+            if ($user->role === 'staff' && $user->must_change_password) {
+                return redirect()->route('staff.password.edit')->withoutCookie(Auth::guard()->getRecallerName());
+            }
             return redirect()->intended(route($user->role.'.dashboard'))
                 ->withoutCookie(Auth::guard()->getRecallerName());
         }

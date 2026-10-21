@@ -3,9 +3,11 @@
 use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\AccountManagementController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
+use App\Http\Controllers\Auth\EmailVerificationController;
 use App\Http\Controllers\Auth\LoginVerificationController;
 use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
+use App\Http\Controllers\Auth\StaffPasswordController;
 use App\Http\Controllers\CompatibilityController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DeadStockController;
@@ -16,9 +18,11 @@ use App\Http\Controllers\ProductsController;
 use App\Http\Controllers\ReturnsController;
 use App\Http\Controllers\StockManagementController;
 use App\Http\Controllers\SupplierPriceController;
-use Illuminate\Foundation\Auth\EmailVerificationRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+
+Route::get('/verify-email/{id}/{hash}', [EmailVerificationController::class, 'verify'])
+    ->middleware('throttle:30,1')->name('verification.verify');
 
 Route::middleware('guest')->group(function () {
     Route::view('/', 'auth.role-access')->name('login');
@@ -39,15 +43,15 @@ Route::middleware('guest')->group(function () {
 });
 
 Route::middleware('auth')->group(function () {
+    Route::get('/session/status', fn () => response()->json(['authenticated' => true]))
+        ->middleware('throttle:30,1')->name('session.status');
+    Route::get('/staff/change-password', [StaffPasswordController::class, 'edit'])->middleware('role:staff')->name('staff.password.edit');
+    Route::post('/staff/change-password', [StaffPasswordController::class, 'update'])->middleware(['role:staff', 'throttle:5,1'])->name('staff.password.update');
     Route::post('/session/activity', fn () => response()->noContent())
         ->middleware(['verified', 'throttle:10,1'])->name('session.activity');
-    Route::view('/verify-email', 'auth.verify-email')->name('verification.notice');
-
-    Route::get('/verify-email/{id}/{hash}', function (EmailVerificationRequest $request) {
-        $request->fulfill();
-
-        return redirect()->route($request->user()->role.'.dashboard');
-    })->middleware('signed')->name('verification.verify');
+    Route::get('/verify-email', [EmailVerificationController::class, 'notice'])->name('verification.notice');
+    Route::get('/email/verification-status', [EmailVerificationController::class, 'status'])
+        ->middleware('throttle:30,1')->name('verification.status');
 
     Route::post('/email/verification-notification', function (Request $request) {
         if (! $request->user()->hasVerifiedEmail()) {
@@ -61,11 +65,12 @@ Route::middleware('auth')->group(function () {
 
 Route::middleware(['auth', 'verified', 'role:admin'])->group(function () {
     Route::get('/admin/accounts', [AccountManagementController::class, 'index'])->name('admin.accounts');
-    Route::post('/admin/accounts', [AccountManagementController::class, 'store'])->middleware('throttle:20,1')->name('admin.accounts.store');
-    Route::patch('/admin/accounts/{user}', [AccountManagementController::class, 'update'])->middleware('throttle:20,1')->name('admin.accounts.update');
-    Route::patch('/admin/accounts/{user}/approve', [AccountManagementController::class, 'approve'])->middleware('throttle:20,1')->name('admin.accounts.approve');
-    Route::patch('/admin/accounts/{user}/disable', [AccountManagementController::class, 'disable'])->middleware('throttle:20,1')->name('admin.accounts.disable');
-    Route::patch('/admin/accounts/{user}/reactivate', [AccountManagementController::class, 'reactivate'])->middleware('throttle:20,1')->name('admin.accounts.reactivate');
+    Route::post('/admin/accounts', [AccountManagementController::class, 'store'])->middleware('throttle:staff-account-changes')->name('admin.accounts.store');
+    Route::patch('/admin/accounts/{user}', [AccountManagementController::class, 'update'])->middleware('throttle:staff-account-changes')->name('admin.accounts.update');
+    Route::delete('/admin/accounts/{user}', [AccountManagementController::class, 'destroy'])->middleware('throttle:staff-account-deletion')->name('admin.accounts.destroy');
+    Route::patch('/admin/accounts/{user}/approve', [AccountManagementController::class, 'approve'])->middleware('throttle:staff-account-changes')->name('admin.accounts.approve');
+    Route::patch('/admin/accounts/{user}/disable', [AccountManagementController::class, 'disable'])->middleware('throttle:staff-account-changes')->name('admin.accounts.disable');
+    Route::patch('/admin/accounts/{user}/reactivate', [AccountManagementController::class, 'reactivate'])->middleware('throttle:staff-account-changes')->name('admin.accounts.reactivate');
     Route::get('/admin/dashboard', [DashboardController::class, 'admin'])->name('admin.dashboard');
     Route::get('/admin/inventory', [StockManagementController::class, 'index'])->name('admin.inventory');
     Route::post('/admin/inventory/products', [StockManagementController::class, 'storeProduct'])->name('admin.inventory.products.store');
@@ -108,7 +113,7 @@ Route::middleware(['auth', 'verified', 'role:admin'])->group(function () {
     Route::post('/admin/suppliers/prices/bulk-create-products', [SupplierPriceController::class, 'bulkCreateProducts'])->name('admin.suppliers.prices.bulk-create-products');
     Route::delete('/admin/suppliers/data', [SupplierPriceController::class, 'purge'])->middleware('throttle:5,1')->name('admin.suppliers.purge');
     Route::get('/admin/compatibility', [CompatibilityController::class, 'index'])->name('admin.compatibility');
-    Route::post('/admin/compatibility/ai-recommendations', [CompatibilityController::class, 'index'])->middleware('throttle:3,1')->name('admin.compatibility.ai');
+    Route::post('/admin/compatibility/ai-recommendations', [CompatibilityController::class, 'index'])->middleware('throttle:compatibility-search')->name('admin.compatibility.ai');
 });
 
 Route::middleware(['auth', 'verified', 'role:staff'])->group(function () {
@@ -123,7 +128,7 @@ Route::middleware(['auth', 'verified', 'role:staff'])->group(function () {
     Route::post('/staff/returns/customer', [ReturnsController::class, 'storeReturn'])->name('staff.returns.customer.store');
     Route::post('/staff/returns/damage', [ReturnsController::class, 'storeDamage'])->name('staff.returns.damage.store');
     Route::get('/staff/compatibility', [CompatibilityController::class, 'index'])->name('staff.compatibility');
-    Route::post('/staff/compatibility/ai-recommendations', [CompatibilityController::class, 'index'])->middleware('throttle:3,1')->name('staff.compatibility.ai');
+    Route::post('/staff/compatibility/ai-recommendations', [CompatibilityController::class, 'index'])->middleware('throttle:compatibility-search')->name('staff.compatibility.ai');
 });
 
 Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])

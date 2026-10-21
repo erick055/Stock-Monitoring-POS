@@ -6,7 +6,7 @@
     border-radius: 7px;
     background: #251936;
     color: #d9c6f5;
-    font-size: 9px;
+    font-size: 10px;
     cursor: pointer;
 }
 
@@ -49,7 +49,7 @@
     display: grid;
     gap: 5px;
     color: #aeb2c0;
-    font-size: 8px;
+    font-size: 9px;
 }
 
 .supplier-sort-form select {

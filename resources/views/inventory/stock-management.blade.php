@@ -71,6 +71,7 @@ $editErrorProduct = $errors->getBag('editProduct')->any()
                 <div class="inventory-actions">
                     <form method="GET" data-filter-form>
                         <input type="hidden" name="search" value="{{ $search }}">
+                        <select name="per_page" aria-label="Products per page">@foreach([25,50,100] as $size)<option value="{{ $size }}" @selected($perPage === $size)>{{ $size }} per page</option>@endforeach</select>
                         <select name="status" data-status-filter aria-label="Filter stock status"><option value="all" @selected($status === 'all')>All statuses</option><option value="healthy" @selected($status === 'healthy')>Healthy</option><option value="warning" @selected($status === 'warning')>Low stock</option><option value="critical" @selected($status === 'critical')>Critical</option></select>
                         <select name="sort" aria-label="Sort stock"><option value="name" @selected($sort === 'name')>Name A–Z</option><option value="name_desc" @selected($sort === 'name_desc')>Name Z–A</option><option value="newest" @selected($sort === 'newest')>Newest added</option><option value="stock_high" @selected($sort === 'stock_high')>Stock: high to low</option><option value="stock_low" @selected($sort === 'stock_low')>Stock: low to high</option><option value="cost_high" @selected($sort === 'cost_high')>Cost: high to low</option><option value="cost_low" @selected($sort === 'cost_low')>Cost: low to high</option></select>
                         <button class="sort-stock-button" type="submit">Sort</button>
@@ -154,6 +155,10 @@ $editErrorProduct = $errors->getBag('editProduct')->any()
                     </tbody>
                 </table>
             </div>
+            <footer class="inventory-pagination">
+                <span>Showing {{ $products->firstItem() ?? 0 }}–{{ $products->lastItem() ?? 0 }} of {{ $products->total() }} products</span>
+                @if($products->hasPages()){{ $products->onEachSide(1)->links('products.pagination') }}@endif
+            </footer>
         </section>
 
         <section class="panel adjustment-panel">
@@ -186,7 +191,7 @@ $editErrorProduct = $errors->getBag('editProduct')->any()
                     </label>
                     <label><span data-quantity-label>3. Quantity received (+)</span>
                         <input name="quantity" value="{{ old('quantity') }}" type="number" min="1" placeholder="Enter a positive quantity" required data-movement-quantity>
-                        <small data-quantity-help>Adds (+) units to stock. Enter a positive quantity, such as 5, to add 5 units.</small>
+                        <small data-quantity-help>Use - or + to add or deduct</small>
                     </label>
                     <label>4. Reason
                         <select name="reason_code" required data-movement-reason data-old-reason="{{ old('reason_code') }}">

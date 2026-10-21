@@ -4,14 +4,14 @@ body{overflow-x:hidden}
 img,svg,video,canvas{max-width:100%;height:auto}
 button,input,select,textarea{max-width:100%}
 .required-field-marker{display:inline;color:#ff6578;font-size:1.1em;font-weight:900;line-height:1;text-shadow:0 0 8px rgba(255,70,92,.28)}
-.dashboard-main :where(input,select,textarea){font-size:11px!important}
-.dashboard-main :where(label,td){font-size:10px!important}
-.dashboard-main th{font-size:9px!important}
-.dashboard-main :where(p,small,.section-kicker,.form-hint,.import-note){font-size:9.5px!important;line-height:1.5}
-.dashboard-main button:not(.menu-button):not(.logout-button):not(.notification-button):not(.more-button):not(.qty-btn):not([aria-label]){font-size:10px!important}
-.account-form label{font-size:.88rem!important}
-.account-form input,.account-form button{font-size:.9rem!important}
-.password-hint,.session-note,.switch-copy{font-size:.78rem!important}
+.dashboard-main :where(input,select,textarea){font-size:12px!important}
+.dashboard-main :where(label,td){font-size:11px!important}
+.dashboard-main th{font-size:10px!important}
+.dashboard-main :where(p,small,.section-kicker,.form-hint,.import-note){font-size:10.5px!important;line-height:1.5}
+.dashboard-main button:not(.menu-button):not(.logout-button):not(.notification-button):not(.more-button):not(.qty-btn):not([aria-label]){font-size:11px!important}
+.account-form label{font-size:0.9425rem!important}
+.account-form input,.account-form button{font-size:0.9625rem!important}
+.password-hint,.session-note,.switch-copy{font-size:0.8425rem!important}
 .dashboard-main{width:100%;max-width:1800px;margin-inline:auto}
 .panel,.stat-card,.module-card,.result-card,.pricing-card,.detail-card,.case-card,.fast-card,.alert-card,.setting-card,.product-card{min-width:0}
 .table-wrap,.products-table-wrap,.supplier-table-wrap{width:100%;max-width:100%;overflow-x:auto;overscroll-behavior-inline:contain;-webkit-overflow-scrolling:touch;scrollbar-gutter:stable}
@@ -63,8 +63,8 @@ button,input,select,textarea{max-width:100%}
     .btn-pay{grid-column:auto}
     input,select,textarea,.search-action,.search-button,.add-product,.apply-button,.reject-button,.panel-action,.primary-button,.secondary-button{min-height:44px}
     .filter-button,.cat-btn,.mini-action,.mini-button,.qty-btn,.view-product{min-height:40px}
-    .result-category,.section-kicker,.form-hint,.import-note,th,td,.product-cell small,.result-card footer,.sidebar-brand small{font-size:max(9px,.62rem)}
-    .nav-link,.sidebar-user strong,.sidebar-user small,.result-evidence li,.result-evidence p,.pricing-card,.case-card,.detail-card,.alert-card,.fast-card{font-size:max(10px,.68rem)}
+    .result-category,.section-kicker,.form-hint,.import-note,th,td,.product-cell small,.result-card footer,.sidebar-brand small{font-size:max(10px,.6825rem)}
+    .nav-link,.sidebar-user strong,.sidebar-user small,.result-evidence li,.result-evidence p,.pricing-card,.case-card,.detail-card,.alert-card,.fast-card{font-size:max(11px,.7425rem)}
     .table-footer,.product-details footer{align-items:flex-start;flex-direction:column;gap:10px}
     .pagination,.pagination nav{width:100%;max-width:100%;overflow-x:auto}
     .modal-card,.product-details{width:100%;max-height:calc(100dvh - 20px);padding:15px;border-radius:10px}

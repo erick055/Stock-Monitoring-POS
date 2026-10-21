@@ -67,8 +67,36 @@ class AuthenticationTest extends TestCase
 
     private const STRONG_PASSWORD = 'Secure!Password123';
 
+    public function test_owner_logs_in_without_email_codes_and_can_open_the_dashboard(): void
+    {
+        Notification::fake();
+        $owner = User::factory()->unverified()->create(['role' => 'admin', 'password' => self::STRONG_PASSWORD]);
+        $this->withSession(['login_verification.user_id' => $owner->id, 'login_verification.started_at' => now()->timestamp])
+            ->post('/login', ['email' => $owner->email, 'password' => self::STRONG_PASSWORD])
+            ->assertRedirect(route('admin.dashboard'))->assertSessionMissing('login_verification.user_id');
+        $this->assertAuthenticatedAs($owner);
+        $this->get(route('admin.dashboard'))->assertOk();
+        Notification::assertNothingSent();
+        $this->assertDatabaseMissing('login_verification_codes', ['user_id' => $owner->id]);
+    }
+
+    public function test_owner_still_needs_a_correct_password_and_active_account(): void
+    {
+        Notification::fake();
+        $owner = User::factory()->create(['role' => 'admin', 'password' => self::STRONG_PASSWORD]);
+        $this->post('/login', ['email' => $owner->email, 'password' => 'Wrong!Password123'])->assertSessionHasErrors('email');
+        $this->assertGuest();
+        $owner->update(['account_status' => 'disabled']);
+        $this->post('/login', ['email' => $owner->email, 'password' => self::STRONG_PASSWORD])->assertSessionHasErrors('email');
+        $this->assertGuest();
+        Notification::assertNothingSent();
+    }
+
     public function test_public_registration_is_removed(): void
     {
+        $this->get(route('login'))->assertOk()
+            ->assertDontSee('getBaseUrl()')
+            ->assertDontSee('data-has-errors', false);
         $this->get(route('login'))->assertOk()->assertDontSee('Create one')->assertDontSee('data-switch-mode', false);
         $this->get('/register')->assertNotFound();
         $this->post('/register', ['name' => 'Test Staff', 'email' => 'staff@example.com',
@@ -134,17 +162,13 @@ class AuthenticationTest extends TestCase
             'remember_token' => 'old-persistent-token',
         ]);
 
-        $this->post('/login', [
+        $response = $this->post('/login', [
             'email' => 'remember@example.com',
             'password' => self::STRONG_PASSWORD,
             'remember' => '1',
-        ])->assertRedirect(route('login.verify'));
+        ]);
 
-        Notification::assertSentTo($user, LoginVerificationCodeNotification::class, function ($notification) use (&$response) {
-            $response = $this->post(route('login.verify.store'), ['code' => $notification->code]);
-
-            return true;
-        });
+        Notification::assertNothingSent();
 
         $response->assertRedirect(route('admin.dashboard'))
             ->assertCookieExpired(Auth::guard()->getRecallerName())

@@ -192,19 +192,19 @@ if (movementForm) {
         in: {
             title: 'Stock In adds units to the selected product.',
             text: 'Use this for supplier deliveries, customer returns accepted back into stock, or recovered inventory.',
-            quantityLabel: '3. Quantity received (+)', quantityHelp: 'Adds (+) units to stock. Enter a positive quantity, such as 5, to add 5 units.',
+            quantityLabel: '3. Quantity received (+)', quantityHelp: 'Use - or + to add or deduct',
             counterparty: '6. Supplier / source', placeholder: 'Supplier, customer, or stock source', button: 'Record stock in', sign: 1,
         },
         out: {
             title: 'Stock Out removes units from the selected product.',
             text: 'Use this for manual releases, damaged goods, supplier returns, or internal shop use. Stock cannot go below zero.',
-            quantityLabel: '3. Quantity released (−)', quantityHelp: 'Removes (−) units from stock. Enter a positive quantity, such as 5, to remove 5 units.',
+            quantityLabel: '3. Quantity released (−)', quantityHelp: 'Use - or + to add or deduct',
             counterparty: '6. Recipient / destination', placeholder: 'Customer, supplier, department, or destination', button: 'Record stock out', sign: -1,
         },
         adjustment: {
             title: 'Adjustment corrects the recorded balance by a difference.',
             text: 'Enter a positive number to add missing units or a negative number to remove excess units after a physical count.',
-            quantityLabel: '3. Quantity difference (+/−)', quantityHelp: 'Use + to add or − to remove units. Examples: +5 adds 5 units; -2 removes 2 units.',
+            quantityLabel: '3. Quantity difference (+/−)', quantityHelp: 'Use - or + to add or deduct',
             counterparty: '6. Counted / authorized by', placeholder: 'Person who verified or authorized the correction', button: 'Save stock adjustment', sign: null,
         },
     };

@@ -101,7 +101,8 @@ $activeIndex = $isAdmin ? 3 : 2;
                 <div class="cart-actions">
                     <button class="btn btn-clear" type="button" data-clear-cart>Clear</button>
                     <button class="btn btn-hold" type="button" data-hold-order>Hold Order</button>
-                    <button class="btn btn-pay" type="button" data-process-payment>Charge <span data-pay-total>P0.00</span></button>
+                    <button class="btn btn-pay" type="button" data-process-payment aria-describedby="charge-action-note">Charge <span data-pay-total>P0.00</span></button>
+                    <p id="charge-action-note" class="charge-action-note">Once you proceed, this action cannot be undone.</p>
                 </div>
             </aside>
         </section>

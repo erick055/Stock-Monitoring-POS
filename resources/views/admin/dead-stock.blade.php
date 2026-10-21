@@ -161,8 +161,9 @@ $navigation = [
                             <td>{{ $item['last_sale'] }}</td>
                             <td><strong>{{ $item['total_cost'] }}</strong></td>
                             <td>
-                                <details class="risk-details">
-                                    <summary>View</summary>
+                                <button class="deadstock-row-button" type="button" data-deadstock-open="analysis-{{ $item['product_id'] }}" aria-haspopup="dialog">View</button>
+                                <dialog class="deadstock-dialog risk-details" id="analysis-{{ $item['product_id'] }}" aria-labelledby="analysis-title-{{ $item['product_id'] }}">
+                                    <header class="deadstock-dialog-header"><div><span class="section-kicker">PRODUCT ANALYSIS</span><h2 id="analysis-title-{{ $item['product_id'] }}">{{ $item['name'] }}</h2></div><button type="button" data-deadstock-close aria-label="Close analysis"><i class="bi bi-x-lg" aria-hidden="true"></i></button></header>
                                     <ul>@foreach($item['reasons'] as $reason)<li>{{ $reason }}</li>@endforeach</ul>
                                     @if($item['ml_prediction'])
                                         <div class="demand-result">
@@ -178,7 +179,8 @@ $navigation = [
                                         <p class="demand-waiting"><strong>Demand outlook not ready yet.</strong> The risk score above is based on current stock and recent sales.</p>
                                     @endif
                                     <p>{{ $item['recommendation'] }}</p>
-                                </details>
+                                    <footer class="deadstock-dialog-footer"><button class="deadstock-row-button" type="button" data-deadstock-close>Close</button></footer>
+                                </dialog>
                             </td>
                             <td>
                                 @if($status === 'archived')
@@ -192,8 +194,12 @@ $navigation = [
                                         </form>
                                     </div>
                                 @else
-                                <details class="promotion-details" @if($item['active_promotion']) open @endif>
-                                    <summary>{{ $item['active_promotion'] ? 'Active offer' : 'Choose action' }}</summary>
+                                <div class="deadstock-owner-actions">
+                                    <button class="deadstock-row-button" type="button" data-deadstock-open="promotion-{{ $item['product_id'] }}" aria-haspopup="dialog">Choose action</button>
+                                    <button class="deadstock-row-button muted" type="button" data-deadstock-open="archive-{{ $item['product_id'] }}" aria-haspopup="dialog">Archive item</button>
+                                </div>
+                                <dialog class="deadstock-dialog promotion-details" id="promotion-{{ $item['product_id'] }}" aria-labelledby="promotion-title-{{ $item['product_id'] }}">
+                                    <header class="deadstock-dialog-header"><div><span class="section-kicker">OWNER ACTION</span><h2 id="promotion-title-{{ $item['product_id'] }}">{{ $item['name'] }}</h2></div><button type="button" data-deadstock-close aria-label="Close owner action"><i class="bi bi-x-lg" aria-hidden="true"></i></button></header>
                                     @if($item['active_promotion'])
                                         <div class="active-promotion">
                                             <strong>{{ $item['active_promotion']['label'] }}{{ $item['active_promotion']['action_type'] === 'promo_bundle' ? ' · Free in POS' : ' · '.number_format($item['active_promotion']['discount_percent'], 2).'% off' }}</strong>
@@ -226,16 +232,18 @@ $navigation = [
                                         <button class="approve-promotion" type="submit">Approve selected action</button>
                                         <small>Nothing changes until you press approve.</small>
                                     </form>
-                                </details>
-                                <details class="archive-details">
-                                    <summary>Archive item</summary>
+                                    <footer class="deadstock-dialog-footer"><button class="deadstock-row-button" type="button" data-deadstock-close>Close</button></footer>
+                                </dialog>
+                                <dialog class="deadstock-dialog archive-details" id="archive-{{ $item['product_id'] }}" aria-labelledby="archive-title-{{ $item['product_id'] }}">
+                                    <header class="deadstock-dialog-header"><div><span class="section-kicker">ARCHIVE ITEM</span><h2 id="archive-title-{{ $item['product_id'] }}">{{ $item['name'] }}</h2></div><button type="button" data-deadstock-close aria-label="Close archive window"><i class="bi bi-x-lg" aria-hidden="true"></i></button></header>
                                     <form method="POST" action="{{ route('admin.dead-stock.archive', $item['product_id']) }}" data-archive-dead-stock>
                                         @csrf @method('PATCH')
                                         <label>Archive note <small>Optional</small><textarea name="archive_note" rows="2" maxlength="500" placeholder="Why is this item being archived?"></textarea></label>
                                         <small>This only hides the item from this queue. Inventory and POS are unchanged.</small>
                                         <button type="submit">Archive from queue</button>
                                     </form>
-                                </details>
+                                    <footer class="deadstock-dialog-footer"><button class="deadstock-row-button" type="button" data-deadstock-close>Cancel</button></footer>
+                                </dialog>
                                 @endif
                             </td>
                         </tr>

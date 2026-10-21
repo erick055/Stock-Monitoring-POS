@@ -7,6 +7,7 @@ use App\Models\LoginVerificationCode;
 use App\Models\User;
 use App\Notifications\LoginVerificationCodeNotification;
 use App\Services\TrustedLoginDeviceService;
+use App\Services\SingleSessionLogin;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -74,14 +75,12 @@ class LoginVerificationController extends Controller
                 : 'Your login code has expired. Please log in again.']);
         }
 
-        $request->session()->forget(['login_verification.user_id', 'login_verification.started_at']);
-        Auth::login($user, false);
-        $request->session()->regenerate();
-        $request->session()->put('auth.last_activity_at', now()->timestamp);
-        $request->session()->put('stock.login_alert_pending', $user->role === 'admin');
-        Auth::guard()->getProvider()->updateRememberToken($user, Str::random(60));
+        app(SingleSessionLogin::class)->start($request, $user);
         $trustedDevices->trust($request, $user);
 
+        if ($user->role === 'staff' && $user->must_change_password) {
+            return redirect()->route('staff.password.edit')->withoutCookie(Auth::guard()->getRecallerName());
+        }
         return redirect()->intended(route($user->role.'.dashboard'))
             ->withoutCookie(Auth::guard()->getRecallerName());
     }

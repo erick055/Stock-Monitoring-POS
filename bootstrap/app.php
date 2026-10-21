@@ -15,7 +15,9 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->authenticateSessions();
         $middleware->appendToGroup('web', [
             \App\Http\Middleware\EnsureAccountIsActive::class,
+            \App\Http\Middleware\EnsureCurrentLoginSession::class,
             \App\Http\Middleware\EnforceIdleSessionTimeout::class,
+            \App\Http\Middleware\RequireStaffPasswordChange::class,
         ]);
 
         $middleware->redirectUsersTo(function (\Illuminate\Http\Request $request): string {

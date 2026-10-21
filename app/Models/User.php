@@ -26,6 +26,7 @@ class User extends Authenticatable implements MustVerifyEmail
         'password',
         'role',
         'account_status',
+        'must_change_password',
         'approved_by',
         'approved_at',
         'disabled_by',
@@ -41,6 +42,7 @@ class User extends Authenticatable implements MustVerifyEmail
     protected $hidden = [
         'password',
         'remember_token',
+        'active_session_hash',
     ];
 
     /**
@@ -53,6 +55,7 @@ class User extends Authenticatable implements MustVerifyEmail
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'must_change_password' => 'boolean',
             'approved_at' => 'datetime',
             'disabled_at' => 'datetime',
         ];

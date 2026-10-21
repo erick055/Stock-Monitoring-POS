@@ -21,6 +21,8 @@ class StockManagementController extends Controller
     {
         $search = trim((string) $request->query('search'));
         $status = (string) $request->query('status', 'all');
+        $perPage = in_array((int) $request->query('per_page', 25), [25, 50, 100], true)
+            ? (int) $request->query('per_page', 25) : 25;
         $sort = (string) $request->query('sort', 'name');
 
         $sorts = [
@@ -46,10 +48,16 @@ class StockManagementController extends Controller
                     ->orWhere('category', 'like', "%{$search}%")
                     ->orWhere('shelf_location', 'like', "%{$search}%");
             }))
+            ->when($status !== 'all', fn ($query) => match ($status) {
+                'critical' => $query->whereColumn('current_stock', '<=', 'reorder_level'),
+                'warning' => $query->whereColumn('current_stock', '>', 'reorder_level')->whereRaw('current_stock <= (reorder_level * 2)'),
+                'healthy' => $query->whereRaw('current_stock > (reorder_level * 2)'),
+                default => $query->whereRaw('1 = 0'),
+            })
             ->orderBy($sortColumn, $sortDirection)
             ->orderBy('product_id')
-            ->get()
-            ->when($status !== 'all', fn ($items) => $items->filter(fn ($product) => $product->stock_status === $status)->values());
+            ->paginate($perPage)
+            ->withQueryString();
 
         $allProducts = Product::query()->where('is_active', true)->orderBy('name')->get();
         $categories = $allProducts
@@ -81,7 +89,7 @@ class StockManagementController extends Controller
         ];
         $inventoryVersion = $liveInventory->version();
 
-        return view('admin.stock-management', compact('products', 'allProducts', 'categories', 'shelves', 'ledgers', 'summary', 'search', 'status', 'sort', 'inventoryVersion'));
+        return view('admin.stock-management', compact('products', 'allProducts', 'categories', 'shelves', 'ledgers', 'summary', 'search', 'status', 'sort', 'inventoryVersion', 'perPage'));
     }
 
     public function storeProduct(Request $request, LowStockAlertService $alerts, ProductDuplicateGuard $duplicates): RedirectResponse

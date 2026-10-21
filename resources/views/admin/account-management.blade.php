@@ -50,7 +50,7 @@ $navigation = [
 
         <section class="panel accounts-panel account-create-panel">
             <div class="section-heading"><div><span class="section-kicker">OWNER ONLY</span><h2>Create staff account</h2></div></div>
-            <p class="account-form-note">Staff access is active immediately. The staff member must verify their email before accessing the system.</p>
+            <p class="account-form-note">The password you set is temporary. Staff must create their own password on first login and verify their email before using the system.</p>
             @if($errors->createAccount->any())<div class="account-message error" role="alert"><ul>@foreach($errors->createAccount->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
             <form class="staff-account-form" method="POST" action="{{ route('admin.accounts.store') }}">
                 @csrf
@@ -88,9 +88,9 @@ $navigation = [
                         <div class="account-actions">
                             @if($account->account_status === 'pending')
                                 <form method="POST" action="{{ route('admin.accounts.approve', $account) }}">@csrf @method('PATCH')<button class="approve-button" type="submit">Approve as staff</button></form>
-                                <form class="disable-form" method="POST" action="{{ route('admin.accounts.disable', $account) }}">@csrf @method('PATCH')<input name="disabled_reason" maxlength="500" required placeholder="Reason for declining access"><button class="disable-button" type="submit">Decline</button></form>
+                                <form class="disable-form" method="POST" action="{{ route('admin.accounts.disable', $account) }}">@csrf @method('PATCH')<input name="disabled_reason" maxlength="500" placeholder="Reason (optional)" aria-label="Reason for declining {{ $account->name }}"><button class="disable-button" type="submit">Decline</button></form>
                             @elseif($account->account_status === 'active')
-                                <form class="disable-form" method="POST" action="{{ route('admin.accounts.disable', $account) }}">@csrf @method('PATCH')<input name="disabled_reason" maxlength="500" required placeholder="Reason for disabling access"><button class="disable-button" type="submit">Disable staff access</button></form>
+                                <form class="disable-form" method="POST" action="{{ route('admin.accounts.disable', $account) }}">@csrf @method('PATCH')<input name="disabled_reason" maxlength="500" placeholder="Reason (optional)" aria-label="Reason for disabling {{ $account->name }}"><button class="disable-button" type="submit">Disable staff access</button></form>
                             @else
                                 <form method="POST" action="{{ route('admin.accounts.reactivate', $account) }}">@csrf @method('PATCH')<button class="reactivate-button" type="submit">Restore staff access</button></form>
                             @endif
@@ -104,8 +104,17 @@ $navigation = [
                                 <label>Email address<input type="email" name="email" value="{{ $errors->getBag('editAccount'.$account->id)->any() ? old('email', $account->email) : $account->email }}" maxlength="255" required></label>
                                 <label>New password<input type="password" name="password" minlength="12" autocomplete="new-password" placeholder="Leave blank to keep current password"></label>
                                 <label>Confirm new password<input type="password" name="password_confirmation" minlength="12" autocomplete="new-password"></label>
-                                <p class="account-form-note">Passwords require 12 characters, uppercase, lowercase, a number, and a symbol. Changing email or password signs staff out. A changed email requires verification.</p>
+                                <p class="account-form-note">Passwords require 12 characters, uppercase, lowercase, a number, and a symbol. Changing email or password signs staff out. A reset password must be changed at next login. A changed email requires verification.</p>
                                 <button type="submit">Save staff account</button>
+                            </form>
+                        </details>
+                        <details class="account-delete">
+                            <summary>Delete staff account</summary>
+                            <p>Permanently remove {{ $account->name }}'s login account from the database. This cannot be undone. Sales and inventory records will be preserved.</p>
+                            <form method="POST" action="{{ route('admin.accounts.destroy', $account) }}">
+                                @csrf @method('DELETE')
+                                <label><input type="checkbox" name="confirm_delete" value="1" required> I confirm that I want to permanently delete this staff account.</label>
+                                <button class="disable-button" type="submit">Permanently delete staff</button>
                             </form>
                         </details>
                     </article>

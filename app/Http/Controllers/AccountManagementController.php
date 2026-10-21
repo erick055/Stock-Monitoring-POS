@@ -24,6 +24,7 @@ class AccountManagementController extends Controller
         ]);
         $user = User::create($validated + [
             'role' => 'staff', 'account_status' => 'active',
+            'must_change_password' => true,
             'approved_by' => $request->user()->id, 'approved_at' => now(),
         ]);
 
@@ -46,6 +47,7 @@ class AccountManagementController extends Controller
         DB::transaction(function () use ($user, $validated, $emailChanged, $passwordChanged) {
             if ($emailChanged) DB::table('password_reset_tokens')->where('email', $user->email)->delete();
             $user->fill($validated);
+            if ($passwordChanged) $user->must_change_password = true;
             if ($emailChanged) $user->email_verified_at = null;
             if ($emailChanged || $passwordChanged) $user->remember_token = Str::random(60);
             $user->save();
@@ -134,7 +136,7 @@ class AccountManagementController extends Controller
     {
         abort_unless($user->role === 'staff', 404);
         $validated = $request->validate([
-            'disabled_reason' => ['required', 'string', 'min:3', 'max:500'],
+            'disabled_reason' => ['nullable', 'string', 'max:500'],
         ]);
 
         DB::transaction(function () use ($user, $request, $validated) {
@@ -143,13 +145,28 @@ class AccountManagementController extends Controller
                 'account_status' => 'disabled',
                 'disabled_by' => $request->user()->id,
                 'disabled_at' => now(),
-                'disabled_reason' => trim($validated['disabled_reason']),
+                'disabled_reason' => trim((string) ($validated['disabled_reason'] ?? '')) ?: 'Access disabled by the owner.',
                 'remember_token' => Str::random(60),
             ])->save();
             $this->revokeAccess($user);
         });
 
         return back()->with('success', "{$user->name}'s staff access was disabled.");
+    }
+
+    public function destroy(Request $request, User $user): RedirectResponse
+    {
+        abort_unless($user->role === 'staff', 404);
+        $request->validate(['confirm_delete' => ['accepted']]);
+        $name = $user->name;
+        DB::transaction(function () use ($user) {
+            $staff = User::query()->lockForUpdate()->findOrFail($user->id);
+            abort_unless($staff->role === 'staff', 404);
+            $this->revokeAccess($staff);
+            $staff->delete();
+        });
+
+        return redirect()->route('admin.accounts')->with('success', "{$name}'s staff account was permanently deleted. Business records were preserved.");
     }
 
     public function reactivate(Request $request, User $user): RedirectResponse

@@ -1,4 +1,4 @@
-﻿:root {
+:root {
     color-scheme: dark;
     font-family: Inter, system-ui, sans-serif;
     --bg: #07080d;
@@ -70,10 +70,24 @@ input {
     box-shadow: 0 24px 70px rgba(0, 0, 0, 0.4);
 }
 
+.password-change-popup[open] {
+    position: fixed;
+    inset: 0;
+    margin: auto;
+    width: min(calc(100% - 2rem), 34rem);
+    max-height: calc(100dvh - 2rem);
+    overflow-y: auto;
+    color: var(--text);
+    box-shadow: 0 0 0 100vmax rgba(2, 3, 7, .75), 0 24px 70px rgba(0, 0, 0, .5);
+}
+
+.password-change-logout { margin-top: 1rem; text-align: center; }
+.password-change-logout button { border: 0; background: transparent; color: var(--cyan); cursor: pointer; }
+
 .eyebrow {
     margin: 0 0 0.7rem;
     color: var(--orange);
-    font-size: 0.72rem;
+    font-size: 0.7825rem;
     font-weight: 700;
     letter-spacing: 0.15em;
 }
@@ -159,7 +173,7 @@ h2 {
 .switch-copy {
     margin: 1.15rem 0 0;
     color: var(--muted);
-    font-size: 0.84rem;
+    font-size: 0.9025rem;
     text-align: center;
 }
 
@@ -181,7 +195,7 @@ h2 {
     gap: 0.45rem;
     margin-bottom: 1rem;
     color: #c9ccd6;
-    font-size: 0.8rem;
+    font-size: 0.8625rem;
     font-weight: 600;
 }
 
@@ -225,7 +239,7 @@ h2 {
     border-radius: 0.55rem;
     background: rgba(255, 70, 92, 0.08);
     color: #ff9aaa;
-    font-size: 0.78rem;
+    font-size: 0.8425rem;
 }
 
 .error-box strong {
@@ -237,12 +251,12 @@ h2 {
     padding-left: 1.1rem;
 }
 
-.session-note { margin: -.25rem 0 1rem; color: var(--muted); font-size: .72rem; line-height: 1.5; }
+.session-note { margin: -.25rem 0 1rem; color: var(--muted); font-size: 0.7825rem; line-height: 1.5; }
 
 .password-hint {
     margin: -0.35rem 0 1rem;
     color: var(--muted);
-    font-size: 0.75rem;
+    font-size: 0.8125rem;
     line-height: 1.5;
 }
 
@@ -251,7 +265,7 @@ h2 {
     width: fit-content;
     margin: -0.45rem 0 1rem auto;
     color: var(--cyan);
-    font-size: 0.8rem;
+    font-size: 0.8625rem;
     text-decoration: none;
 }
 
@@ -279,7 +293,7 @@ h2 {
     border-radius: 0.55rem;
     background: rgba(38, 120, 94, 0.12);
     color: #80ddbf;
-    font-size: 0.8rem;
+    font-size: 0.8625rem;
 }
 
 .secondary-button {
