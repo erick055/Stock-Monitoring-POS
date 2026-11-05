@@ -24,6 +24,9 @@ class SalesTransaction extends Model
         'total_sale_amount',
         'payment_status',
         'payment_method',
+        'amount_tendered',
+        'change_due',
+        'payment_reference',
         'sale_date',
     ];
 
@@ -34,8 +37,17 @@ class SalesTransaction extends Model
             'tax_amount' => 'decimal:2',
             'labor_amount' => 'decimal:2',
             'total_sale_amount' => 'decimal:2',
+            'amount_tendered' => 'decimal:2',
+            'change_due' => 'decimal:2',
             'sale_date' => 'datetime',
         ];
+    }
+
+    public function getPaymentLabelAttribute(): string
+    {
+        return match ($this->payment_method) {
+            'gcash' => 'GCash', 'maya' => 'Maya', 'card' => 'Card', default => ucfirst($this->payment_method ?? 'cash'),
+        };
     }
 
     public function staff(): BelongsTo

@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\SalesAnalyticsService;
+
 use App\Models\InventoryLedger;
 use App\Models\Product;
 use App\Models\SalesItem;
@@ -9,6 +11,7 @@ use App\Models\SalesTransaction;
 use App\Services\ProductDemandMachineLearning;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 use OpenSpout\Common\Entity\Row;
@@ -21,7 +24,20 @@ class AnalyticsController extends Controller
 {
     public function index(Request $request): View
     {
-        return view('admin.analytics', $this->analyticsData($request));
+        $data = $this->analyticsData($request);
+        $perPage = in_array((int) $request->query('forecast_rows', 20), [20, 50, 100], true)
+            ? (int) $request->query('forecast_rows', 20) : 20;
+        $items = collect($data['aiDemandForecast']['items']);
+        $page = \Illuminate\Pagination\LengthAwarePaginator::resolveCurrentPage('forecast_page');
+        $data['forecastItems'] = (new \Illuminate\Pagination\LengthAwarePaginator(
+            $items->forPage($page, $perPage)->values(), $items->count(), $perPage, $page,
+            ['path' => $request->url(), 'query' => $request->query(), 'pageName' => 'forecast_page']
+        ))->fragment('future-demand');
+        $data['speedRows'] = \App\Support\TablePagination::collection(collect($data['sellingSpeedRanking']), $request, 'speed', 'selling-speed');
+        $data['slowRows'] = \App\Support\TablePagination::collection(collect($data['slowMovingProducts']), $request, 'slow', 'slow-products');
+        $data['refundRows'] = \App\Support\TablePagination::collection(collect($data['dailyRefunds']), $request, 'refund', 'daily-refunds');
+
+        return view('admin.analytics', $data);
     }
 
     public function export(Request $request): BinaryFileResponse
@@ -36,7 +52,7 @@ class AnalyticsController extends Controller
 
     private function analyticsData(Request $request): array
     {
-        $salesPeriod = in_array($request->query('period'), ['week', 'month', 'year'], true)
+        $salesPeriod = in_array($request->query('period'), ['week', 'month', 'year', 'day'], true)
             ? $request->query('period')
             : 'week';
         $now = CarbonImmutable::now();
@@ -57,25 +73,9 @@ class AnalyticsController extends Controller
                 return app(DeadStockController::class)->scoreProduct($product,
                     (int) ($sales?->monthly_units ?? 0), (int) ($sales?->quarter_units ?? 0), $sales?->latest_sale);
             })->where('classification', 'Slow Moving')->sortByDesc('total_cost_raw')->values();
-        $chartAnchor = $this->chartAnchor($salesPeriod, (string) $request->query('range', ''), $now);
+        $chartAnchor = $this->chartAnchor($salesPeriod, (string) $request->query('range', $salesPeriod === 'day' ? $request->query('transaction_date', '') : ''), $now);
 
-        $paidSales = SalesTransaction::query()->where('payment_status', 'paid');
-        $totalSales = (float) (clone $paidSales)->sum('total_sale_amount');
-        $transactionCount = (clone $paidSales)->count();
-        $averageOrderValue = $transactionCount > 0 ? $totalSales / $transactionCount : 0;
-
-        $profit = SalesItem::query()
-            ->join('sales_transactions', 'sales_items.sale_id', '=', 'sales_transactions.sale_id')
-            ->where('sales_transactions.payment_status', 'paid')
-            ->selectRaw('COALESCE(SUM((sales_items.unit_sale_price - sales_items.unit_cost) * sales_items.quantity), 0) as profit')
-            ->value('profit');
-
-        $summary = [
-            'total_sales' => $totalSales,
-            'transactions' => $transactionCount,
-            'average_order_value' => $averageOrderValue,
-            'gross_profit' => (float) $profit,
-        ];
+        $summary = app(SalesAnalyticsService::class)->summary();
 
         $bestSellers = SalesItem::query()
             ->select('products.product_id', 'products.name', 'products.sku')
@@ -101,89 +101,46 @@ class AnalyticsController extends Controller
             ->limit(5)
             ->get();
 
-        $rankingStart = CarbonImmutable::now()->subDays(29)->startOfDay();
-        $rankingEnd = CarbonImmutable::now()->endOfDay();
-        $rankingRows = SalesItem::query()
-            ->select('products.product_id', 'products.name', 'products.sku', 'products.category')
-            ->selectRaw('COUNT(DISTINCT sales_items.sale_id) as purchase_frequency')
-            ->selectRaw('SUM(sales_items.quantity) as units_sold')
-            ->selectRaw('SUM(sales_items.line_total) as sales_total')
-            ->join('products', 'sales_items.product_id', '=', 'products.product_id')
-            ->join('sales_transactions', 'sales_items.sale_id', '=', 'sales_transactions.sale_id')
-            ->where('products.is_active', true)
-            ->where('sales_transactions.payment_status', 'paid')
-            ->whereBetween('sales_transactions.sale_date', [$rankingStart, $rankingEnd])
-            ->groupBy('products.product_id', 'products.name', 'products.sku', 'products.category')
-            ->get();
-
-        $maxFrequency = max((int) $rankingRows->max('purchase_frequency'), 1);
-        $maxUnits = max((int) $rankingRows->max('units_sold'), 1);
-        $sellingSpeedRanking = $rankingRows
-            ->map(function ($item) use ($maxFrequency, $maxUnits) {
-                $frequencyScore = ((int) $item->purchase_frequency / $maxFrequency) * 60;
-                $volumeScore = ((int) $item->units_sold / $maxUnits) * 40;
-                $item->speed_score = round($frequencyScore + $volumeScore);
-                $item->units_per_purchase = (int) $item->purchase_frequency > 0
-                    ? (int) $item->units_sold / (int) $item->purchase_frequency
-                    : 0;
-                $item->units_per_day = (int) $item->units_sold / 30;
-
-                return $item;
-            })
-            ->sort(function ($left, $right) {
-                return [$right->speed_score, (int) $right->purchase_frequency, (int) $right->units_sold, (float) $right->sales_total]
-                    <=> [$left->speed_score, (int) $left->purchase_frequency, (int) $left->units_sold, (float) $left->sales_total];
-            })
-            ->take(10)
-            ->values();
+        $sellingSpeedRanking = app(\App\Services\SellingSpeedService::class)->ranking()->values();
 
         $highestStock = Product::query()->where('is_active', true)->orderByDesc('current_stock')->limit(5)->get();
         $lowestStock = Product::query()->where('is_active', true)->orderBy('current_stock')->limit(5)->get();
 
         [$chartStart, $chartEnd, $chartOffsets, $chartPeriodLabel] = match ($salesPeriod) {
+            'day' => [$chartAnchor->startOfDay(), $chartAnchor->endOfDay(), [0], 'Specific Date'],
             'month' => [$chartAnchor->startOfMonth(), $chartAnchor->endOfMonth(), range(0, $chartAnchor->daysInMonth - 1), 'Monthly'],
             'year' => [$chartAnchor->startOfYear(), $chartAnchor->endOfYear(), range(0, 11), 'Yearly'],
             default => [$chartAnchor->startOfWeek(), $chartAnchor->endOfWeek(), range(0, 6), 'Weekly'],
         };
         $chartRangeLabel = match ($salesPeriod) {
+            'day' => $chartStart->format('F j, Y'),
             'month' => $chartStart->format('F Y'),
             'year' => $chartStart->format('Y'),
             default => $chartStart->format('M d, Y').' – '.$chartEnd->format('M d, Y'),
         };
         $chartRangeOptions = $this->chartRangeOptions($salesPeriod, $chartAnchor, $now);
         $periodRanges = [
+            'day' => $chartAnchor->toDateString(),
             'week' => $chartAnchor->startOfWeek()->format('Y-m-d'),
             'month' => $chartAnchor->format('Y-m'),
             'year' => $chartAnchor->format('Y'),
         ];
 
-        $chartRaw = SalesTransaction::query()
-            ->select(['sale_date', 'total_sale_amount'])
-            ->where('payment_status', 'paid')
-            ->whereBetween('sale_date', [$chartStart, $chartEnd])
-            ->get()
-            ->groupBy(fn (SalesTransaction $sale) => $salesPeriod === 'year'
-                ? $sale->sale_date->format('Y-m')
-                : $sale->sale_date->toDateString())
-            ->map(fn ($sales) => (float) $sales->sum('total_sale_amount'));
-
-        $maxChartSales = max((float) $chartRaw->max(), 1);
-        $weeklySales = collect($chartOffsets)->map(function (int $offset) use ($salesPeriod, $chartStart, $chartRaw, $maxChartSales) {
+        $chartTotals = app(SalesAnalyticsService::class)->periods($chartStart, $chartEnd, $salesPeriod === 'year');
+        $weeklySales = collect($chartOffsets)->map(function (int $offset) use ($salesPeriod, $chartStart, $chartTotals) {
             $date = $salesPeriod === 'year' ? $chartStart->addMonths($offset) : $chartStart->addDays($offset);
             $key = $salesPeriod === 'year' ? $date->format('Y-m') : $date->toDateString();
-            $total = (float) ($chartRaw[$key] ?? 0);
-
+            $totals = $chartTotals[$key] ?? ['gross_sales' => 0.0, 'refunds' => 0.0, 'net_sales' => 0.0];
             return [
                 'label' => match ($salesPeriod) {
-                    'month' => $date->format('j'),
-                    'year' => $date->format('M'),
-                    default => $date->format('D'),
+                    'month' => $date->format('j'), 'year' => $date->format('M'), default => $date->format('D'),
                 },
                 'date' => $salesPeriod === 'year' ? $date->format('F Y') : $date->format('M d'),
-                'total' => $total,
-                'percent' => round(($total / $maxChartSales) * 100),
+                'total' => $totals['net_sales'], 'gross_sales' => $totals['gross_sales'], 'refunds' => $totals['refunds'],
             ];
         });
+        $maxChartSales = max((float) $weeklySales->max(fn ($day) => abs($day['total'])), 1);
+        $weeklySales = $weeklySales->map(fn ($day) => [...$day, 'percent' => round(abs($day['total']) / $maxChartSales * 100)]);
 
         $stockFlow = [
             'added' => InventoryLedger::query()->sum('qty_in'),
@@ -192,6 +149,19 @@ class AnalyticsController extends Controller
             'current' => Product::query()->where('is_active', true)->sum('current_stock'),
         ];
         $aiDemandForecast = app(ProductDemandMachineLearning::class)->current();
+
+        $dateFilters = $request->validate([
+            'transaction_date' => ['nullable', 'date_format:Y-m-d'],
+            'calendar_month' => ['nullable', 'date_format:Y-m'],
+        ]);
+        $selectedTransactionDate = $salesPeriod === 'day' ? $chartAnchor->startOfDay() : CarbonImmutable::parse($dateFilters['transaction_date'] ?? $now->toDateString())->startOfDay();
+        $dailySales = $this->dailyPaidSales($selectedTransactionDate);
+        $dailySummary = app(SalesAnalyticsService::class)->summary($selectedTransactionDate, $selectedTransactionDate->endOfDay());
+        $dailySalesTotal = $dailySummary['net_sales'];
+        $dailyRefunds = app(SalesAnalyticsService::class)->approvedReturns($selectedTransactionDate, $selectedTransactionDate->endOfDay())->with('product')->orderBy('approved_at')->get();
+        $dayTransactions = $dailySales->with('staff')->withSum('items as units_count', 'quantity')
+            ->latest('sale_date')->orderByDesc('sale_id')->paginate(\App\Support\TablePagination::size($request, 'transactions_rows'), ['*'], 'transactions_page')
+            ->withQueryString()->fragment('transaction-history');
 
         return compact(
             'slowMovingProducts',
@@ -208,15 +178,21 @@ class AnalyticsController extends Controller
             'chartRangeLabel',
             'chartRangeOptions',
             'periodRanges',
-            'stockFlow'
+            'stockFlow', 'selectedTransactionDate', 'dayTransactions', 'dailySalesTotal', 'dailySummary', 'dailyRefunds'
         );
+    }
+
+    private function dailyPaidSales(CarbonImmutable $date): Builder
+    {
+        return SalesTransaction::query()->where('payment_status', 'paid')
+            ->where('sale_date', '>=', $date->startOfDay())->where('sale_date', '<', $date->startOfDay()->addDay());
     }
 
     private function chartAnchor(string $period, string $range, CarbonImmutable $fallback): CarbonImmutable
     {
         $parts = array_map('intval', explode('-', $range));
 
-        if ($period === 'week' && preg_match('/^\d{4}-\d{2}-\d{2}$/', $range)
+        if (in_array($period, ['week', 'day'], true) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $range)
             && checkdate($parts[1], $parts[2], $parts[0])) {
             return CarbonImmutable::create($parts[0], $parts[1], $parts[2], 0, 0, 0);
         }
@@ -244,7 +220,11 @@ class AnalyticsController extends Controller
             ->filter()
             ->map(fn (string $date) => $this->periodAnchor($period, CarbonImmutable::parse($date)));
 
-        return $anchors
+        $refundAnchors = app(SalesAnalyticsService::class)->approvedReturns()->whereNotNull('approved_at')
+            ->selectRaw('DATE(approved_at) as approval_day')->distinct()->pluck('approval_day')
+            ->map(fn (string $date) => $this->periodAnchor($period, CarbonImmutable::parse($date)));
+
+        return $anchors->concat($refundAnchors)
             ->push($this->periodAnchor($period, $now))
             ->push($this->periodAnchor($period, $selected))
             ->unique(fn (CarbonImmutable $date) => $this->periodValue($period, $date))
@@ -253,6 +233,7 @@ class AnalyticsController extends Controller
             ->map(fn (CarbonImmutable $date) => [
                 'value' => $this->periodValue($period, $date),
                 'label' => match ($period) {
+                    'day' => $date->format('F j, Y'),
                     'month' => $date->format('F Y'),
                     'year' => $date->format('Y'),
                     default => $date->format('M d').' – '.$date->endOfWeek()->format('M d, Y'),
@@ -263,6 +244,7 @@ class AnalyticsController extends Controller
     private function periodAnchor(string $period, CarbonImmutable $date): CarbonImmutable
     {
         return match ($period) {
+            'day' => $date->startOfDay(),
             'month' => $date->startOfMonth(),
             'year' => $date->startOfYear(),
             default => $date->startOfWeek(),
@@ -297,12 +279,15 @@ class AnalyticsController extends Controller
         $overview->setColumnWidth(24, 2);
         $writer->addRow(Row::fromValues(['MotoSync Analytics Report'], $titleStyle));
         $writer->addRow(Row::fromValues(['Selected view', $data['chartPeriodLabel'].' · '.$data['chartRangeLabel']]));
+        $writer->addRow(Row::fromValues(['Transaction date', $data['selectedTransactionDate']->format('F d, Y')]));
         $writer->addRow(Row::fromValues(['Generated at', $data['generatedAt']->format('Y-m-d H:i:s')]));
         $writer->addRow(Row::fromValues(['Generated by', $data['generatedBy']]));
         $writer->addRow(Row::fromValues([]));
         $writer->addRow(Row::fromValues(['Metric', 'Value'], $headerStyle));
         foreach ([
-            ['Total sales', (float) $data['summary']['total_sales'], true],
+            ['Gross sales', (float) $data['summary']['gross_sales'], true],
+            ['Refunds', (float) $data['summary']['refunds'], true],
+            ['Net sales', (float) $data['summary']['net_sales'], true],
             ['Paid transactions', (int) $data['summary']['transactions'], false],
             ['Average order value', (float) $data['summary']['average_order_value'], true],
             ['Gross profit', (float) $data['summary']['gross_profit'], true],
@@ -314,15 +299,15 @@ class AnalyticsController extends Controller
             $writer->addRow(Row::fromValuesWithStyles([$row[0], $row[1]], null, $row[2] ? [1 => $currencyStyle] : []));
         }
 
-        $this->addSheet($writer, 'Period Sales', ['Period', 'Date', 'Paid sales'], $data['weeklySales']->map(fn ($day) => [
-            $day['label'], $day['date'], (float) $day['total'],
-        ])->all(), $headerStyle, [12, 16, 18], [2 => $currencyStyle]);
+        $this->addSheet($writer, 'Period Sales', ['Period', 'Date', 'Gross sales', 'Refunds', 'Net sales'], $data['weeklySales']->map(fn ($day) => [
+            $day['label'], $day['date'], (float) $day['gross_sales'], (float) $day['refunds'], (float) $day['total'],
+        ])->all(), $headerStyle, [12, 16, 18, 18, 18], [2 => $currencyStyle, 3 => $currencyStyle, 4 => $currencyStyle]);
 
-        $this->addSheet($writer, 'Selling Speed', ['Rank', 'SKU', 'Product', 'Category', 'Paid receipts', 'Units bought', 'Units per purchase', 'Sales value', 'Units per day', 'Fast-moving percentage'], $data['sellingSpeedRanking']->map(fn ($item, $index) => [
+        $this->addSheet($writer, 'Selling Speed', ['Rank', 'SKU', 'Product', 'Category', 'Paid receipts', 'Units sold', 'Units per purchase', 'Sales value', 'Sales velocity (units/day)'], $data['sellingSpeedRanking']->map(fn ($item, $index) => [
             $index + 1, $item->sku, $item->name, $item->category ?: 'Uncategorized', (int) $item->purchase_frequency,
             (int) $item->units_sold, (float) $item->units_per_purchase, (float) $item->sales_total,
-            (float) $item->units_per_day, $item->speed_score.'%',
-        ])->all(), $headerStyle, [8, 17, 25, 18, 15, 14, 19, 17, 15, 13], [6 => $oneDecimalStyle, 7 => $currencyStyle, 8 => $decimalStyle]);
+            (float) $item->units_per_day,
+        ])->all(), $headerStyle, [8, 17, 25, 18, 15, 14, 19, 17, 26], [6 => $oneDecimalStyle, 7 => $currencyStyle, 8 => $decimalStyle]);
 
         $this->addSheet($writer, 'Best Sellers', ['SKU', 'Product', 'Units sold', 'Sales value'], $data['bestSellers']->map(fn ($item) => [
             $item->sku, $item->name, (int) $item->units_sold, (float) $item->sales_total,
@@ -343,6 +328,23 @@ class AnalyticsController extends Controller
         ]))->all();
         $this->addSheet($writer, 'Inventory', ['List', 'SKU', 'Product', 'Current stock', 'Reorder level', 'Status'], $inventoryRows, $headerStyle, [17, 18, 26, 16, 16, 14]);
 
+        $dailySheet = $writer->addNewSheetAndMakeItCurrent();
+        $dailySheet->setName('Daily Transactions');
+        $writer->addRow(Row::fromValues(['Receipt', 'Date and time', 'Cashier', 'Payment method', 'Paid total'], $headerStyle));
+        foreach ($this->dailyPaidSales($data['selectedTransactionDate'])->with('staff')->orderBy('sale_id')->lazyById(250, 'sale_id') as $sale) {
+            $writer->addRow(Row::fromValuesWithStyles([
+                'POS-'.str_pad((string) $sale->sale_id, 6, '0', STR_PAD_LEFT), $sale->sale_date->format('Y-m-d H:i:s'),
+                $sale->staff?->name ?? 'Former staff', $sale->payment_method ?? 'cash', (float) $sale->total_sale_amount,
+            ], null, [4 => $currencyStyle]));
+        }
+        $this->addSheet($writer, 'Daily Summary', ['Metric', 'Value'], collect([
+            'gross_sales' => 'Gross sales', 'refunds' => 'Refunds', 'net_sales' => 'Net sales',
+            'average_order_value' => 'Average order value', 'gross_profit' => 'Gross profit',
+        ])->map(fn ($label, $key) => [$label, $data['dailySummary'][$key]])->values()->all(), $headerStyle, [24, 20], [1 => $currencyStyle]);
+        $this->addSheet($writer, 'Approved Refunds', ['Return', 'Receipt', 'Approval date', 'Product', 'Quantity', 'Refund'], $data['dailyRefunds']->map(fn ($return) => [
+            $return->return_id, 'POS-'.str_pad((string) $return->sale_id, 6, '0', STR_PAD_LEFT), $return->approved_at->format('Y-m-d H:i:s'),
+            $return->product?->name ?? 'Deleted product', $return->quantity, (float) $return->refund_amount,
+        ])->all(), $headerStyle, [12, 18, 24, 30, 12, 18], [5 => $currencyStyle]);
         $writer->close();
 
         return response()->download($path, $filename.'.xlsx', [

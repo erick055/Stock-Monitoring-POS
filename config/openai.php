@@ -2,6 +2,7 @@
 
 return [
     'api_key' => env('OPENAI_API_KEY'),
+    'supplier_import_model' => env('OPENAI_SUPPLIER_IMPORT_MODEL', env('OPENAI_MODEL', 'gpt-5.6-luna')),
     'model' => env('OPENAI_MODEL', 'gpt-5.6-luna'),
     'base_url' => env('OPENAI_BASE_URL', 'https://api.openai.com/v1'),
     'ca_bundle' => env('OPENAI_CA_BUNDLE', storage_path('certs/cacert.pem')),

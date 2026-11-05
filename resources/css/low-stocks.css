@@ -70,3 +70,5 @@
 @media(max-width:760px){.alerts-header{flex-wrap:wrap}.alert-meta{flex-direction:column;align-items:flex-start}.fast-card{grid-template-columns:1fr}.alerts-stats{grid-template-columns:1fr 1fr}}
 @media(max-width:700px){.data-toolbar{grid-template-columns:1fr 1fr}.data-toolbar .compact-search{grid-column:1/-1}.compact-pagination{justify-content:space-between}}
 @media(max-width:520px){.alerts-stats,.notification-destinations{grid-template-columns:1fr}.data-toolbar{grid-template-columns:1fr}.data-toolbar .compact-search{grid-column:auto}}
+.fast-badge.normal{background:rgba(255,190,85,.12);color:#ffbe55}.fast-badge.slow{background:rgba(155,170,195,.15);color:#adbcd3}
+.fast-badge.fast{background:rgba(78,226,166,.12);color:#4ee2a6}

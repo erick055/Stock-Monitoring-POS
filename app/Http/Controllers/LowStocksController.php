@@ -17,9 +17,7 @@ class LowStocksController extends Controller
     {
         $search = trim((string) $request->query('search'));
         $status = (string) $request->query('status', 'all');
-        $perPage = in_array((int) $request->query('per_page', 25), [10, 25, 50, 100], true)
-            ? (int) $request->query('per_page', 25)
-            : 25;
+        $perPage = \App\Support\TablePagination::size($request);
 
         $products = Product::query()->where('is_active', true)->get();
 
@@ -46,6 +44,7 @@ class LowStocksController extends Controller
                 ->whereRaw('current_stock <= (reorder_level * 2)'))
             ->orderBy('current_stock')
             ->orderBy('name')
+            ->orderBy('product_id')
             ->paginate($perPage)
             ->withQueryString()
             ->through(fn (Product $product) => $this->formatAlert(
@@ -59,27 +58,33 @@ class LowStocksController extends Controller
             ->where('sales_transactions.sale_date', '>=', now()->subDays(7))
             ->sum('sales_items.quantity');
 
+        $sellingSpeed = app(\App\Services\SellingSpeedService::class);
+        $velocities = $sellingSpeed->ranking()->keyBy('product_id');
         $fastMoving = SalesItem::query()
-            ->select('products.name', 'products.sku', 'products.current_stock')
+            ->select('products.product_id', 'products.name', 'products.sku', 'products.current_stock')
             ->selectRaw('SUM(sales_items.quantity) as weekly_units')
             ->join('products', 'sales_items.product_id', '=', 'products.product_id')
             ->join('sales_transactions', 'sales_items.sale_id', '=', 'sales_transactions.sale_id')
             ->where('sales_transactions.payment_status', 'paid')
             ->where('sales_transactions.sale_date', '>=', now()->subDays(7))
+            ->where('sales_transactions.sale_date', '<=', now())
             ->groupBy('products.product_id', 'products.name', 'products.sku', 'products.current_stock')
             ->orderByDesc('weekly_units')
             ->limit(5)
             ->get()
-            ->map(function ($item) {
-                $dailyDemand = max(((int) $item->weekly_units) / 7, 0.1);
+            ->map(function ($item) use ($sellingSpeed, $velocities) {
+                $dailyDemand = ((int) $item->weekly_units) / 7;
+                $daysLeft = $dailyDemand > 0 ? (int) ceil(((int) $item->current_stock) / $dailyDemand) : PHP_INT_MAX;
+                $velocity = (float) ($velocities->get($item->product_id)?->units_per_day ?? 0);
 
                 return [
                     'name' => $item->name,
                     'sku' => $item->sku,
                     'weekly' => number_format($item->weekly_units) . ' units',
                     'turnover' => number_format(((int) $item->weekly_units) / max((int) $item->current_stock, 1), 1) . 'x / wk',
-                    'days_left' => ceil(((int) $item->current_stock) / $dailyDemand) . ' days',
-                    'status' => 'Fast Moving',
+                    'days_left' => $daysLeft.' days',
+                    'units_per_day' => $velocity,
+                    'status' => $sellingSpeed->classify($daysLeft),
                 ];
             });
 
@@ -94,7 +99,9 @@ class LowStocksController extends Controller
         if (! $settings->notification_email) {
             $settings->update(['notification_email' => $request->user()->email]);
         }
-        $deliveries = StockAlertDelivery::query()->where('channel', 'email')->latest()->limit(20)->get();
+        $deliveries = StockAlertDelivery::query()->where('channel', 'email')->latest()->orderByDesc('id')
+            ->paginate(\App\Support\TablePagination::size($request, 'delivery_rows'), ['*'], 'delivery_page')
+            ->withQueryString()->fragment('notification-history');
 
         return view('admin.low-stocks', compact(
             'summary', 'activeAlerts', 'fastMoving', 'settings', 'deliveries',
@@ -118,11 +125,10 @@ class LowStocksController extends Controller
 
     public function runNow(LowStockAlertService $alerts): RedirectResponse
     {
-        // This is an explicit delivery test initiated by an administrator.
-        // Scheduled and inventory-triggered checks remain deduplicated.
+        // Manual checks include warning items but still respect pending jobs and cooldowns.
         $sent = $alerts->checkAll(force: true);
 
-        return back()->with('success', "Stock alert check completed. {$sent} new notification(s) sent.");
+        return back()->with('success', "Stock alert check completed. {$sent} new notification(s) queued.");
     }
 
     private function formatAlert(Product $product, string $status): array

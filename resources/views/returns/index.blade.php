@@ -18,12 +18,13 @@ $oldReceipt = $receipts->firstWhere('id', (int) old('sale_id'));
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta name="session-activity-url" content="{{ route('session.activity') }}">
+    @include('partials.session-activity')
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Return & Damage | MotoSync</title>
     @vite(['resources/css/dashboard.css','resources/css/returns.css','resources/css/responsive.css','resources/js/dashboard.js','resources/js/returns.js'])
+    @include('partials.appearance')
 </head>
 <body>
 <div class="dashboard-shell returns-shell">
@@ -65,9 +66,15 @@ $oldReceipt = $receipts->firstWhere('id', (int) old('sale_id'));
         </section>
 
         <section class="returns-actions-grid">
+            <button class="panel-action returns-launcher" type="button" data-open-returns-dialog="return-dialog" aria-haspopup="dialog"><i class="bi bi-arrow-return-left" aria-hidden="true"></i> Record Product Return</button>
+            <button class="panel-action returns-launcher" type="button" data-open-returns-dialog="damage-dialog" aria-haspopup="dialog"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i> Record Damaged Receipt Item</button>
+        </section>
+        <dialog id="return-dialog" class="returns-dialog" data-returns-dialog aria-labelledby="return-dialog-title" data-open-on-error="{{ $errors->any() && old('_return_form', old('reason') !== null ? 'return' : '') === 'return' ? 'true' : 'false' }}">
             <form class="panel return-form-card" method="POST" action="{{ $returnRoute }}" data-receipt-form data-form-kind="return">
                 @csrf
-                <div class="section-heading"><div><span class="section-kicker">CUSTOMER CASE</span><h2>Record Product Return</h2></div></div>
+                <input type="hidden" name="_return_form" value="return">
+                <div class="section-heading"><div><span class="section-kicker">CUSTOMER CASE</span><h2 id="return-dialog-title">Record Product Return</h2></div><button type="button" data-close-returns-dialog aria-label="Close return form"><i class="bi bi-x-lg" aria-hidden="true"></i></button></div>
+                @if($errors->any() && old('_return_form', old('reason') !== null ? 'return' : '') === 'return')<div class="returns-notice error" role="alert">{{ $errors->first() }}</div>@endif
                 <div class="form-grid">
                     <label class="wide">Customer Receipt
                         <input type="search" list="customer-receipts" value="{{ $oldReceipt['label'] ?? '' }}" placeholder="Search receipt number, date, amount, or item" autocomplete="off" required data-receipt-search>
@@ -91,11 +98,15 @@ $oldReceipt = $receipts->firstWhere('id', (int) old('sale_id'));
                 </div>
                 @if($viewRole !== 'admin')<p class="inventory-note">You can submit a return from any cashier's receipt. The owner must approve the requested refund and stock restoration.</p>@endif
                 <button class="panel-action" type="submit" @disabled($receipts->isEmpty())><i class="bi bi-check2" aria-hidden="true"></i> {{ $viewRole === 'admin' ? 'Save Product Return' : 'Submit for owner review' }}</button>
+                <button class="returns-cancel" type="button" data-close-returns-dialog>Cancel</button>
             </form>
-
+        </dialog>
+        <dialog id="damage-dialog" class="returns-dialog" data-returns-dialog aria-labelledby="damage-dialog-title" data-open-on-error="{{ $errors->any() && old('_return_form', old('damage_reason') !== null ? 'damage' : '') === 'damage' ? 'true' : 'false' }}">
             <form class="panel return-form-card" method="POST" action="{{ $damageRoute }}" data-receipt-form data-form-kind="damage">
                 @csrf
-                <div class="section-heading"><div><span class="section-kicker">CUSTOMER DAMAGE TRACKER</span><h2>Record Damaged Receipt Item</h2></div></div>
+                <input type="hidden" name="_return_form" value="damage">
+                <div class="section-heading"><div><span class="section-kicker">CUSTOMER DAMAGE TRACKER</span><h2 id="damage-dialog-title">Record Damaged Receipt Item</h2></div><button type="button" data-close-returns-dialog aria-label="Close damage form"><i class="bi bi-x-lg" aria-hidden="true"></i></button></div>
+                @if($errors->any() && old('_return_form', old('damage_reason') !== null ? 'damage' : '') === 'damage')<div class="returns-notice error" role="alert">{{ $errors->first() }}</div>@endif
                 <div class="form-grid">
                     <label class="wide">Customer Receipt
                         <input type="search" list="customer-receipts" value="{{ $oldReceipt['label'] ?? '' }}" placeholder="Search receipt number, date, amount, or item" autocomplete="off" required data-receipt-search>
@@ -118,11 +129,12 @@ $oldReceipt = $receipts->firstWhere('id', (int) old('sale_id'));
                 <p class="inventory-note">This documents an item already sold on the receipt. Current inventory will not be deducted again.</p>
                 @if($viewRole !== 'admin')<p class="inventory-note">The owner must accept this report before it appears in the Damage Log.</p>@endif
                 <button class="panel-action" type="submit" @disabled($receipts->isEmpty())>{{ $viewRole === 'admin' ? 'Save Damage Log' : 'Submit damage for review' }}</button>
+                <button class="returns-cancel" type="button" data-close-returns-dialog>Cancel</button>
             </form>
-        </section>
+        </dialog>
 
         @if($viewRole === 'admin' && $pendingDamages->isNotEmpty())
-            <section class="panel returns-panel">
+            <section class="panel returns-panel" id="pending-damages">
                 <div class="section-heading"><div><span class="section-kicker">OWNER REVIEW</span><h2>Pending Damage Reports</h2></div></div>
                 <div class="case-list">
                     @foreach($pendingDamages as $damage)
@@ -131,7 +143,8 @@ $oldReceipt = $receipts->firstWhere('id', (int) old('sale_id'));
                         </article>
                     @endforeach
                 </div>
-            </section>
+            @include('partials.ml-table-pagination', ['rows' => $pendingDamages, 'sizeName' => 'pending_rows', 'pageName' => 'pending_page', 'anchor' => 'pending-damages', 'tableLabel' => 'Pending damage reports'])
+</section>
         @endif
         <datalist id="customer-receipts">
             @foreach($receipts as $receipt)
@@ -140,7 +153,7 @@ $oldReceipt = $receipts->firstWhere('id', (int) old('sale_id'));
         </datalist>
         <script type="application/json" id="receipt-selector-data">{!! json_encode($receipts, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) !!}</script>
 
-        <section class="panel returns-panel">
+        <section class="panel returns-panel" id="customer-returns">
             <div class="section-heading"><div><span class="section-kicker">CUSTOMER CASES</span><h2>Customer Returns</h2></div></div>
             <div class="case-list">
                 @forelse($customerReturns as $return)
@@ -151,7 +164,7 @@ $oldReceipt = $receipts->firstWhere('id', (int) old('sale_id'));
                             <div class="case-meta"><span>Qty: {{ $return->quantity }}</span><span>Reason: {{ $return->reason }}</span><span>Condition: {{ ucfirst($return->item_condition) }}</span></div>
                         </div>
                         <div class="case-side">
-                            <strong class="amount">₱{{ number_format($return->refund_amount, 2) }}</strong>
+                            <strong class="amount">{{ \App\Support\Display::money($return->refund_amount) }}</strong>
                             @if($return->status === 'pending')<small>Requested refund · not approved</small>@endif
                             <span class="status {{ $return->status === 'approved' ? 'approved' : 'pending' }}">{{ ucfirst($return->status) }}</span>
                             <small>{{ $return->user?->name ?? 'System' }}</small>
@@ -168,9 +181,10 @@ $oldReceipt = $receipts->firstWhere('id', (int) old('sale_id'));
                     <div class="empty-returns">No customer returns recorded yet.</div>
                 @endforelse
             </div>
-        </section>
+        @include('partials.ml-table-pagination', ['rows' => $customerReturns, 'sizeName' => 'returns_rows', 'pageName' => 'returns_page', 'anchor' => 'customer-returns', 'tableLabel' => 'Customer returns'])
+</section>
 
-        <section class="panel returns-panel">
+        <section class="panel returns-panel" id="damage-history" data-history-panel="Damage log" data-history-page="damage_page" data-history-size="damage_rows" hidden>
             <div class="section-heading"><div><span class="section-kicker">CUSTOMER DAMAGE TRACKER</span><h2>Damage Log</h2></div></div>
             <div class="case-list">
                 @forelse($damageLogs as $log)
@@ -190,7 +204,8 @@ $oldReceipt = $receipts->firstWhere('id', (int) old('sale_id'));
                     <div class="empty-returns">No damaged goods logged yet.</div>
                 @endforelse
             </div>
-        </section>
+        @include('partials.ml-table-pagination', ['rows' => $damageLogs, 'sizeName' => 'damage_rows', 'pageName' => 'damage_page', 'anchor' => 'damage-history', 'tableLabel' => 'Damage log'])
+</section>
 
         <div class="returns-toast" data-returns-toast hidden role="status">Return and damage action saved.</div>
     </main>

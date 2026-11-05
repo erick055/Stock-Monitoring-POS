@@ -59,4 +59,19 @@ class LiveInventoryTest extends TestCase
         $this->actingAs($staff)->get(route('staff.pos'))
             ->assertOk()->assertSee('data-live-inventory-url', false)->assertSee('data-inventory-version', false);
     }
+
+    public function test_quiet_balance_updates_include_zero_stock_and_exclude_archived_products(): void
+    {
+        $owner = User::factory()->create(['role' => 'admin']);
+        $empty = Product::create(['sku' => 'LIVE-EMPTY', 'name' => 'Empty Part', 'current_stock' => 0, 'reorder_level' => 5, 'unit_cost' => 10, 'unit_price' => 20]);
+        Product::create(['sku' => 'LIVE-ACTIVE', 'name' => 'Available Part', 'current_stock' => 4, 'reorder_level' => 2, 'unit_cost' => 30, 'unit_price' => 40]);
+        Product::create(['sku' => 'LIVE-ARCHIVED', 'name' => 'Archived Part', 'current_stock' => 100, 'is_active' => false]);
+        $response = $this->actingAs($owner)->getJson(route('inventory.live', ['view' => 'balances']))->assertOk()
+            ->assertJsonCount(2, 'balances')->assertJsonPath('summary.total_sku', 2)
+            ->assertJsonPath('summary.total_units', 4)->assertJsonPath('summary.critical_low', 1);
+        $balance = collect($response->json('balances'))->firstWhere('id', $empty->product_id);
+        $this->assertSame(0, $balance['stock']);
+        $this->assertSame('critical', $balance['status']);
+        $this->get(route('admin.dashboard'))->assertOk()->assertDontSee('data-refresh-ms');
+    }
 }

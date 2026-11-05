@@ -2,8 +2,9 @@ const verification = document.querySelector('[data-email-verification]');
 
 if (verification) {
     let checking = false;
+    let retryAt = 0;
     async function checkVerification() {
-        if (checking || document.hidden) return;
+        if (checking || document.hidden || Date.now() < retryAt) return;
         checking = true;
         const controller = new AbortController();
         const timeout = window.setTimeout(() => controller.abort(), 10000);
@@ -13,6 +14,11 @@ if (verification) {
             });
             if (response.status === 401 || response.redirected) {
                 window.location.assign(verification.dataset.loginUrl);
+                return;
+            }
+            if (response.status === 429) {
+                const seconds = Math.max(1, Number(response.headers?.get('Retry-After')) || 60);
+                retryAt = Date.now() + seconds * 1000;
                 return;
             }
             if (!response.ok) return;

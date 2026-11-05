@@ -22,6 +22,7 @@ class CustomerReturn extends Model
         'refund_amount',
         'status',
         'returned_at',
+        'approved_at',
     ];
 
     protected function casts(): array
@@ -29,6 +30,7 @@ class CustomerReturn extends Model
         return [
             'refund_amount' => 'decimal:2',
             'returned_at' => 'datetime',
+            'approved_at' => 'datetime',
         ];
     }
 

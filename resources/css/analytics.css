@@ -32,7 +32,6 @@
 .velocity-table td>small{margin-top:4px;color:#858a9c;font-size:9px}
 .rank-badge{display:inline-grid;place-items:center;min-width:34px;height:28px;padding:0 7px;border-radius:7px;background:#242738;color:#cbd0df;font-weight:800}
 .rank-1{background:rgba(255,190,61,.14);color:#ffd16c}.rank-2{background:rgba(185,196,220,.13);color:#d8e0ef}.rank-3{background:rgba(194,116,67,.15);color:#dd9a70}
-.speed-score{display:grid;gap:6px;min-width:95px}.speed-score span{color:#888e9f;font-size:9px}.speed-score span strong{color:#a98aff;font-size:13px}.speed-score i{display:block;height:5px;overflow:hidden;border-radius:999px;background:#292c3a}.speed-score b{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#6740af,#a06bea)}
 .inventory-analytics-grid{grid-template-columns:1fr 1fr}
 .compact-list{max-height:260px;overflow:auto;padding-right:3px}
 .chart-insight{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;padding:9px 11px;border:1px solid #35394a;border-radius:8px;background:#0d1019}
@@ -78,4 +77,17 @@
 .future-outlook-table th,.future-outlook-table td{padding:13px 14px;text-align:left;border-bottom:1px solid #2b3040;overflow-wrap:anywhere}.future-outlook-table th{background:#191e29;color:#929bad;font-size:10px;text-transform:uppercase;letter-spacing:.04em}.future-outlook-table td{font-size:11px;line-height:1.6;vertical-align:middle;color:#d2d8e5}
 .future-outlook-table th:first-child{width:20%}.future-outlook-table th:nth-child(2){width:7%}.future-outlook-table th:nth-child(3){width:17%}.future-outlook-table th:nth-child(4){width:16%}.future-outlook-table th:nth-child(5){width:28%}.future-outlook-table th:last-child{width:12%}
 .future-outlook-table td:nth-child(5){color:#aeb4c2}.future-outlook-table td strong{display:block}.future-outlook-table td small{display:block;color:#858b9b;font-size:10px}.future-outlook-table tbody tr:hover{background:#1a1f2a}.future-pending{color:#d4b970;font-size:10px}.future-muted{color:#858b9b}.future-priority-badge{display:inline-block;padding:4px 7px;border:1px solid #454365;border-radius:6px;background:#242337;color:#c3b3e2;font-size:10px}
-@media(max-width:760px){.future-outlook-heading{align-items:flex-start;flex-direction:column}.future-outlook-header{gap:11px}.ai-demand-panel{padding:14px}}
+@media(max-width:760px){.future-outlook-heading{align-items:flex-start;flex-direction:column}.future-outlook-header{gap:11px}.ai-demand-panel{padding:14px}}.daily-transactions{min-width:0}.daily-transactions h3{margin:3px 0 12px;font-size:17px}.daily-transaction-summary{display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;padding:12px 0 18px;color:#aab1c4;font-size:12px}.daily-transaction-summary strong{color:#f1ecfb;font-size:17px}.daily-transactions-table{width:100%;min-width:580px;border-collapse:collapse;font-size:12px}.daily-transactions-table th,.daily-transactions-table td{padding:12px 9px;border-bottom:1px solid #303447;text-align:left}.daily-transactions-table th{color:#a8afc3;font-size:11px}.calendar-receipt-link{color:#c7a7f1;white-space:nowrap}.daily-transactions-pagination nav{display:flex;flex-wrap:wrap;gap:6px;margin-top:16px}.daily-transactions-pagination nav a,.daily-transactions-pagination nav span{display:grid;place-items:center;min-width:32px;min-height:32px;border:1px solid #423256;border-radius:6px;background:#1b1727;color:#e9def6;text-decoration:none}.daily-transactions-pagination .page-current{background:#6e3aa8;color:#fff;border-color:#8957db}@media(max-width:640px){.daily-transactions h3{font-size:15px}}.specific-date-view .section-heading h3{margin:0;font-size:15px}.specific-date-view .section-heading p{margin:6px 0;color:#9aa2b8;font-size:12px}
+
+.specific-date-picker{display:flex;align-items:end;flex-wrap:wrap;gap:12px;margin:14px 0 22px}.specific-date-picker label{display:grid;gap:7px;color:#aab1c4;font-size:13px}.specific-date-picker input{min-height:42px;padding:9px 12px;border:1px solid #4c396c;border-radius:7px;background:#0c0e16;color:#f5f6fa;font:inherit}.specific-date-picker button{min-height:42px}
+.daily-records-section{min-width:0}
+.daily-records-section h3{margin:0 0 14px;font-size:17px;line-height:1.4}
+.daily-refunds{margin-top:24px;padding-top:22px;border-top:1px solid #303447}
+.daily-refunds-table th{white-space:nowrap}
+.daily-refunds-table td:nth-last-child(-n+2){white-space:nowrap}
+.specific-date-view .ml-table-pagination[hidden]{display:none!important}
+.specific-date-view .ml-table-pagination{gap:12px;padding-bottom:0}
+.specific-date-picker .apply-button{padding:10px 16px;border:1px solid #8957db;border-radius:8px;font-weight:600;cursor:pointer}
+.daily-transaction-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px}
+.daily-transaction-summary>span{display:flex;flex-direction:column;gap:5px;padding:12px;border:1px solid #303447;border-radius:8px;background:#10121b}
+@media(max-width:640px){.daily-records-section h3{font-size:15px}.specific-date-view .ml-table-pagination{align-items:flex-start}.specific-date-view .ml-table-pagination nav{width:100%;justify-content:space-between}}

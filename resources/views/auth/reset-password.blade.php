@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MotoSync | Reset Password</title>
     @vite(['resources/css/role-access.css', 'resources/css/responsive.css'])
+    @include('partials.appearance')
 </head>
 <body>
 <main class="auth-shell">

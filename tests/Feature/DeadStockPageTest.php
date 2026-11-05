@@ -137,7 +137,7 @@ class DeadStockPageTest extends TestCase
 
         $this->actingAs($admin)->get(route('admin.dead-stock'))
             ->assertOk()
-            ->assertViewHas('riskItems', fn ($items) => $items->total() === 35 && $items->count() === 25 && $items->lastPage() === 2);
+            ->assertViewHas('riskItems', fn ($items) => $items->total() === 35 && $items->count() === 20 && $items->lastPage() === 2);
 
         $this->actingAs($admin)->get(route('admin.dead-stock', ['search' => 'DEAD-035']))
             ->assertOk()

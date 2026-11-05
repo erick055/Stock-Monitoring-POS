@@ -121,4 +121,20 @@ class DashboardTest extends TestCase
         auth()->logout();
         $this->get(route('admin.dashboard'))->assertRedirect(route('login'));
     }
+
+    public function test_archive_and_restore_activity_are_not_shown_as_zero_stock_releases(): void
+    {
+        $owner = User::factory()->create(['role' => 'admin']);
+        $product = Product::create(['sku' => 'ACTIVITY-ARCHIVE', 'name' => 'Archived activity part', 'current_stock' => 12]);
+        foreach (['PRODUCT_ARCHIVED', 'PRODUCT_RESTORED'] as $reason) {
+            InventoryLedger::create(['product_id' => $product->product_id, 'user_id' => $owner->id,
+                'qty_in' => 0, 'qty_out' => 0, 'reason_code' => $reason]);
+        }
+        $response = $this->actingAs($owner)->get(route('admin.dashboard'))->assertOk();
+        $activity = collect($response->viewData('dashboard')['activity']);
+        $this->assertTrue($activity->contains('title', 'Product archived'));
+        $this->assertTrue($activity->contains('title', 'Product restored'));
+        $this->assertFalse($activity->contains('title', 'Stock released'));
+        foreach ($activity as $item) $this->assertStringNotContainsString('0 unit(s)', $item['detail']);
+    }
 }

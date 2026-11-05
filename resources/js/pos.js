@@ -1,3 +1,5 @@
+import { currency as peso, plural } from './formatters';
+import { createPaymentDialog } from './payment-dialog';
 import { checkoutStorage, canDiscardCheckout } from './pending-checkout';
 
 const posApp = document.querySelector('[data-pos-app]');
@@ -26,6 +28,12 @@ if (posApp) {
     const holdUrl = posApp.dataset.holdUrl;
     const liveInventoryUrl = posApp.dataset.liveInventoryUrl;
     let inventoryVersion = posApp.dataset.inventoryVersion;
+    let inventorySyncing = false;
+    let inventoryRetryAt = 0;
+    let lastInventoryInteraction = 0;
+    for (const event of ['pointerdown', 'keydown', 'input']) {
+        posApp.addEventListener(event, () => { lastInventoryInteraction = Date.now(); }, { passive: true });
+    }
     const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
     const emptyCartMarkup = 'No products selected.<br>Add a product or enter a labor charge.';
     let currentCategory = 'All';
@@ -38,6 +46,11 @@ if (posApp) {
         setItem: (key, value) => window.localStorage.setItem(key, value),
         removeItem: (key) => window.localStorage.removeItem(key),
     }, `motosync:checkout:${posApp.dataset.cashierId}:${checkoutUrl}`);
+    const paymentFlow = createPaymentDialog(document.querySelector('[data-payment-dialog]'), {
+        getTotal: () => Math.round((currentSubtotal() + laborAmount()) * 100) / 100,
+        onConfirm: processPayment,
+    });
+    let paymentSubmitting = false;
     let recoveryBlocked = false;
     try {
         pendingCheckout = savedCheckout.load();
@@ -74,10 +87,6 @@ if (posApp) {
         }, 2200);
     }
 
-    function peso(amount) {
-        return `P${amount.toFixed(2)}`;
-    }
-
     function closeReceipt() {
         if (!receiptModal) return;
         receiptModal.hidden = true;
@@ -87,7 +96,7 @@ if (posApp) {
     function showReceipt(receipt) {
         if (!receiptModal || !receipt) return;
 
-        receiptModal.querySelector('[data-receipt-number]').textContent = `#${receipt.number}`;
+        receiptModal.querySelector('[data-receipt-number]').textContent = receipt.number;
         receiptModal.querySelector('[data-receipt-date]').textContent = receipt.date;
         receiptModal.querySelector('[data-receipt-cashier]').textContent = `Cashier: ${receipt.cashier}`;
         receiptModal.querySelector('[data-receipt-subtotal]').textContent = peso(receipt.subtotal);
@@ -96,6 +105,13 @@ if (posApp) {
         laborRow.hidden = labor <= 0;
         receiptModal.querySelector('[data-receipt-labor]').textContent = peso(labor);
         receiptModal.querySelector('[data-receipt-total]').textContent = peso(receipt.total);
+        receiptModal.querySelector('[data-receipt-payment-method]').textContent = receipt.payment_method;
+        receiptModal.querySelector('[data-receipt-tendered-row]').hidden = receipt.amount_tendered == null;
+        receiptModal.querySelector('[data-receipt-tendered]').textContent = peso(Number(receipt.amount_tendered) || 0);
+        receiptModal.querySelector('[data-receipt-change-row]').hidden = receipt.change_due == null || receipt.payment_method !== 'Cash';
+        receiptModal.querySelector('[data-receipt-change]').textContent = peso(Number(receipt.change_due) || 0);
+        receiptModal.querySelector('[data-receipt-reference-row]').hidden = !receipt.payment_reference;
+        receiptModal.querySelector('[data-receipt-reference]').textContent = receipt.payment_reference || '';
         receiptModal.querySelector('[data-receipt-print]').href = receipt.url;
 
         const items = receiptModal.querySelector('[data-receipt-items]');
@@ -131,46 +147,9 @@ if (posApp) {
 
     function prependCheckoutLog(receipt) {
         if (!checkoutLogs || !receipt) return;
-        checkoutLogs.querySelector('[data-empty-log]')?.remove();
-
-        const row = document.createElement('tr');
-        const unitCount = receipt.items.reduce((sum, item) => sum + item.quantity, 0);
-        const values = [
-            `#${receipt.number}`,
-            receipt.date,
-            receipt.cashier,
-            unitCount > 0 ? `${unitCount} unit${unitCount === 1 ? '' : 's'}` : 'Labor only',
-            receipt.payment_method,
-            peso(receipt.total),
-        ];
-
-        values.forEach((value, index) => {
-            const cell = document.createElement('td');
-            if (index === 0 || index === 5) {
-                const strong = document.createElement('strong');
-                strong.textContent = value;
-                cell.appendChild(strong);
-            } else if (index === 4) {
-                const pill = document.createElement('span');
-                pill.className = 'payment-pill';
-                pill.textContent = value;
-                cell.appendChild(pill);
-            } else {
-                cell.textContent = value;
-            }
-            row.appendChild(cell);
-        });
-
-        const documentCell = document.createElement('td');
-        const link = document.createElement('a');
-        link.className = 'receipt-link';
-        link.href = receipt.url;
-        link.target = '_blank';
-        link.rel = 'noopener';
-        link.textContent = 'View receipt';
-        documentCell.appendChild(link);
-        row.appendChild(documentCell);
-        checkoutLogs.prepend(row);
+        // Keep the paginated snapshot stable until the cashier requests fresh history.
+        const notice = document.querySelector('[data-checkout-history-update]');
+        if (notice) notice.hidden = false;
     }
 
     function updateActiveHold() {
@@ -261,7 +240,7 @@ if (posApp) {
             head.append(number, total);
 
             const meta = document.createElement('p');
-            meta.textContent = `${hold.items.reduce((sum, item) => sum + item.quantity, 0)} units | ${hold.cashier} | ${hold.date}`;
+            meta.textContent = `${plural(hold.items.reduce((sum, item) => sum + item.quantity, 0), 'unit')} | ${hold.cashier} | ${hold.date}`;
             const names = document.createElement('small');
             names.textContent = hold.items.map((item) => `${item.quantity}x ${item.name}`).join(', ');
 
@@ -321,7 +300,7 @@ if (posApp) {
             const title = document.createElement('h3');
             title.textContent = group.label;
             const count = document.createElement('span');
-            count.textContent = `${group.products.length} item${group.products.length === 1 ? '' : 's'}`;
+            count.textContent = plural(group.products.length, 'item');
             heading.append(title, count);
 
             const productList = document.createElement('div');
@@ -530,13 +509,25 @@ if (posApp) {
     }
 
     async function syncLiveInventory() {
-        if (pendingCheckout) return;
-        if (!liveInventoryUrl || document.hidden) return;
+        const busy = () => pendingCheckout || recoveryBlocked || document.hidden
+            || document.activeElement?.matches?.('input, textarea, select')
+            || document.activeElement?.closest?.('[data-cart-items]')
+            || (receiptModal && !receiptModal.hidden)
+            || document.body.classList.contains('modal-open')
+            || Date.now() - lastInventoryInteraction < 2500;
+        if (!liveInventoryUrl || inventorySyncing || Date.now() < inventoryRetryAt || busy()) return;
+        inventorySyncing = true;
+        const controller = new AbortController();
+        const timeout = window.setTimeout(() => controller.abort(), 10000);
         try {
-            const response = await fetch(liveInventoryUrl, { headers: { Accept: 'application/json' }, cache: 'no-store' });
+            const response = await fetch(liveInventoryUrl, { headers: { Accept: 'application/json' }, cache: 'no-store', signal: controller.signal });
+            if (response.status === 429) {
+                inventoryRetryAt = Date.now() + Math.max(1, Number(response.headers?.get('Retry-After')) || 60) * 1000;
+                return;
+            }
             if (!response.ok) return;
             const snapshot = await response.json();
-            if (snapshot.version === inventoryVersion) return;
+            if (snapshot.version === inventoryVersion || busy()) return;
 
             const freshProducts = Array.isArray(snapshot.products) ? snapshot.products : [];
             let adjusted = false;
@@ -558,6 +549,9 @@ if (posApp) {
             if (adjusted) showToast('Live inventory changed; the active order was updated.');
         } catch (error) {
             // Keep checkout usable and retry automatically.
+        } finally {
+            inventorySyncing = false;
+            window.clearTimeout(timeout);
         }
     }
 
@@ -571,7 +565,7 @@ if (posApp) {
         cart = [];
         laborInput.value = '';
         renderCart();
-        showToast('Order cleared in UI preview.');
+        showToast('Order cleared.');
     });
     holdButton?.addEventListener('click', async () => {
         if (activeHeldOrderId) {
@@ -627,38 +621,50 @@ if (posApp) {
     document.addEventListener('keydown', (event) => {
         if (event.key === 'Escape' && receiptModal && !receiptModal.hidden) closeReceipt();
     });
-    posApp.querySelector('[data-process-payment]')?.addEventListener('click', async (event) => {
-          if (recoveryBlocked) return;
-          if (!pendingCheckout && !cart.length && laborAmount() <= 0) {
+    posApp.querySelector('[data-process-payment]')?.addEventListener('click', () => {
+        if (recoveryBlocked) return;
+        if (!pendingCheckout && !cart.length && laborAmount() <= 0) {
             showToast('Add a product or enter a labor charge before checkout.');
             return;
         }
-        const button = event.currentTarget;
+        paymentFlow.open(pendingCheckout ? JSON.parse(pendingCheckout.body) : null);
+    });
+
+    async function processPayment(paymentDetails) {
+        if (paymentSubmitting) return false;
+        if (recoveryBlocked) return;
+        if (!pendingCheckout && !cart.length && laborAmount() <= 0) {
+            showToast('Add a product or enter a labor charge before checkout.');
+            return;
+        }
+        const button = posApp.querySelector('[data-process-payment]');
+        paymentSubmitting = true;
         button.disabled = true;
         button.classList.add('is-loading');
         try {
-        if (!pendingCheckout && savedCheckout.load()) {
-            recoveryBlocked = true;
-            throw new Error('Another tab has a pending checkout');
-        }
-        // Keep the exact request after an uncertain response, even if the UI changes.
-        pendingCheckout ??= {
-            key: crypto.randomUUID(),
-            cart: cart.map((item) => ({ ...item })),
-            body: JSON.stringify({
-                payment_method: 'cash',
-                held_order_id: activeHeldOrderId,
-                labor_amount: laborAmount(),
-                items: cart.map((item) => ({ product_id: item.id, quantity: item.qty })),
-            }),
-        };
-        // Fail closed if durable recovery storage is unavailable: do not send a sale.
-        savedCheckout.save(pendingCheckout);
-        if (!checkoutLockedControls.length) {
-            checkoutLockedControls = [...posApp.querySelectorAll('button, input')]
-                .filter((control) => control !== button && !control.disabled);
-            checkoutLockedControls.forEach((control) => { control.disabled = true; });
-        }
+            if (!pendingCheckout && savedCheckout.load()) {
+                recoveryBlocked = true;
+                throw new Error('Another tab has a pending checkout');
+            }
+            // Keep the exact request after an uncertain response, even if the UI changes.
+            pendingCheckout ??= {
+                key: crypto.randomUUID(),
+                cart: cart.map((item) => ({ ...item })),
+                body: JSON.stringify({
+                    ...paymentDetails,
+                    payment_total: Math.round((currentSubtotal() + laborAmount()) * 100) / 100,
+                    held_order_id: activeHeldOrderId,
+                    labor_amount: laborAmount(),
+                    items: cart.map((item) => ({ product_id: item.id, quantity: item.qty })),
+                }),
+            };
+            // Fail closed if durable recovery storage is unavailable: do not send a sale.
+            savedCheckout.save(pendingCheckout);
+            if (!checkoutLockedControls.length) {
+                checkoutLockedControls = [...posApp.querySelectorAll('button, input')]
+                    .filter((control) => control !== button && !control.disabled);
+                checkoutLockedControls.forEach((control) => { control.disabled = true; });
+            }
             const response = await fetch(checkoutUrl, {
                 method: 'POST',
                 headers: {
@@ -673,6 +679,7 @@ if (posApp) {
             if (!response.ok) {
                 const error = payload.message || Object.values(payload.errors || {})?.flat()?.[0] || 'Checkout failed.';
                 showToast(error);
+                paymentFlow.setError(error);
                 if (canDiscardCheckout(response.status)) {
                     savedCheckout.clear(pendingCheckout);
                     pendingCheckout = null;
@@ -698,8 +705,11 @@ if (posApp) {
             showReceipt(payload.receipt);
             showToast(payload.message || 'Payment processed and saved.');
             syncLiveInventory();
+            return true;
         } catch (error) {
-            showToast('Payment status is uncertain. Click payment again to safely retry the same order.');
+            const message = 'Payment status is uncertain. Retry payment to safely recover the same order.';
+            showToast(message);
+            paymentFlow.setError(message);
         } finally {
             if (!pendingCheckout) {
                 checkoutLockedControls.forEach((control) => { control.disabled = false; });
@@ -707,10 +717,12 @@ if (posApp) {
             }
             button.disabled = false;
             button.classList.remove('is-loading');
+            paymentSubmitting = false;
+            paymentFlow.setPending(pendingCheckout ? JSON.parse(pendingCheckout.body) : null);
             if (pendingCheckout || recoveryBlocked) lockPendingCheckout();
             else posApp.querySelector('[data-pending-checkout]').hidden = true;
         }
-    });
+    }
 
     bindCategoryButtons();
     renderProducts();
@@ -718,6 +730,6 @@ if (posApp) {
     renderHeldOrders();
     updateActiveHold();
     lockPendingCheckout();
-    window.setInterval(syncLiveInventory, 5000);
-    window.setTimeout(syncLiveInventory, 800);
+    window.setInterval(syncLiveInventory, 15000);
+    window.setTimeout(syncLiveInventory, 1500);
 }

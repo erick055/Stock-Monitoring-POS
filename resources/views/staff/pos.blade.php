@@ -14,12 +14,13 @@ $activeIndex = $isAdmin ? 3 : 2;
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta name="session-activity-url" content="{{ route('session.activity') }}">
+    @include('partials.session-activity')
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ $isAdmin ? 'Owner' : 'Staff' }} POS Checkout | MotoSync</title>
     <meta name="csrf-token" content="{{ csrf_token() }}">
     @vite(['resources/css/dashboard.css','resources/css/pos.css','resources/css/responsive.css','resources/js/dashboard.js','resources/js/pos.js'])
+    @include('partials.appearance')
 </head>
 <body>
 <div class="dashboard-shell pos-shell">
@@ -93,16 +94,16 @@ $activeIndex = $isAdmin ? 3 : 2;
                 </label>
 
                 <div class="cart-summary">
-                    <div class="summary-row"><span>Subtotal</span><span data-subtotal>P0.00</span></div>
-                    <div class="summary-row"><span>Labor</span><span data-labor-total>P0.00</span></div>
-                    <div class="summary-row total"><span>Total</span><span data-total>P0.00</span></div>
+                    <div class="summary-row"><span>Subtotal</span><span data-subtotal>₱0.00</span></div>
+                    <div class="summary-row"><span>Labor</span><span data-labor-total>₱0.00</span></div>
+                    <div class="summary-row total"><span>Total</span><span data-total>₱0.00</span></div>
                 </div>
 
                 <div class="cart-actions">
                     <button class="btn btn-clear" type="button" data-clear-cart>Clear</button>
                     <button class="btn btn-hold" type="button" data-hold-order>Hold Order</button>
-                    <button class="btn btn-pay" type="button" data-process-payment aria-describedby="charge-action-note">Charge <span data-pay-total>P0.00</span></button>
-                    <p id="charge-action-note" class="charge-action-note">Once you proceed, this action cannot be undone.</p>
+                    <button class="btn btn-pay" type="button" data-process-payment aria-describedby="charge-action-note">Charge <span data-pay-total>₱0.00</span></button>
+                    <p id="charge-action-note" class="charge-action-note">Review payment details before confirming the sale.</p>
                 </div>
             </aside>
         </section>
@@ -121,17 +122,18 @@ $activeIndex = $isAdmin ? 3 : 2;
             </div>
         </section>
 
-        <section class="checkout-log panel" aria-labelledby="checkout-log-title">
+        <section class="checkout-log panel" aria-labelledby="checkout-log-title" id="checkout-history" data-history-panel="Checkout log" data-history-page="checkout_page" data-history-size="checkout_rows" hidden>
             <div class="checkout-log-head">
                 <div>
                     <span class="section-kicker">DOCUMENTATION</span>
                     <h2 id="checkout-log-title">Checkout Log</h2>
                     <p>Recent completed transactions and their permanent receipts.</p>
                 </div>
-                <span class="log-count">Latest 25 sales</span>
+                <span class="log-count">{{ number_format($checkoutLogs->total()) }} sales</span>
             </div>
 
             <div class="table-wrap checkout-log-table">
+                <p data-checkout-history-update hidden role="status">A checkout was saved. <a href="{{ request()->fullUrlWithoutQuery('checkout_page') }}#checkout-history">Refresh checkout history</a> to see the updated records.</p>
                 <table>
                     <thead>
                     <tr>
@@ -146,27 +148,34 @@ $activeIndex = $isAdmin ? 3 : 2;
                     </thead>
                     <tbody data-checkout-logs>
                     @forelse($checkoutLogs as $sale)
-                        <tr>
-                            <td><strong>POS-{{ str_pad($sale->sale_id, 6, '0', STR_PAD_LEFT) }}</strong></td>
-                            <td>{{ $sale->sale_date->format('M d, Y h:i A') }}</td>
-                            <td>{{ $sale->staff?->name ?? 'Former staff' }}</td>
-                            <td>{{ (int) $sale->units_count > 0 ? (int) $sale->units_count.' unit'.((int) $sale->units_count === 1 ? '' : 's') : 'Labor only' }}</td>
-                            <td><span class="payment-pill">{{ ucfirst($sale->payment_method) }}</span></td>
-                            <td><strong>P{{ number_format($sale->total_sale_amount, 2) }}</strong></td>
-                            <td><a class="receipt-link" href="{{ route($posRoutePrefix.'.receipts.show', $sale) }}" target="_blank" rel="noopener">View receipt</a></td>
-                        </tr>
+                        @include('staff.partials-checkout-row')
                     @empty
                         <tr data-empty-log><td colspan="7" class="empty-log">No completed checkouts yet.</td></tr>
                     @endforelse
                     </tbody>
                 </table>
             </div>
-        </section>
+        @include('partials.ml-table-pagination', ['rows' => $checkoutLogs, 'sizeName' => 'checkout_rows', 'pageName' => 'checkout_page', 'anchor' => 'checkout-history', 'tableLabel' => 'Checkout log'])
+</section>
 
-        <div class="pos-toast" data-pos-toast hidden role="status">Order action saved in UI preview.</div>
+        <div class="pos-toast" data-pos-toast hidden role="status">Order updated.</div>
     </main>
 </div>
 
+<dialog class="payment-dialog" data-payment-dialog aria-labelledby="payment-dialog-title">
+    <form novalidate>
+        <h2 id="payment-dialog-title">Payment</h2>
+        <p class="payment-dialog-total">Total due <strong data-payment-total></strong></p>
+        <label>Payment method<select data-payment-method><option value="cash">Cash</option><option value="gcash">GCash</option><option value="maya">Maya</option><option value="card">Card</option></select></label>
+        <div data-cash-fields>
+            <label>Cash tendered (₱)<input type="number" min="0" max="9999999999.99" step="0.01" inputmode="decimal" data-payment-tendered></label>
+            <p>Change due <strong data-payment-change aria-live="polite"></strong></p>
+        </div>
+        <div data-reference-fields hidden><label>Payment reference number<input type="text" maxlength="255" autocomplete="off" data-payment-reference></label></div>
+        <p data-payment-hint role="status"></p>
+        <div class="receipt-modal-actions"><button class="btn btn-hold" type="button" data-cancel-payment>Cancel</button><button class="btn btn-pay" type="submit" data-confirm-payment disabled>Confirm payment</button></div>
+    </form>
+</dialog>
 <div class="receipt-modal" data-receipt-modal hidden role="dialog" aria-modal="true" aria-labelledby="receipt-preview-title">
     <div class="receipt-modal-card">
         <div class="receipt-modal-head">
@@ -185,6 +194,10 @@ $activeIndex = $isAdmin ? 3 : 2;
             <div class="receipt-preview-totals">
                 <div><span>Subtotal</span><strong data-receipt-subtotal></strong></div>
                 <div data-receipt-labor-row><span>Labor</span><strong data-receipt-labor></strong></div>
+                <div><span>Payment method</span><strong data-receipt-payment-method></strong></div>
+                <div data-receipt-tendered-row><span>Cash tendered</span><strong data-receipt-tendered></strong></div>
+                <div data-receipt-change-row><span>Change due</span><strong data-receipt-change></strong></div>
+                <div data-receipt-reference-row><span>Payment reference</span><strong data-receipt-reference></strong></div>
                 <div class="receipt-preview-total"><span>Total paid</span><strong data-receipt-total></strong></div>
             </div>
         </div>

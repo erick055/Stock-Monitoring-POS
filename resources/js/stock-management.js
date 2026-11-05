@@ -1,11 +1,14 @@
+import { plural } from './formatters';
 import './inventory-live-reload';
+import './stock-archive';
+import './archived-products';
 
 const statusFilter = document.querySelector('[data-status-filter]');
 const filterForm = document.querySelector('[data-filter-form]');
 const modal = document.querySelector('[data-product-modal]');
 const firstProductInput = modal?.querySelector('input[name="sku"]');
 
-statusFilter?.addEventListener('change', () => filterForm?.submit());
+statusFilter?.addEventListener('change', () => filterForm?.requestSubmit());
 
 function openProductModal() {
     if (!modal) return;
@@ -101,7 +104,7 @@ function openEditProductModal(button) {
     setEditValue('unit_price', button.dataset.productUnitPrice);
     setEditValue('reorder_level', button.dataset.productReorderLevel);
     editTitle.textContent = button.dataset.productName;
-    editStock.textContent = `${Number(button.dataset.productStock || 0).toLocaleString()} units`;
+    editStock.textContent = plural(Number(button.dataset.productStock || 0), 'unit');
     editModal.querySelector('.modal-form-errors')?.setAttribute('hidden', '');
 
     const promotion = button.dataset.productPromotion;
@@ -118,8 +121,9 @@ function closeEditProductModal() {
     document.body.classList.remove('modal-open');
 }
 
-document.querySelectorAll('[data-edit-product]').forEach((button) => {
-    button.addEventListener('click', () => openEditProductModal(button));
+document.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-edit-product]');
+    if (button) openEditProductModal(button);
 });
 document.querySelectorAll('[data-close-edit-product]').forEach((button) => button.addEventListener('click', closeEditProductModal));
 document.addEventListener('keydown', (event) => {
@@ -131,7 +135,7 @@ if (editModal?.dataset.openOnError === 'true') {
     const failedButton = document.querySelector(`[data-edit-product][data-product-id="${failedProductId}"]`);
     if (failedButton) {
         editTitle.textContent = failedButton.dataset.productName;
-        editStock.textContent = `${Number(failedButton.dataset.productStock || 0).toLocaleString()} units`;
+        editStock.textContent = plural(Number(failedButton.dataset.productStock || 0), 'unit');
         const promotion = failedButton.dataset.productPromotion;
         editPromotionNote.hidden = !promotion;
         editPromotionNote.textContent = promotion
@@ -170,8 +174,9 @@ function closeDeleteProductModal() {
     document.body.classList.remove('modal-open');
 }
 
-document.querySelectorAll('[data-delete-product]').forEach((button) => {
-    button.addEventListener('click', () => openDeleteProductModal(button));
+document.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-delete-product]');
+    if (button) openDeleteProductModal(button);
 });
 document.querySelectorAll('[data-close-delete-product]').forEach((button) => button.addEventListener('click', closeDeleteProductModal));
 
@@ -192,20 +197,20 @@ if (movementForm) {
         in: {
             title: 'Stock In adds units to the selected product.',
             text: 'Use this for supplier deliveries, customer returns accepted back into stock, or recovered inventory.',
-            quantityLabel: '3. Quantity received (+)', quantityHelp: 'Use - or + to add or deduct',
-            counterparty: '6. Supplier / source', placeholder: 'Supplier, customer, or stock source', button: 'Record stock in', sign: 1,
+            quantityLabel: 'Quantity received (+)', quantityHelp: 'Use - or + to add or deduct',
+            counterparty: 'Supplier / source', placeholder: 'Supplier, customer, or stock source', button: 'Record stock in', sign: 1,
         },
         out: {
             title: 'Stock Out removes units from the selected product.',
             text: 'Use this for manual releases, damaged goods, supplier returns, or internal shop use. Stock cannot go below zero.',
-            quantityLabel: '3. Quantity released (−)', quantityHelp: 'Use - or + to add or deduct',
-            counterparty: '6. Recipient / destination', placeholder: 'Customer, supplier, department, or destination', button: 'Record stock out', sign: -1,
+            quantityLabel: 'Quantity released (−)', quantityHelp: 'Use - or + to add or deduct',
+            counterparty: 'Recipient / destination', placeholder: 'Customer, supplier, department, or destination', button: 'Record stock out', sign: -1,
         },
         adjustment: {
             title: 'Adjustment corrects the recorded balance by a difference.',
             text: 'Enter a positive number to add missing units or a negative number to remove excess units after a physical count.',
-            quantityLabel: '3. Quantity difference (+/−)', quantityHelp: 'Use - or + to add or deduct',
-            counterparty: '6. Counted / authorized by', placeholder: 'Person who verified or authorized the correction', button: 'Save stock adjustment', sign: null,
+            quantityLabel: 'Quantity difference (+/−)', quantityHelp: 'Use - or + to add or deduct',
+            counterparty: 'Counted / authorized by', placeholder: 'Person who verified or authorized the correction', button: 'Save stock adjustment', sign: null,
         },
     };
 
@@ -223,10 +228,10 @@ if (movementForm) {
         const change = type === 'adjustment' ? entered : Math.abs(entered) * config.sign;
         const result = stock + change;
 
-        movementForm.querySelector('[data-current-stock]').textContent = hasProduct ? `${stock} units` : '—';
-        movementForm.querySelector('[data-stock-change]').textContent = hasQuantity ? `${change > 0 ? '+' : ''}${change} units` : '—';
+        movementForm.querySelector('[data-current-stock]').textContent = hasProduct ? plural(stock, 'unit') : '—';
+        movementForm.querySelector('[data-stock-change]').textContent = hasQuantity ? `${change > 0 ? '+' : ''}${plural(change, 'unit')}` : '—';
         const resultElement = movementForm.querySelector('[data-resulting-stock]');
-        resultElement.textContent = hasProduct && hasQuantity ? `${result} units` : '—';
+        resultElement.textContent = hasProduct && hasQuantity ? plural(result, 'unit') : '—';
         resultElement.classList.toggle('invalid-stock', hasProduct && hasQuantity && result < 0);
     }
 
@@ -257,4 +262,30 @@ if (movementForm) {
     quantityInput.addEventListener('input', updateResult);
     updateMovementType();
     if (oldReason && [...reasonInput.options].some((option) => option.value === oldReason && !option.disabled)) reasonInput.value = oldReason;
+
+    const movementDialog = document.querySelector('[data-movement-dialog]');
+    const titles = { in: 'Stock In', out: 'Stock Out', adjustment: 'Stock Adjustment' };
+    function openMovement(type) {
+        if (!movementDialog || !configurations[type]) return;
+        typeInput.value = type;
+        updateMovementType();
+        movementDialog.querySelector('[data-movement-dialog-title]').textContent = titles[type];
+        movementDialog.showModal();
+        document.body.classList.add('modal-open');
+        productInput.focus();
+    }
+    document.querySelectorAll('[data-open-movement]').forEach((button) => {
+        button.addEventListener('click', () => {
+            if (typeInput.value !== button.dataset.openMovement) {
+                quantityInput.value = '';
+                reasonInput.value = '';
+            }
+            openMovement(button.dataset.openMovement);
+        });
+    });
+    movementDialog?.querySelectorAll('[data-close-movement]').forEach((button) => {
+        button.addEventListener('click', () => movementDialog.close());
+    });
+    movementDialog?.addEventListener('close', () => document.body.classList.remove('modal-open'));
+    if (movementDialog?.dataset.openOnError === 'true') openMovement(selectedType());
 }

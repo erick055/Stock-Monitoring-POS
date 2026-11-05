@@ -6,6 +6,8 @@ export default defineConfig({
     plugins: [
         laravel({
             input: [
+                'resources/css/appearance.css',
+                'resources/js/appearance.js',
                 'resources/css/app.css',
                 'resources/js/app.js',
                 'resources/css/dashboard.css',

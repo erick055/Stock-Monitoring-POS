@@ -14,7 +14,7 @@ class SendDailyStockSummary extends Command
     public function handle(LowStockAlertService $alerts): int
     {
         $sent = $alerts->sendDailySummaryIfDue((bool) $this->option('force'));
-        $this->info($sent ? 'Daily stock summary sent.' : 'Daily stock summary was not due or is disabled.');
+        $this->info($sent ? 'Daily stock summary queued.' : 'Daily stock summary was not due or is disabled.');
 
         return self::SUCCESS;
     }

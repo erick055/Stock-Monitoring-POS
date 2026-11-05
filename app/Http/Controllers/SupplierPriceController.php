@@ -29,6 +29,7 @@ class SupplierPriceController extends Controller
 
         $search = trim((string) $request->query('search'));
         $importSearch = trim((string) $request->query('import_search'));
+        $perPage = \App\Support\TablePagination::size($request);
         $sort = (string) $request->query('sort', 'updated_desc');
         $sorts = [
             'updated_desc' => ['last_updated_at', 'desc'],
@@ -65,9 +66,10 @@ class SupplierPriceController extends Controller
             $pricesQuery->orderBy($sortColumn, $sortDirection);
         }
 
+        $priceSummaryQuery = clone $pricesQuery;
         $prices = $pricesQuery
             ->orderBy('supplier_price_id')
-            ->get();
+            ->paginate($perPage, ['*'], 'prices_page')->withQueryString();
 
         $catalogProducts = Product::query()
             ->where('is_active', true)
@@ -79,6 +81,9 @@ class SupplierPriceController extends Controller
             ->latest()
             ->orderByDesc('supplier_import_id')
             ->get();
+        $importHistory = SupplierImport::query()->with('supplier')->latest()->orderByDesc('supplier_import_id')
+            ->paginate(\App\Support\TablePagination::size($request, 'history_rows'), ['*'], 'history_page')
+            ->withQueryString()->fragment('import-history');
 
         $selectedImport = null;
         $importRows = null;
@@ -96,69 +101,95 @@ class SupplierPriceController extends Controller
                             ->orWhere('sku', 'like', "%{$importSearch}%"));
                 }))
                 ->orderBy('row_number')->orderBy('supplier_import_row_id')
-                ->paginate(25, ['*'], 'import_page')->withQueryString();
+                ->paginate(\App\Support\TablePagination::size($request, 'import_rows'), ['*'], 'import_page')->withQueryString()->fragment('import-records');
         }
 
         $summary = [
             'suppliers' => Supplier::query()->where('is_active', true)->count(),
-            'prices' => $prices->count(),
-            'changes' => $prices->filter(fn ($price) => $price->previous_price !== null && $price->unit_price !== $price->previous_price)->count(),
-            'stale' => $prices->filter(fn ($price) => $price->last_updated_at->lt(now()->subDays(30)))->count(),
+            'prices' => $prices->total(),
+            'changes' => (clone $priceSummaryQuery)->reorder()->whereNotNull('previous_price')->whereColumn('unit_price', '!=', 'previous_price')->count(),
+            'stale' => (clone $priceSummaryQuery)->reorder()->where('last_updated_at', '<', now()->subDays(30))->count(),
         ];
 
-        return view('admin.suppliers', compact('prices', 'imports', 'selectedImport', 'importRows', 'summary', 'catalogProducts', 'sort', 'search', 'importSearch'));
+        return view('admin.suppliers', compact('prices', 'imports', 'importHistory', 'selectedImport', 'importRows', 'summary', 'catalogProducts', 'sort', 'search', 'importSearch', 'perPage'));
     }
 
-    public function upload(Request $request, SupplierSpreadsheetImporter $importer): RedirectResponse
+    public function upload(Request $request, SupplierSpreadsheetImporter $importer, \App\Services\AiSupplierPriceExtractor $extractor): RedirectResponse
     {
+        $request->merge(['default_currency' => Str::upper(trim((string) $request->input('default_currency', 'PHP')))]);
+        $mode = $request->input('import_mode', 'spreadsheet');
+        $types = $mode === 'ai' ? 'csv,txt,xlsx,pdf,docx,png,jpg,jpeg,webp' : 'csv,txt,xlsx';
         $validated = $request->validate([
             'supplier_name' => ['required', 'string', 'max:150'],
             'supplier_code' => ['required', 'string', 'max:50', 'regex:/^[A-Za-z0-9_-]+$/'],
-            'price_file' => ['required', 'file', 'max:10240', 'mimes:csv,txt,xlsx'],
+            'import_mode' => ['nullable', Rule::in(['spreadsheet', 'ai'])],
+            'default_currency' => ['required', 'regex:/^[A-Z]{3}$/'],
+            'price_file' => ['required', 'file', 'max:'.($mode === 'ai' ? '5120' : '10240'), 'mimes:'.$types],
         ]);
-
         $file = $request->file('price_file');
         $fileHash = hash_file('sha256', $file->getRealPath());
         $duplicate = SupplierImport::query()->where('file_hash', $fileHash)->first();
-        if ($duplicate) {
-            throw ValidationException::withMessages([
-                'price_file' => 'This exact file was already imported on '.$duplicate->created_at->format('M d, Y h:i A').'. Choose a newer price list.',
-            ]);
-        }
-
-        $supplier = Supplier::query()->updateOrCreate(
-            ['code' => Str::upper($validated['supplier_code'])],
-            ['name' => trim($validated['supplier_name']), 'is_active' => true],
-        );
-
-        $import = SupplierImport::create([
-            'supplier_id' => $supplier->supplier_id,
-            'source_filename' => $file->getClientOriginalName(),
-            'file_hash' => $fileHash,
-            'status' => 'pending',
-            'uploaded_by' => $request->user()->id,
-        ]);
-
+        if ($duplicate) throw ValidationException::withMessages(['price_file' => 'This exact file was already imported on '.$duplicate->created_at->format('M d, Y h:i A').'. Choose a newer price list.']);
         try {
-            $importer->stage($import, $file->getRealPath(), $file->getClientOriginalExtension());
+            $rows = $mode === 'ai' ? $extractor->extract($file, $validated['default_currency']) : null;
+            $import = DB::transaction(function () use ($request, $validated, $file, $fileHash, $mode, $rows, $importer) {
+                $supplier = Supplier::query()->updateOrCreate(
+                    ['code' => Str::upper($validated['supplier_code'])],
+                    ['name' => trim($validated['supplier_name']), 'is_active' => true],
+                );
+                $import = SupplierImport::create([
+                    'supplier_id' => $supplier->supplier_id,
+                    'source_filename' => mb_substr(basename($file->getClientOriginalName()), 0, 255),
+                    'file_hash' => $fileHash, 'status' => 'pending', 'uploaded_by' => $request->user()->id,
+                    'extraction_method' => $mode, 'extraction_model' => $mode === 'ai' ? config('openai.supplier_import_model') : null,
+                ]);
+                if ($mode === 'ai') $importer->stageExtractedRows($import, $rows, $validated['default_currency']);
+                else $importer->stage($import, $file->getRealPath(), $file->getClientOriginalExtension());
+                return $import;
+            });
         } catch (InvalidArgumentException $exception) {
-            $import->delete();
-
-            return back()->withErrors(['price_file' => $exception->getMessage()])->withInput();
+            return back()->withErrors(['price_file' => $exception->getMessage()])->withInput($request->except('price_file'));
+        } catch (\Throwable $exception) {
+            report($exception);
+            return back()->withErrors(['price_file' => 'The document could not be imported. Try a clearer or smaller file, or use a formatted CSV/XLSX. No prices were published.'])->withInput($request->except('price_file'));
         }
-
         return redirect()->route('admin.suppliers', ['import' => $import->supplier_import_id])
-            ->with('success', 'Spreadsheet staged. Review the rows before approval.');
+            ->with('success', $mode === 'ai' ? 'AI extraction staged. Check every SKU, product name, and unit price before approval. Edit flagged rows to confirm or correct them.' : 'Spreadsheet staged. Review the rows before approval.');
     }
 
+    public function updateImportRow(Request $request, SupplierImport $supplierImport, SupplierImportRow $row, SupplierSpreadsheetImporter $importer): RedirectResponse
+    {
+        abort_unless((int) $row->supplier_import_id === (int) $supplierImport->supplier_import_id, 404);
+        $request->merge([
+            'supplier_sku' => trim((string) $request->input('supplier_sku')),
+            'product_name' => trim((string) $request->input('product_name')),
+            'currency' => Str::upper(trim((string) $request->input('currency'))),
+        ]);
+        $values = $request->validate([
+            'supplier_sku' => ['required', 'string', 'max:255'], 'product_name' => ['required', 'string', 'max:255'],
+            'unit_price' => ['required', 'numeric', 'gt:0', 'max:9999999999.99'], 'currency' => ['required', 'regex:/^[A-Z]{3}$/'],
+            'confirm_review' => ['accepted'],
+        ]);
+        unset($values['confirm_review']);
+        DB::transaction(function () use ($supplierImport, $row, $values, $importer) {
+            $locked = SupplierImport::query()->lockForUpdate()->findOrFail($supplierImport->supplier_import_id);
+            abort_unless($locked->status === 'pending' && !$locked->archived_at, 403, 'Only pending imports can be corrected.');
+            $lockedRow = $locked->rows()->lockForUpdate()->findOrFail($row->supplier_import_row_id);
+            $importer->reviseRow($locked, $lockedRow, $values);
+        });
+        return back()->with('success', 'Import row reviewed and saved. Check the remaining rows before publishing.');
+    }
     public function approve(Request $request, SupplierImport $supplierImport, SupplierProductMatcher $productMatcher): RedirectResponse
     {
         abort_unless($supplierImport->status === 'pending' && ! $supplierImport->archived_at, 409, 'This import has already been processed or archived.');
         if ($supplierImport->error_count > 0) {
-            return back()->withErrors(['import' => 'Correct the spreadsheet errors and upload a new file before approval.']);
+            return back()->withErrors(['import' => 'Review and correct the flagged import rows before approval.']);
         }
 
         DB::transaction(function () use ($request, $supplierImport, $productMatcher) {
+            $supplierImport = SupplierImport::query()->lockForUpdate()->findOrFail($supplierImport->supplier_import_id);
+            abort_unless($supplierImport->status === 'pending' && !$supplierImport->archived_at, 409, 'This import has already been processed or archived.');
+            if ($supplierImport->error_count > 0) throw ValidationException::withMessages(['import' => 'Review and correct the flagged import rows before approval.']);
             $supplierImport->load('rows');
 
             foreach ($supplierImport->rows as $row) {
@@ -189,7 +220,7 @@ class SupplierPriceController extends Controller
                     'minimum_order_quantity' => $row->minimum_order_quantity,
                     'lead_time_days' => $row->lead_time_days,
                     'effective_date' => $row->effective_date,
-                    'source_type' => 'spreadsheet',
+                    'source_type' => $supplierImport->extraction_method === 'ai' ? 'ai_document' : 'spreadsheet',
                     'source_filename' => $supplierImport->source_filename,
                     'last_updated_at' => now(),
                 ])->save();
@@ -441,8 +472,11 @@ class SupplierPriceController extends Controller
 
     public function reject(SupplierImport $supplierImport): RedirectResponse
     {
-        abort_unless($supplierImport->status === 'pending', 409, 'This import has already been processed.');
-        $supplierImport->update(['status' => 'rejected']);
+        DB::transaction(function () use ($supplierImport) {
+            $supplierImport = SupplierImport::query()->lockForUpdate()->findOrFail($supplierImport->supplier_import_id);
+            abort_unless($supplierImport->status === 'pending' && !$supplierImport->archived_at, 409, 'This import has already been processed or archived.');
+            $supplierImport->update(['status' => 'rejected']);
+        });
 
         return redirect()->route('admin.suppliers')->with('success', 'Import rejected. No prices were changed.');
     }

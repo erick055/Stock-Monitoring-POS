@@ -8,12 +8,13 @@ $navigation = [
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta name="session-activity-url" content="{{ route('session.activity') }}">
+    @include('partials.session-activity')
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stock Alerts | MotoSync</title>
     @vite(['resources/css/dashboard.css','resources/css/low-stocks.css','resources/css/responsive.css','resources/js/dashboard.js','resources/js/low-stocks.js'])
+    @include('partials.appearance')
 </head>
 <body>
 <div class="dashboard-shell alerts-shell">
@@ -44,20 +45,20 @@ $navigation = [
         <section class="stat-grid alerts-stats" aria-label="Stock alert summary">
             <article class="stat-card red"><div class="stat-head"><span>CRITICAL LOW STOCK</span><span class="trend-dot"></span></div><strong>{{ number_format($summary['critical_low']) }}</strong><small>At or below reorder level</small></article>
             <article class="stat-card orange"><div class="stat-head"><span>LOW STOCK WARNING</span><span class="trend-dot"></span></div><strong>{{ number_format($summary['low_warning']) }}</strong><small>Near reorder point</small></article>
-            <article class="stat-card purple"><div class="stat-head"><span>AVG DAILY SALES</span><span class="trend-dot"></span></div><strong>{{ number_format($summary['avg_daily_sales'], 1) }} units</strong><small>Based on last 7 days POS sales</small></article>
-            <article class="stat-card violet"><div class="stat-head"><span>AVG WEEKLY DEMAND</span><span class="trend-dot"></span></div><strong>{{ number_format($summary['avg_weekly_demand']) }} units</strong><small>Rolling 7-day demand</small></article>
+            <article class="stat-card purple"><div class="stat-head"><span>AVG DAILY SALES</span><span class="trend-dot"></span></div><strong>{{ \App\Support\Display::count($summary['avg_daily_sales'], 'unit', null, 1) }}</strong><small>Based on last 7 days POS sales</small></article>
+            <article class="stat-card violet"><div class="stat-head"><span>AVG WEEKLY DEMAND</span><span class="trend-dot"></span></div><strong>{{ \App\Support\Display::count($summary['avg_weekly_demand'], 'unit') }}</strong><small>Rolling 7-day demand</small></article>
         </section>
 
-        <section class="panel alerts-panel">
+        <section class="panel alerts-panel" id="stock-alerts">
             <div class="section-heading">
                 <div><span class="section-kicker">LIVE INVENTORY WATCH</span><h2>Active Stock Alerts</h2><small>{{ number_format($activeAlerts->total()) }} matching products</small></div>
             </div>
             <form class="data-toolbar" method="GET" action="{{ route('admin.low-stocks') }}">
                 <label class="compact-search"><span>Search</span><input name="search" value="{{ $search }}" placeholder="Product, SKU, or category"></label>
                 <label><span>Status</span><select name="status"><option value="all" @selected($status === 'all')>All alerts</option><option value="critical" @selected($status === 'critical')>Critical</option><option value="warning" @selected($status === 'warning')>Warning</option></select></label>
-                <label><span>Rows</span><select name="per_page">@foreach([10,25,50,100] as $size)<option value="{{ $size }}" @selected($perPage === $size)>{{ $size }}</option>@endforeach</select></label>
+                <label><span>Rows</span><select name="per_page">@foreach([20,50,100] as $size)<option value="{{ $size }}" @selected($perPage === $size)>{{ $size }}</option>@endforeach</select></label>
                 <button type="submit">Apply</button>
-                @if($search || $status !== 'all' || $perPage !== 25)<a href="{{ route('admin.low-stocks') }}">Reset</a>@endif
+                @if($search || $status !== 'all' || $perPage !== 20)<a href="{{ route('admin.low-stocks') }}">Reset</a>@endif
             </form>
             <div class="table-wrap compact-alert-table">
                 <table>
@@ -78,19 +79,14 @@ $navigation = [
                     </tbody>
                 </table>
             </div>
-            @if($activeAlerts->hasPages())
-                <nav class="compact-pagination" aria-label="Stock alert pages">
-                    @if($activeAlerts->onFirstPage())<span>Previous</span>@else<a href="{{ $activeAlerts->previousPageUrl() }}">Previous</a>@endif
-                    <strong>Page {{ $activeAlerts->currentPage() }} of {{ $activeAlerts->lastPage() }}</strong>
-                    @if($activeAlerts->hasMorePages())<a href="{{ $activeAlerts->nextPageUrl() }}">Next</a>@else<span>Next</span>@endif
-                </nav>
-            @endif
+            @include('partials.ml-table-pagination', ['rows' => $activeAlerts, 'sizeName' => 'per_page', 'pageName' => 'page', 'anchor' => 'stock-alerts', 'tableLabel' => 'Stock alerts'])
         </section>
 
         <section class="panel fast-panel">
             <div class="section-heading">
-                <div><span class="section-kicker">MOVEMENT SIGNAL</span><h2>Fast Moving Item Analysis</h2></div>
+                <div><span class="section-kicker">MOVEMENT SIGNAL</span><h2>Item Movement Analysis</h2></div>
             </div>
+            <p>Sales velocity uses the same 30-day paid sales calculation as Analytics. Stock cover uses current stock divided by average daily sales over the past 7 days: Fast ≤14 days left, Normal 15–60 days, Slow over 60 days.</p>
             <div class="fast-list">
                 @forelse($fastMoving as $item)
                     <article class="fast-card">
@@ -100,10 +96,10 @@ $navigation = [
                         </div>
                         <div><span>Turnover Trend</span><strong>{{ $item['turnover'] }}</strong></div>
                         <div><span>Days Left</span><strong>{{ $item['days_left'] }}</strong></div>
-                        <span class="fast-badge">{{ $item['status'] }}</span>
+                        <div><span>Sales velocity</span><strong>{{ number_format($item['units_per_day'], 2) }} units/day</strong><span class="fast-badge {{ $item['status'] === 'Slow Moving' ? 'slow' : ($item['status'] === 'Normal' ? 'normal' : 'fast') }}">{{ $item['status'] }}</span></div>
                     </article>
                 @empty
-                    <div class="empty-alert">No POS sales yet. Fast-moving items will appear after staff checkout transactions.</div>
+                    <div class="empty-alert">No POS sales in the past seven days. Item movement will appear after checkout transactions.</div>
                 @endforelse
             </div>
         </section>
@@ -117,7 +113,7 @@ $navigation = [
                 @csrf
                 <div class="settings-grid">
                     <label class="setting-card">
-                        <span>Email Notification</span><small>Send immediate warning and critical alerts</small>
+                        <span>Email Notification</span><small>Email newly critical stock with a 24-hour cooldown per product</small>
                         <input type="hidden" name="email_enabled" value="0"><input name="email_enabled" value="1" type="checkbox" @checked($settings->email_enabled)>
                     </label>
                     <label class="setting-card">
@@ -134,7 +130,7 @@ $navigation = [
             </form>
         </section>
 
-        <section class="panel delivery-panel">
+        <section class="panel delivery-panel" id="notification-history" data-history-panel="Notification history" data-history-page="delivery_page" data-history-size="delivery_rows" hidden>
             <div class="section-heading"><div><span class="section-kicker">DELIVERY AUDIT</span><h2>Notification History</h2></div></div>
             <div class="table-wrap delivery-table">
                 <table>
@@ -155,7 +151,8 @@ $navigation = [
                     </tbody>
                 </table>
             </div>
-        </section>
+        @include('partials.ml-table-pagination', ['rows' => $deliveries, 'sizeName' => 'delivery_rows', 'pageName' => 'delivery_page', 'anchor' => 'notification-history', 'tableLabel' => 'Notification history'])
+</section>
 
         @if(session('success'))<div class="alerts-toast" data-alerts-toast role="status">{{ session('success') }}</div>@endif
     </main>

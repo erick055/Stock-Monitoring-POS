@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MotoSync | Account Access</title>
     @vite(['resources/css/role-access.css', 'resources/css/responsive.css', 'resources/js/role-access.js'])
+    @include('partials.appearance')
 </head>
 <body>
 <main class="auth-shell">
@@ -27,8 +28,8 @@
                 <input type="email" name="email" value="{{ old('email') }}" autocomplete="email" maxlength="255" placeholder="you@example.com" required autofocus>
             </label>
             <label>
-                Password
-                <input type="password" name="password" autocomplete="current-password" placeholder="Enter your password" required>
+                <span>Password</span>
+                <x-password-input id="login-password" autocomplete="current-password" placeholder="Enter your password" required />
             </label>
             <p class="session-note">Inactive owner sessions expire after 60 minutes. Staff POS sessions expire after 30 days.</p>
             <button class="primary-button" type="submit" data-submit-label>Log in</button>

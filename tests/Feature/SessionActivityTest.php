@@ -21,7 +21,7 @@ class SessionActivityTest extends TestCase
         $this->get(route('admin.dashboard', ['_background' => '1']))->assertOk()
             ->assertSessionHas('auth.last_activity_at', $lastActivity);
         $this->travel(31)->minutes();
-        $this->getJson(route('inventory.live'))->assertRedirect(route('login'));
+        $this->getJson(route('inventory.live'))->assertUnauthorized();
         $this->assertGuest();
     }
 
@@ -35,7 +35,7 @@ class SessionActivityTest extends TestCase
         $this->travel(30)->minutes();
         $this->get(route('admin.dashboard', ['_background' => '1']))->assertOk();
         $this->travel(31)->minutes();
-        $this->postJson(route('session.activity'))->assertRedirect(route('login'));
+        $this->postJson(route('session.activity'))->assertUnauthorized();
         $this->assertGuest();
     }
 

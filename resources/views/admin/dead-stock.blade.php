@@ -8,12 +8,13 @@ $navigation = [
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta name="session-activity-url" content="{{ route('session.activity') }}">
+    @include('partials.session-activity')
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dead Stock | MotoSync</title>
     @vite(['resources/css/dashboard.css','resources/css/dead-stock.css','resources/css/responsive.css','resources/js/dashboard.js','resources/js/dead-stock.js'])
+    @include('partials.appearance')
 </head>
 <body>
 <div class="dashboard-shell dead-stock-shell">
@@ -50,7 +51,7 @@ $navigation = [
             @endforeach
         </section>
 
-        <section class="panel demand-outlook-panel" aria-labelledby="demand-insight-title">
+        <section class="panel demand-outlook-panel" id="demand-outlook" aria-labelledby="demand-insight-title">
             <div class="demand-outlook-header">
             <div class="demand-insight-icon" aria-hidden="true"><i class="bi bi-stars"></i></div>
             <div class="demand-insight-copy">
@@ -109,24 +110,10 @@ $navigation = [
                     </tbody>
                 </table>
             </div>
-            @if($outlookItems->hasPages())
-                <nav class="compact-pagination" aria-label="Demand outlook pages">
-                    @if($outlookItems->onFirstPage())
-                        <span>Previous</span>
-                    @else
-                        <a href="{{ $outlookItems->previousPageUrl() }}">Previous</a>
-                    @endif
-                    <strong>Page {{ $outlookItems->currentPage() }} of {{ $outlookItems->lastPage() }}</strong>
-                    @if($outlookItems->hasMorePages())
-                        <a href="{{ $outlookItems->nextPageUrl() }}">Next</a>
-                    @else
-                        <span>Next</span>
-                    @endif
-                </nav>
-            @endif
+            @include('partials.ml-table-pagination', ['rows' => $outlookItems, 'sizeName' => 'outlook_rows', 'pageName' => 'outlook_page', 'anchor' => 'demand-outlook', 'tableLabel' => 'Demand outlook'])
         </section>
 
-        <section class="panel detail-panel risk-inventory-panel">
+        <section class="panel detail-panel risk-inventory-panel" id="risk-inventory">
             <datalist id="bundle-product-options">
                 @foreach($bundleProducts as $bundleProduct)
                     <option value="{{ $bundleProduct->sku }} — {{ $bundleProduct->name }}" data-product-id="{{ $bundleProduct->product_id }}">{{ $bundleProduct->current_stock }} in stock</option>
@@ -143,9 +130,9 @@ $navigation = [
                 <input type="hidden" name="status" value="{{ $status }}">
                 <label class="compact-search"><span>Search</span><input name="search" value="{{ $search }}" placeholder="Product or SKU"></label>
                 <label><span>Risk</span><select name="classification"><option value="all" @selected($classification === 'all')>All risks</option><option value="dead" @selected($classification === 'dead')>Dead stock</option><option value="slow" @selected($classification === 'slow')>Slow moving</option>@if($status === 'archived')<option value="healthy" @selected($classification === 'healthy')>Now healthy</option>@endif</select></label>
-                <label><span>Rows</span><select name="per_page">@foreach([10,25,50,100] as $size)<option value="{{ $size }}" @selected($perPage === $size)>{{ $size }}</option>@endforeach</select></label>
+                <label><span>Rows</span><select name="per_page">@foreach([20,50,100] as $size)<option value="{{ $size }}" @selected($perPage === $size)>{{ $size }}</option>@endforeach</select></label>
                 <button type="submit">Apply</button>
-                @if($search || $classification !== 'all' || $perPage !== 25)<a href="{{ route('admin.dead-stock', $status === 'archived' ? ['status' => 'archived'] : []) }}">Reset</a>@endif
+                @if($search || $classification !== 'all' || $perPage !== 20)<a href="{{ route('admin.dead-stock', $status === 'archived' ? ['status' => 'archived'] : []) }}">Reset</a>@endif
             </form>
             <div class="table-wrap risk-table">
                 <table>
@@ -203,7 +190,7 @@ $navigation = [
                                     @if($item['active_promotion'])
                                         <div class="active-promotion">
                                             <strong>{{ $item['active_promotion']['label'] }}{{ $item['active_promotion']['action_type'] === 'promo_bundle' ? ' · Free in POS' : ' · '.number_format($item['active_promotion']['discount_percent'], 2).'% off' }}</strong>
-                                            <span>₱{{ number_format($item['unit_price'], 2) }} → ₱{{ number_format($item['active_promotion']['promotional_price'], 2) }}</span>
+                                            <span>{{ \App\Support\Display::money($item['unit_price']) }} → {{ \App\Support\Display::money($item['active_promotion']['promotional_price']) }}</span>
                                             @if($item['active_promotion']['bundle_product'])<small>Bundle with {{ $item['active_promotion']['bundle_product']['name'] }} ({{ $item['active_promotion']['bundle_product']['sku'] }})</small>@endif
                                             @if($item['active_promotion']['bundle_note'])<small>{{ $item['active_promotion']['bundle_note'] }}</small>@endif
                                             <small>Approved by {{ $item['active_promotion']['administrator'] }}</small>
@@ -228,7 +215,7 @@ $navigation = [
                                             <input name="bundle_product_id" type="hidden" data-bundle-product-id>
                                             <small>Select an exact inventory product from the suggestions.</small>
                                         </label>
-                                        <p class="price-preview" data-price-preview data-base-price="{{ $item['unit_price'] }}">Regular ₱{{ number_format($item['unit_price'], 2) }}</p>
+                                        <p class="price-preview" data-price-preview data-base-price="{{ $item['unit_price'] }}">Regular {{ \App\Support\Display::money($item['unit_price']) }}</p>
                                         <button class="approve-promotion" type="submit">Approve selected action</button>
                                         <small>Nothing changes until you press approve.</small>
                                     </form>
@@ -253,13 +240,7 @@ $navigation = [
                     </tbody>
                 </table>
             </div>
-            @if($riskItems->hasPages())
-                <nav class="compact-pagination" aria-label="At-risk inventory pages">
-                    @if($riskItems->onFirstPage())<span>Previous</span>@else<a href="{{ $riskItems->previousPageUrl() }}">Previous</a>@endif
-                    <strong>Page {{ $riskItems->currentPage() }} of {{ $riskItems->lastPage() }}</strong>
-                    @if($riskItems->hasMorePages())<a href="{{ $riskItems->nextPageUrl() }}">Next</a>@else<span>Next</span>@endif
-                </nav>
-            @endif
+            @include('partials.ml-table-pagination', ['rows' => $riskItems, 'sizeName' => 'per_page', 'pageName' => 'page', 'anchor' => 'risk-inventory', 'tableLabel' => 'At-risk inventory'])
         </section>
 
         <section class="panel summary-panel ai-summary-panel" aria-labelledby="ai-summary-title">
@@ -275,7 +256,7 @@ $navigation = [
             </div>
         </section>
 
-        <div class="dead-stock-toast" data-dead-stock-toast hidden role="status">Recommendation summary refreshed in UI preview.</div>
+        <div class="dead-stock-toast" data-dead-stock-toast hidden role="status">Recommendation summary refreshed.</div>
     </main>
 </div>
 @include('partials.login-stock-alert')

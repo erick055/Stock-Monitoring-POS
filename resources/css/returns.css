@@ -7,6 +7,14 @@
 .returns-panel{padding:16px;margin-bottom:14px}
 .returns-actions-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
 .return-form-card{padding:16px}
+.returns-launcher{min-height:48px;font-size:13px;display:flex;align-items:center;justify-content:center;gap:9px}
+.returns-dialog{width:min(720px,calc(100% - 32px));max-height:calc(100dvh - 48px);padding:0;border:1px solid #4a287c;border-radius:12px;background:#0c0e16;color:#f7f7fb;box-shadow:0 24px 80px #0008;overflow:auto}
+.returns-dialog::backdrop{background:rgb(6 8 16 / .72)}
+.returns-dialog .return-form-card{border:0;padding:24px}
+.returns-dialog .section-heading button{padding:8px;cursor:pointer;font-size:18px}
+.returns-cancel{margin:8px 0 0 8px;padding:8px 14px;border:1px solid #454c60;border-radius:7px;background:#1b2130;color:#d4dbea;cursor:pointer}
+.returns-dialog button:focus-visible{outline:2px solid #b596e4;outline-offset:3px}
+body.modal-open{overflow:hidden}
 .form-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:11px;margin-bottom:14px}
 .form-grid label{display:grid;gap:6px;color:#aeb3c2;font-size:9px;text-transform:uppercase;letter-spacing:.08em}
 .form-grid .wide{grid-column:1/-1}

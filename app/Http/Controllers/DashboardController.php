@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\SalesAnalyticsService;
+
 use App\Models\CustomerReturn;
 use App\Models\DamagedGood;
 use App\Models\HeldOrder;
@@ -21,7 +23,8 @@ class DashboardController extends Controller
         $user = request()->user();
         $products = Product::query()->where('is_active', true)->get();
         $lowStock = $products->filter(fn (Product $product) => $product->current_stock <= $product->reorder_level);
-        $monthSales = $this->salesBetween(now()->startOfMonth(), now()->endOfMonth());
+        $monthSummary = app(SalesAnalyticsService::class)->summary(now()->startOfMonth(), now()->endOfMonth());
+        $monthSales = $monthSummary['net_sales'];
         $previousMonthSales = $this->salesBetween(
             now()->subMonthNoOverflow()->startOfMonth(),
             now()->subMonthNoOverflow()->endOfMonth(),
@@ -34,11 +37,13 @@ class DashboardController extends Controller
                 ['bar-chart-line', 'Analytics', '/admin/analytics'], ['exclamation-triangle', 'Low Stock Alerts', '/admin/low-stocks'], ['box2', 'Dead Stock', '/admin/deadstock'],
                 ['arrow-repeat', 'Returns & Damages', '/admin/returns'], ['tags', 'Supplier Price', '/admin/suppliers'], ['gear', 'Part Compatibility', '/admin/compatibility'], ['people', 'Account Management', '/admin/accounts'],
             ],
+            'sales_summary' => $monthSummary,
+            'sales_period' => 'This month',
             'stats' => [
                 ['TOTAL PRODUCTS', number_format($products->count()), $products->filter(fn (Product $product) => $product->created_at?->isCurrentMonth())->count().' added this month', 'purple'],
                 ['TOTAL STOCK', number_format($products->sum('current_stock')), $products->whereNotNull('category')->pluck('category')->map(fn ($category) => mb_strtolower(trim($category)))->unique()->count().' categories', 'violet'],
                 ['LOW STOCK ITEMS', number_format($lowStock->count()), $lowStock->where('current_stock', 0)->count().' currently out of stock', 'red'],
-                ['MONTH SALES', '₱'.number_format($monthSales, 2), $this->comparison($monthSales, $previousMonthSales), 'cyan'],
+                ['MONTH NET SALES', '₱'.number_format($monthSales, 2), $this->comparison($monthSales, $previousMonthSales), 'cyan'],
             ],
             'modules_title' => 'System Modules',
             'modules' => [
@@ -66,9 +71,9 @@ class DashboardController extends Controller
     public function staff(): View
     {
         $user = request()->user();
-        $todaySales = SalesTransaction::query()->where('staff_id', $user->id)->whereDate('sale_date', today());
-        $todayRevenue = (clone $todaySales)->sum('total_sale_amount');
-        $todayTransactions = (clone $todaySales)->count();
+        $todaySummary = app(SalesAnalyticsService::class)->summary(now()->startOfDay(), now()->endOfDay(), $user->id);
+        $todayRevenue = $todaySummary['net_sales'];
+        $todayTransactions = $todaySummary['transactions'];
         $todayItems = SalesItem::query()
             ->whereHas('sale', fn ($query) => $query->where('staff_id', $user->id)->whereDate('sale_date', today()))
             ->sum('quantity');
@@ -81,8 +86,10 @@ class DashboardController extends Controller
                 ['house-door', 'Dashboard', '#'], ['box-seam', 'Products', '/staff/products'],
                 ['cart3', 'POS Checkout', '/staff/pos'], ['arrow-repeat', 'Return & Damage', '/staff/returns'], ['gear', 'Part Compatibility', '/staff/compatibility'],
             ],
+            'sales_summary' => $todaySummary,
+            'sales_period' => 'Today',
             'stats' => [
-                ['MY SALES TODAY', '₱'.number_format($todayRevenue, 2), number_format($todayTransactions).' completed transaction(s)', 'cyan'],
+                ['MY SALES TODAY', '₱'.number_format($todayRevenue, 2), 'Net sales · '.number_format($todayTransactions).' completed transaction(s)', 'cyan'],
                 ['ITEMS SOLD', number_format($todayItems), 'From your POS transactions today', 'purple'],
                 ['LOW STOCK ITEMS', number_format($lowStockCount), 'Visible for immediate reporting', 'red'],
                 ['MY HELD ORDERS', number_format($heldCount), 'Waiting to resume in POS', 'orange'],
@@ -121,28 +128,26 @@ class DashboardController extends Controller
 
     private function salesBetween(Carbon $from, Carbon $to, ?int $staffId = null): float
     {
-        return (float) SalesTransaction::query()
-            ->when($staffId, fn ($query) => $query->where('staff_id', $staffId))
-            ->whereBetween('sale_date', [$from, $to])
-            ->sum('total_sale_amount');
+        return app(SalesAnalyticsService::class)->summary($from, $to, $staffId)['net_sales'];
     }
 
     private function weeklySales(?int $staffId = null): array
     {
-        $values = collect(range(6, 0))->map(function (int $daysAgo) use ($staffId) {
+        $totals = app(SalesAnalyticsService::class)->periods(now()->subDays(6)->startOfDay(), now()->endOfDay(), staffId: $staffId);
+        $values = collect(range(6, 0))->map(function (int $daysAgo) use ($totals) {
             $date = now()->subDays($daysAgo);
 
             return [
                 'label' => $date->format('D'),
                 'date' => $date->format('M d'),
-                'value' => $this->salesBetween($date->copy()->startOfDay(), $date->copy()->endOfDay(), $staffId),
+                'value' => $totals[$date->toDateString()]['net_sales'] ?? 0.0,
             ];
         });
-        $maximum = max(1, (float) $values->max('value'));
+        $maximum = max(1, (float) $values->max(fn ($day) => abs($day['value'])));
 
         return $values->map(fn ($day) => [
             ...$day,
-            'height' => $day['value'] > 0 ? max(8, round(($day['value'] / $maximum) * 100, 2)) : 0,
+            'height' => $day['value'] != 0 ? max(8, round((abs($day['value']) / $maximum) * 100, 2)) : 0,
         ])->all();
     }
 
@@ -163,8 +168,13 @@ class DashboardController extends Controller
             ->latest('created_at')->limit(5)->get()
             ->map(fn (InventoryLedger $ledger) => [
                 'color' => $ledger->qty_in > 0 ? 'purple' : 'orange',
-                'title' => $ledger->qty_in > 0 ? 'Stock added' : 'Stock released',
-                'detail' => ($ledger->product?->name ?? 'Product').' · '.number_format($ledger->qty_in ?: $ledger->qty_out).' unit(s)'.($userId ? '' : ' · '.($ledger->user?->name ?? 'System')),
+                'title' => match ($ledger->reason_code) {
+                    'PRODUCT_ARCHIVED' => 'Product archived',
+                    'PRODUCT_RESTORED' => 'Product restored',
+                    'PRODUCT_REMOVED' => 'Product removed',
+                    default => $ledger->qty_in > 0 ? 'Stock added' : ($ledger->qty_out > 0 ? 'Stock released' : 'Product updated'),
+                },
+                'detail' => ($ledger->product?->name ?? 'Product').(($ledger->qty_in || $ledger->qty_out) ? ' · '.number_format($ledger->qty_in ?: $ledger->qty_out).' unit(s)' : '').($userId ? '' : ' · '.($ledger->user?->name ?? 'System')),
                 'occurred_at' => $ledger->created_at,
                 'url' => route('admin.inventory'),
             ]);

@@ -1,0 +1,58 @@
+/* The owner/staff home dashboards; shared inventory and checkout layouts stay independent. */
+[data-dashboard] .dashboard-main{max-width:1560px;padding-bottom:88px}
+[data-dashboard] .topbar{flex-wrap:wrap;gap:18px;margin-bottom:24px}
+[data-dashboard] .dashboard-heading{flex:1 1 280px;min-width:0}
+[data-dashboard] .dashboard-heading h1{font-size:clamp(24px,2.2vw,32px);line-height:1.2;margin:7px 0 9px}
+[data-dashboard] .dashboard-heading .dashboard-description{display:block;max-width:620px;font-size:13px!important;line-height:1.6}
+[data-dashboard] .top-actions{flex-wrap:wrap;justify-content:flex-end;gap:10px;max-width:100%}
+[data-dashboard] .top-actions button,[data-dashboard] .notification-button{width:42px;height:42px;flex:none;font-size:18px}
+[data-dashboard] .live-status{flex-wrap:wrap;gap:6px;font-size:12px}
+[data-dashboard] .live-status small{font-size:11px!important}
+[data-dashboard] .date{font-size:12px}
+[data-dashboard] .stat-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
+[data-dashboard] .stat-card{padding:20px;min-height:142px;border-radius:12px}
+[data-dashboard] .stat-head{font-size:11px;gap:10px;line-height:1.5}
+[data-dashboard] .trend-dot{flex:none;margin-top:4px}
+[data-dashboard] .stat-card>strong{margin:16px 0 9px;font-size:clamp(23px,2.1vw,30px);line-height:1.2;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+[data-dashboard] .stat-card>small{font-size:12px!important;line-height:1.5}
+[data-dashboard] .dashboard-sales-breakdown,[data-dashboard] .modules-panel,[data-dashboard] .performance-panel,[data-dashboard] .activity-panel{padding:22px;border-radius:12px}
+[data-dashboard] .dashboard-sales-breakdown{margin-top:18px}
+[data-dashboard] .section-heading{align-items:flex-start;gap:14px;flex-wrap:wrap;margin-bottom:18px}
+[data-dashboard] .section-heading h2{font-size:17px;line-height:1.4}
+[data-dashboard] .section-kicker{display:block;margin-bottom:5px}
+[data-dashboard] .period{font-size:12px;line-height:1.5;overflow-wrap:anywhere}
+[data-dashboard] .dashboard-sales-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin:0;gap:14px}
+[data-dashboard] .dashboard-sales-metrics>div{padding:14px 16px;border:1px solid var(--line);border-radius:9px;background:var(--surface-2);min-width:0}
+[data-dashboard] .dashboard-sales-metrics dt{color:var(--muted);font-size:12px;margin-bottom:8px}
+[data-dashboard] .dashboard-sales-metrics dd{margin:0;font-size:20px;font-weight:700;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+[data-dashboard] .dashboard-sales-metrics>div:last-child{border-color:#684393}
+[data-dashboard] .modules-panel{margin-top:18px}
+[data-dashboard] .module-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+[data-dashboard] .compact-module-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+[data-dashboard] .module-card{grid-template-columns:42px minmax(0,1fr) 16px;gap:13px;padding:16px;min-height:100px;border-radius:10px}
+[data-dashboard] .module-icon{width:42px;height:42px;border-radius:10px;font-size:19px}
+[data-dashboard] .module-card strong{font-size:14px;line-height:1.4;overflow-wrap:anywhere}
+[data-dashboard] .module-card small{font-size:12px!important;line-height:1.5;margin-top:5px;overflow-wrap:anywhere}
+[data-dashboard] .module-card:focus-visible,[data-dashboard] .activity-item:focus-visible{outline:2px solid #8957db;outline-offset:3px}
+[data-dashboard] .dashboard-lower{grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:18px;margin-top:18px;align-items:start}
+[data-dashboard] .dashboard-chart-scroll{overflow-x:auto;max-width:100%;overscroll-behavior-inline:contain;padding-block:4px}
+[data-dashboard] .chart{height:234px;min-width:350px;gap:12px}
+[data-dashboard] .bar-track{height:174px;border-radius:7px}
+[data-dashboard] .bar-value{font-size:11px;font-variant-numeric:tabular-nums}
+[data-dashboard] .bar-column small{font-size:11px!important}
+[data-dashboard] .bar-column.negative .bar-track span{background:linear-gradient(180deg,#ef7486,#a42e45)}
+[data-dashboard] .bar-column.negative .bar-value{color:#ef7486}
+[data-dashboard] .dashboard-chart-note{color:var(--muted);margin:12px 0 0;font-size:12px!important}
+[data-dashboard] .activity-item{padding:14px 0;gap:12px;grid-template-columns:34px minmax(0,1fr) auto}
+[data-dashboard] .activity-icon{width:34px;height:34px;font-size:12px}
+[data-dashboard] .activity-item strong{font-size:13px;line-height:1.4;overflow-wrap:anywhere}
+[data-dashboard] .activity-item small{font-size:12px!important;line-height:1.5;overflow-wrap:anywhere}
+[data-dashboard] .activity-item time{font-size:11px;line-height:1.5;max-width:90px}
+[data-dashboard] .activity-empty{min-height:234px;align-content:center;gap:8px}
+[data-dashboard] .activity-empty strong{font-size:14px}
+[data-dashboard] .activity-empty small{font-size:12px!important;line-height:1.6}
+[data-dashboard] .sidebar-user>div{min-width:0;overflow-wrap:anywhere}
+@media(max-width:1200px){[data-dashboard] .stat-grid{grid-template-columns:repeat(2,minmax(0,1fr))}[data-dashboard] .module-grid{grid-template-columns:repeat(2,minmax(0,1fr))}[data-dashboard] .dashboard-lower{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:900px){[data-dashboard] .dashboard-heading{flex:1 1 calc(100% - 70px)}[data-dashboard] .top-actions{width:100%;justify-content:flex-start;margin-left:0}[data-dashboard] .live-status{display:flex}[data-dashboard] .live-status small{display:inline}[data-dashboard] .top-actions .date{display:inline;margin-left:auto}}
+@media(max-width:560px){[data-dashboard] .stat-grid{gap:12px}[data-dashboard] .stat-card{padding:16px;min-height:132px}[data-dashboard] .stat-card>strong{font-size:23px}[data-dashboard] .module-grid{grid-template-columns:minmax(0,1fr)}[data-dashboard] .dashboard-sales-breakdown,[data-dashboard] .modules-panel,[data-dashboard] .performance-panel,[data-dashboard] .activity-panel{padding:16px}[data-dashboard] .dashboard-sales-metrics{grid-template-columns:minmax(0,1fr);gap:10px}[data-dashboard] .dashboard-sales-metrics>div{display:flex;align-items:center;justify-content:space-between;gap:12px}[data-dashboard] .dashboard-sales-metrics dt{margin:0}[data-dashboard] .dashboard-sales-metrics dd{font-size:18px;text-align:right}[data-dashboard] .activity-item{grid-template-columns:34px minmax(0,1fr)}[data-dashboard] .activity-item time{grid-column:2;max-width:none;text-align:left;margin-top:-7px}[data-dashboard] .top-actions .date{width:100%;margin-left:0}}
+@media(max-width:380px){[data-dashboard] .stat-grid{grid-template-columns:minmax(0,1fr)}[data-dashboard] .dashboard-heading h1{font-size:23px}}

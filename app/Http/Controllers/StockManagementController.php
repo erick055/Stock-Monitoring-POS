@@ -11,6 +11,7 @@ use App\Services\ProductDuplicateGuard;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -20,9 +21,9 @@ class StockManagementController extends Controller
     public function index(Request $request, InventoryLiveService $liveInventory): View
     {
         $search = trim((string) $request->query('search'));
+        $archiveSearch = trim((string) $request->query('archive_search'));
         $status = (string) $request->query('status', 'all');
-        $perPage = in_array((int) $request->query('per_page', 25), [25, 50, 100], true)
-            ? (int) $request->query('per_page', 25) : 25;
+        $perPage = \App\Support\TablePagination::size($request);
         $sort = (string) $request->query('sort', 'name');
 
         $sorts = [
@@ -60,6 +61,16 @@ class StockManagementController extends Controller
             ->withQueryString();
 
         $allProducts = Product::query()->where('is_active', true)->orderBy('name')->get();
+        $archivedProducts = Product::query()->where('is_active', false)
+            ->whereHas('latestLedger', fn ($query) => $query->where('reason_code', 'PRODUCT_ARCHIVED'))
+            ->with('latestLedger.user')
+            ->when($archiveSearch, fn ($query) => $query->where(function ($query) use ($archiveSearch) {
+                $query->where('sku', 'like', "%{$archiveSearch}%")->orWhere('name', 'like', "%{$archiveSearch}%")
+                    ->orWhere('category', 'like', "%{$archiveSearch}%")->orWhere('shelf_location', 'like', "%{$archiveSearch}%");
+            }))
+            ->orderBy('name')->orderBy('product_id')
+            ->paginate(\App\Support\TablePagination::size($request, 'archive_rows'), ['*'], 'archive_page')
+            ->withQueryString()->fragment('archived-products');
         $categories = $allProducts
             ->pluck('category')
             ->filter(fn ($category) => trim((string) $category) !== '')
@@ -78,8 +89,8 @@ class StockManagementController extends Controller
                 $query->where('sku', 'like', "%{$search}%")->orWhere('name', 'like', "%{$search}%");
             }))
             ->latest('ledger_id')
-            ->limit(50)
-            ->get();
+            ->paginate(\App\Support\TablePagination::size($request, 'ledger_rows'), ['*'], 'ledger_page')
+            ->withQueryString()->fragment('movement-logs');
 
         $summary = [
             'total_sku' => $allProducts->count(),
@@ -89,7 +100,7 @@ class StockManagementController extends Controller
         ];
         $inventoryVersion = $liveInventory->version();
 
-        return view('admin.stock-management', compact('products', 'allProducts', 'categories', 'shelves', 'ledgers', 'summary', 'search', 'status', 'sort', 'inventoryVersion', 'perPage'));
+        return view('admin.stock-management', compact('products', 'archivedProducts', 'archiveSearch', 'allProducts', 'categories', 'shelves', 'ledgers', 'summary', 'search', 'status', 'sort', 'inventoryVersion', 'perPage'));
     }
 
     public function storeProduct(Request $request, LowStockAlertService $alerts, ProductDuplicateGuard $duplicates): RedirectResponse
@@ -347,6 +358,87 @@ class StockManagementController extends Controller
         $value = trim((string) ($value ?? ''));
 
         return $value !== '' ? $value : 'empty';
+    }
+
+    public function archiveProducts(Request $request): RedirectResponse
+    {
+        abort_unless($request->user()->role === 'admin', 403);
+        $validated = $request->validate([
+            'product_ids' => ['required', 'array', 'min:1', 'max:100'],
+            'product_ids.*' => ['required', 'integer', 'distinct', 'exists:products,product_id'],
+            'archive_reason' => ['required', 'string', 'max:500'],
+            'password' => ['required', 'string', 'current_password'],
+        ]);
+
+        $count = DB::transaction(function () use ($validated, $request) {
+            $products = Product::query()->whereIn('product_id', $validated['product_ids'])
+                ->orderBy('product_id')->lockForUpdate()->get();
+            if ($products->count() !== count($validated['product_ids']) || $products->contains(fn ($product) => ! $product->is_active)) {
+                throw ValidationException::withMessages(['archive' => 'One or more selected products are no longer active. Refresh the page and select again. No products were archived.']);
+            }
+            ProductPromotion::query()->where('status', 'active')->where(function ($query) use ($validated) {
+                $query->whereIn('product_id', $validated['product_ids'])->orWhereIn('bundle_product_id', $validated['product_ids']);
+            })->update(['status' => 'ended', 'ended_at' => now()]);
+            foreach ($products as $product) {
+                $product->update(['is_active' => false]);
+                InventoryLedger::create([
+                    'product_id' => $product->product_id, 'user_id' => $request->user()->id,
+                    'qty_in' => 0, 'qty_out' => 0, 'reason_code' => 'PRODUCT_ARCHIVED',
+                    'logs' => 'Archived from Stock Management. Reason: '.trim($validated['archive_reason']),
+                ]);
+            }
+            return $products->count();
+        });
+
+        return back()->with('success', "{$count} product(s) archived. Stock quantities, sales, and inventory history were preserved.");
+    }
+
+    public function manageArchivedProducts(Request $request): RedirectResponse
+    {
+        abort_unless($request->user()->role === 'admin', 403);
+        $validated = $request->validate([
+            'archived_action' => ['required', Rule::in(['restore', 'delete'])],
+            'archived_product_ids' => ['required', 'array', 'min:1', 'max:100'],
+            'archived_product_ids.*' => ['required', 'integer', 'distinct', 'exists:products,product_id'],
+            'archived_reason' => ['required', 'string', 'max:500'],
+            'password' => ['required', 'string', 'current_password'],
+            'confirm_permanent_delete' => ['exclude_unless:archived_action,delete', 'required', 'accepted'],
+        ]);
+        $count = DB::transaction(function () use ($request, $validated) {
+            $products = Product::query()->whereIn('product_id', $validated['archived_product_ids'])
+                ->with('latestLedger')->orderBy('product_id')->lockForUpdate()->get();
+            if ($products->count() !== count($validated['archived_product_ids']) || $products->contains(fn ($product) =>
+                $product->is_active || $product->latestLedger?->reason_code !== 'PRODUCT_ARCHIVED')) {
+                throw ValidationException::withMessages(['archived_products' => 'One or more selected items are no longer archived. No products were changed.']);
+            }
+            if ($validated['archived_action'] === 'delete') {
+                foreach ($products as $product) {
+                    if ($product->saleItems()->exists() || $product->customerReturns()->exists() || $product->damagedGoods()->exists()
+                        || DB::table('held_order_items')->where('product_id', $product->product_id)->exists()) {
+                        throw ValidationException::withMessages(['archived_products' => "{$product->name} has sales, return, damage, or held-order records. It must stay archived or be restored. No products were deleted."]);
+                    }
+                }
+            }
+            foreach ($products as $product) {
+                if ($validated['archived_action'] === 'restore') {
+                    $product->update(['is_active' => true]);
+                    InventoryLedger::create(['product_id' => $product->product_id, 'user_id' => $request->user()->id,
+                        'qty_in' => 0, 'qty_out' => 0, 'reason_code' => 'PRODUCT_RESTORED',
+                        'logs' => 'Restored from Stock Management archive. Reason: '.trim($validated['archived_reason'])]);
+                } else {
+                    DB::table('supplier_import_rows')->where('product_id', $product->product_id)->update(['product_id' => null, 'internal_sku' => null]);
+                    $product->delete();
+                }
+            }
+            return $products->count();
+        });
+        if ($validated['archived_action'] === 'delete') {
+            Log::notice('Archived products permanently deleted by owner.', ['owner_id' => $request->user()->id,
+                'product_ids' => $validated['archived_product_ids'], 'reason' => trim($validated['archived_reason'])]);
+        }
+        return redirect()->route('admin.inventory', ['archive_page' => 1])->with('success', $validated['archived_action'] === 'restore'
+            ? "{$count} product(s) restored to active products with their existing quantities."
+            : "{$count} archived product(s) permanently deleted.");
     }
 
     public function destroyProduct(Request $request, Product $product): RedirectResponse

@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\SupplierImport;
+use App\Models\SupplierImportRow;
 use DateTimeInterface;
 use InvalidArgumentException;
 use OpenSpout\Reader\CSV\Reader as CsvReader;
@@ -19,6 +20,59 @@ class SupplierSpreadsheetImporter
     ];
 
     public function __construct(private readonly SupplierProductMatcher $productMatcher) {}
+
+    public function stageExtractedRows(SupplierImport $import, array $rows, string $defaultCurrency): void
+    {
+        $stream = tmpfile();
+        if ($stream === false) throw new InvalidArgumentException('Could not prepare the extracted rows for validation.');
+        try {
+            fputcsv($stream, ['supplier_sku', 'product_name', 'unit_price', 'currency'], ',', '"', '');
+            foreach ($rows as $row) fputcsv($stream, [$row['supplier_sku'] ?? '', $row['product_name'] ?? '', $row['unit_price'] ?? '', $row['currency'] ?? $defaultCurrency], ',', '"', '');
+            fflush($stream);
+            $this->stage($import, stream_get_meta_data($stream)['uri'], 'csv');
+            foreach ($import->rows()->orderBy('row_number')->get() as $index => $storedRow) {
+                $errors = $storedRow->validation_errors ?? [];
+                if (filled($rows[$index]['warning'] ?? null)) $errors[] = 'AI review required: '.$rows[$index]['warning'];
+                $storedRow->update(['source_reference' => $rows[$index]['source_reference'] ?? null, 'validation_errors' => $errors ?: null]);
+            }
+            $this->refreshCounts($import);
+        } finally {
+            fclose($stream);
+        }
+    }
+
+    public function reviseRow(SupplierImport $import, SupplierImportRow $row, array $values): void
+    {
+        $data = array_replace(array_fill_keys(self::ALLOWED_HEADERS, null), $row->only(self::ALLOWED_HEADERS), $values);
+        // For AI rows, rematch the corrected identifiers rather than a prior inferred match.
+        if ($import->extraction_method === 'ai') $data['internal_sku'] = null;
+        $errors = $this->validateRow($data);
+        if ($import->rows()->whereKeyNot($row->supplier_import_row_id)->get(['supplier_sku'])->contains(fn ($other) => mb_strtolower(trim($other->supplier_sku)) === mb_strtolower(trim($data['supplier_sku'])))) {
+            $errors[] = 'Duplicate supplier_sku in this file.';
+        }
+        $product = $this->productMatcher->match($data['internal_sku'], $data['supplier_sku'], $data['product_name']);
+        $row->update([
+            ...$values, 'product_id' => $product?->product_id, 'internal_sku' => $product?->sku ?? $data['internal_sku'],
+            'validation_errors' => $errors ?: null,
+        ]);
+        // Recheck duplicate flags on every row after an identifier correction.
+        $seen = [];
+        foreach ($import->rows()->orderBy('row_number')->get() as $item) {
+            $itemErrors = array_values(array_filter($item->validation_errors ?? [], fn ($error) => $error !== 'Duplicate supplier_sku in this file.'));
+            $key = mb_strtolower(trim($item->supplier_sku));
+            if ($key !== '' && isset($seen[$key])) $itemErrors[] = 'Duplicate supplier_sku in this file.';
+            $seen[$key] = true;
+            $item->update(['validation_errors' => $itemErrors ?: null]);
+        }
+        $this->refreshCounts($import);
+    }
+
+    private function refreshCounts(SupplierImport $import): void
+    {
+        $rows = $import->rows()->get(['validation_errors']);
+        $errors = $rows->filter(fn ($row) => !empty($row->validation_errors))->count();
+        $import->update(['row_count' => $rows->count(), 'valid_count' => $rows->count() - $errors, 'error_count' => $errors]);
+    }
 
     public function stage(SupplierImport $import, string $path, string $extension): void
     {

@@ -2,14 +2,14 @@
 
 namespace App\Services;
 
-use App\Mail\InventoryAlertMail;
+use App\Jobs\SendStockAlertDigest;
 use App\Models\Product;
 use App\Models\StockAlertDelivery;
 use App\Models\StockAlertSetting;
 use App\Models\StockAlertState;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Mail;
-use Throwable;
+use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\DB;
 
 class LowStockAlertService
 {
@@ -20,80 +20,98 @@ class LowStockAlertService
 
     public function checkAll(bool $force = false): int
     {
-        return Product::query()
-            ->where('is_active', true)
-            ->get()
-            ->sum(fn (Product $product) => $this->checkProduct($product, $force));
+        return $this->checkProducts(Product::query()->where('is_active', true)->get(), $force);
     }
 
     public function checkProduct(Product $product, bool $force = false): int
     {
-        $settings = $this->settings();
-        $severity = $this->severity($product);
-        $state = StockAlertState::query()->firstOrNew(['product_id' => $product->product_id]);
-        $previousSeverity = $state->exists ? $state->severity : 'healthy';
-        $shouldNotify = $severity !== 'healthy'
-            && ($force || $this->severityRank($severity) > $this->severityRank($previousSeverity));
+        return $this->checkProducts(collect([$product]), $force);
+    }
 
-        $state->fill([
-            'severity' => $severity,
-            'last_stock' => $product->current_stock,
-            'last_checked_at' => now(),
-        ])->save();
+    /** One run can enqueue at most one email, regardless of the number of products. */
+    public function checkProducts(Collection $products, bool $force = false): int
+    {
+        $this->settings();
 
-        if (! $shouldNotify || ! $settings->email_enabled) {
-            return 0;
-        }
-
-        $sent = 0;
-        if ($settings->email_enabled && $settings->notification_email) {
-            $sent += $this->sendEmail(
-                $settings->notification_email,
-                $this->immediateEmailSubject($product, $severity),
-                $this->immediateEmailMessage($product, $severity),
-                'immediate',
-                $product,
-            );
-            if ($sent === 0) {
-                // Keep the previous notification severity so a failed delivery is retried.
-                $state->update(['severity' => $previousSeverity]);
+        return DB::transaction(function () use ($products, $force) {
+            // Serialize checks, including creation of previously unseen product states.
+            $settings = StockAlertSetting::query()->lockForUpdate()->findOrFail(1);
+            $products = Product::query()->whereIn('product_id', $products->pluck('product_id'))->get();
+            $states = StockAlertState::query()->whereIn('product_id', $products->pluck('product_id'))->lockForUpdate()->get()->keyBy('product_id');
+            $eligible = collect();
+            foreach ($products as $product) {
+                $state = $states->get($product->product_id) ?? new StockAlertState(['product_id' => $product->product_id]);
+                $severity = $product->is_active ? $this->severity($product) : 'healthy';
+                $previousSeverity = $state->exists ? $state->severity : 'healthy';
+                $crossedReorder = $severity === 'critical' && $previousSeverity !== 'critical';
+                if ($severity !== 'healthy' && ($force || $crossedReorder) && $this->canNotify($state)) {
+                    $eligible->push($product);
+                }
+                $state->fill(['severity' => $severity, 'last_stock' => $product->current_stock, 'last_checked_at' => now()])->save();
             }
-        }
+            if (! $settings->email_enabled || ! $settings->notification_email || $eligible->isEmpty()) {
+                return 0;
+            }
 
-        return $sent;
+            return $this->queueDigest($settings, $eligible, 'immediate');
+        });
     }
 
     public function sendDailySummaryIfDue(bool $force = false): int
     {
-        $settings = $this->settings();
-        if (! $settings->daily_summary_enabled || ! $settings->notification_email) {
-            return 0;
-        }
-        if (! $force && now()->format('H:i') < $settings->daily_summary_time) {
-            return 0;
-        }
-        if (! $force && $settings->last_daily_summary_at?->isToday()) {
-            return 0;
-        }
+        $this->settings();
 
-        $products = Product::query()->where('is_active', true)->get()
-            ->filter(fn (Product $product) => $this->severity($product) !== 'healthy')
-            ->sortBy(fn (Product $product) => [$this->severity($product) === 'critical' ? 0 : 1, $product->current_stock])
-            ->values();
+        return DB::transaction(function () use ($force) {
+            $settings = StockAlertSetting::query()->lockForUpdate()->findOrFail(1);
+            if (! $settings->daily_summary_enabled || ! $settings->notification_email) {
+                return 0;
+            }
+            if (! $force && (now()->format('H:i') < $settings->daily_summary_time || $settings->last_daily_summary_at?->isToday())) {
+                return 0;
+            }
+            $products = Product::query()->where('is_active', true)->get()->filter(fn ($product) => $this->severity($product) !== 'healthy');
+            $states = StockAlertState::query()->whereIn('product_id', $products->pluck('product_id'))->lockForUpdate()->get()->keyBy('product_id');
+            $eligible = $products->filter(function ($product) use ($states) {
+                $state = $states->get($product->product_id) ?? StockAlertState::create([
+                    'product_id' => $product->product_id, 'severity' => $this->severity($product),
+                    'last_stock' => $product->current_stock, 'last_checked_at' => now(),
+                ]);
 
+                return $this->canNotify($state);
+            });
+            if ($products->isNotEmpty() && $eligible->isEmpty()) {
+                return 0;
+            }
+            return $this->queueDigest($settings, $eligible, 'daily_summary');
+        });
+    }
+
+    private function canNotify(StockAlertState $state): bool
+    {
+        return ! $state->pending_delivery_id && (! $state->last_notified_at || $state->last_notified_at->lte(now()->subHours(24)));
+    }
+
+    private function queueDigest(StockAlertSetting $settings, Collection $products, string $type): int
+    {
+        $products = $products->sortBy(fn ($product) => [$this->severity($product) === 'critical' ? 0 : 1, $product->current_stock])->values();
         $message = $this->dailySummaryMessage($products);
-        $sent = $this->sendEmail(
-            $settings->notification_email,
-            $this->dailySummarySubject($products),
-            $message,
-            'daily_summary',
-        );
-
-        if ($sent) {
-            $settings->update(['last_daily_summary_at' => now()]);
+        $subject = $this->dailySummarySubject($products);
+        if ($type === 'immediate') {
+            $message = str_replace('MotoSync Daily Inventory Summary', 'MotoSync Inventory Alert Digest', $message);
+            $subject = 'MotoSync Inventory Alert — '.$products->count().' Item(s) Need Attention';
         }
+        $delivery = StockAlertDelivery::create([
+            'product_id' => null, 'channel' => 'email', 'alert_type' => $type,
+            'status' => 'queued', 'recipient' => $settings->notification_email, 'message' => $message,
+        ]);
+        if ($type === 'daily_summary') {
+            // Use the delivery's timestamp so final failure can release this reservation exactly.
+            $settings->update(['last_daily_summary_at' => $delivery->created_at]);
+        }
+        StockAlertState::whereIn('product_id', $products->pluck('product_id'))->update(['pending_delivery_id' => $delivery->id]);
+        Bus::dispatch(new SendStockAlertDigest($delivery->id, $subject));
 
-        return $sent;
+        return 1;
     }
 
     public function severity(Product $product): string
@@ -160,45 +178,6 @@ class LowStockAlertService
         ]);
     }
 
-    private function immediateEmailSubject(Product $product, string $severity): string
-    {
-        return sprintf(
-            'MotoSync [%s] Inventory Alert — %s',
-            $this->statusLabel($product, $severity),
-            $product->sku,
-        );
-    }
-
-    private function immediateEmailMessage(Product $product, string $severity): string
-    {
-        $status = $this->statusLabel($product, $severity);
-        $restock = $this->recommendedRestock($product);
-        $action = match (true) {
-            $product->current_stock === 0 => "Restock at least {$restock} unit(s) before confirming new orders for this item.",
-            $severity === 'critical' => "Arrange replenishment now. Adding at least {$restock} unit(s) will move the item above its warning range.",
-            default => "Plan replenishment soon. Adding at least {$restock} unit(s) will move the item above its warning range.",
-        };
-
-        return implode("\n", [
-            'MotoSync Inventory Alert',
-            '',
-            "Status: {$status}",
-            "Product: {$product->name}",
-            "SKU: {$product->sku}",
-            "Current stock: {$product->current_stock} unit(s)",
-            "Reorder level: {$product->reorder_level} unit(s)",
-            "Suggested restock: {$restock}+ unit(s)",
-            '',
-            'Recommended action',
-            $action,
-            '',
-            'Open MotoSync > Low Stock Alerts to review demand, update alert settings, and document the next action.',
-            '',
-            'Alert generated: '.now()->format('F d, Y · h:i A'),
-            'This is an automated inventory notification from MotoSync.',
-        ]);
-    }
-
     private function dailySummarySubject(Collection $products): string
     {
         if ($products->isEmpty()) {
@@ -224,38 +203,5 @@ class LowStockAlertService
         $healthyTarget = max(1, ($product->reorder_level * 2) + 1);
 
         return max(1, $healthyTarget - $product->current_stock);
-    }
-
-    private function sendEmail(string $recipient, string $subject, string $message, string $type, ?Product $product = null): int
-    {
-        try {
-            Mail::to($recipient)->send(new InventoryAlertMail($subject, $message));
-            $this->recordDelivery($product, 'email', $type, 'sent', $recipient, $message);
-
-            return 1;
-        } catch (Throwable $error) {
-            $this->recordDelivery($product, 'email', $type, 'failed', $recipient, $message, $error->getMessage());
-
-            return 0;
-        }
-    }
-
-    private function recordDelivery(?Product $product, string $channel, string $type, string $status, string $recipient, string $message, ?string $error = null): void
-    {
-        StockAlertDelivery::create([
-            'product_id' => $product?->product_id,
-            'channel' => $channel,
-            'alert_type' => $type,
-            'status' => $status,
-            'recipient' => $recipient,
-            'message' => $message,
-            'error' => $error,
-            'sent_at' => $status === 'sent' ? now() : null,
-        ]);
-    }
-
-    private function severityRank(string $severity): int
-    {
-        return ['healthy' => 0, 'warning' => 1, 'critical' => 2][$severity] ?? 0;
     }
 }

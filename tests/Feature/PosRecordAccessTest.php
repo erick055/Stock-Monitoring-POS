@@ -51,12 +51,12 @@ class PosRecordAccessTest extends TestCase
         $payload = ['held_order_id' => $hold->held_order_id, 'items' => [['product_id' => $product->product_id, 'quantity' => 1]]];
 
         $this->actingAs($staff)->deleteJson(route('staff.pos.holds.cancel', $hold))->assertForbidden();
-        $this->postJson(route('staff.pos.checkout'), $payload)->assertForbidden();
+        $this->postJson(route('staff.pos.checkout'), ['payment_method' => 'cash', 'amount_tendered' => 10000000, ...$payload])->assertForbidden();
         $this->assertSame('held', $hold->fresh()->status);
         $this->assertSame(5, $product->fresh()->current_stock);
         $this->assertDatabaseCount('sales_transactions', 0);
 
-        $this->actingAs($admin)->postJson(route('admin.pos.checkout'), $payload)->assertCreated();
+        $this->actingAs($admin)->postJson(route('admin.pos.checkout'), ['payment_method' => 'cash', 'amount_tendered' => 10000000, ...$payload])->assertCreated();
         $this->assertSame('completed', $hold->fresh()->status);
         $this->assertSame(4, $product->fresh()->current_stock);
         $anotherHold = HeldOrder::create(['staff_id' => $other->id, 'status' => 'held', 'held_at' => now()]);

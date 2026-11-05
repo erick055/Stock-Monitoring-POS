@@ -2,6 +2,11 @@
 
 use Illuminate\Support\Str;
 
+// SESSION_LIFETIME is the owner's single idle-duration setting. Retain the
+// existing longer staff policy and keep shared storage from expiring either role early.
+$ownerIdleMinutes = max(1, (int) env('SESSION_LIFETIME', 60));
+$staffIdleMinutes = max(1, (int) env('STAFF_IDLE_TIMEOUT', 43200));
+
 return [
 
     /*
@@ -32,11 +37,11 @@ return [
     |
     */
 
-    'lifetime' => (int) env('SESSION_LIFETIME', 43200),
+    'lifetime' => max($ownerIdleMinutes, $staffIdleMinutes),
 
     'idle_timeout_by_role' => [
-        'admin' => (int) env('ADMIN_IDLE_TIMEOUT', 60),
-        'staff' => (int) env('STAFF_IDLE_TIMEOUT', 43200),
+        'admin' => $ownerIdleMinutes,
+        'staff' => $staffIdleMinutes,
     ],
 
     'expire_on_close' => env('SESSION_EXPIRE_ON_CLOSE', false),

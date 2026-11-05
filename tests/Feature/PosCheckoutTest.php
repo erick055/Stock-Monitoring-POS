@@ -27,19 +27,19 @@ class PosCheckoutTest extends TestCase
         $staff = User::factory()->create(['role' => 'staff']);
         $product = Product::create(['sku' => 'RETRY', 'name' => 'Retry Part', 'unit_price' => 100, 'current_stock' => 5]);
         $payload = ['items' => [['product_id' => $product->product_id, 'quantity' => 2]]];
-        $first = $this->actingAs($staff)->postJson(route('staff.pos.checkout'), $payload)->assertCreated();
-        $this->postJson(route('staff.pos.checkout'), $payload)->assertCreated()
+        $first = $this->actingAs($staff)->postJson(route('staff.pos.checkout'), ['payment_method' => 'cash', 'amount_tendered' => 10000000, ...$payload])->assertCreated();
+        $this->postJson(route('staff.pos.checkout'), ['payment_method' => 'cash', 'amount_tendered' => 10000000, ...$payload])->assertCreated()
             ->assertJsonPath('sale_id', $first->json('sale_id'));
         $this->assertDatabaseCount('sales_transactions', 1);
         $this->assertDatabaseCount('sales_items', 1);
         $this->assertSame(1, InventoryLedger::count());
         $this->assertSame(3, $product->fresh()->current_stock);
         $product->update(['is_active' => false]);
-        $this->postJson(route('staff.pos.checkout'), $payload)->assertCreated()
+        $this->postJson(route('staff.pos.checkout'), ['payment_method' => 'cash', 'amount_tendered' => 10000000, ...$payload])->assertCreated()
             ->assertJsonPath('sale_id', $first->json('sale_id'));
         $this->assertDatabaseCount('sales_transactions', 1);
         $payload['items'][0]['quantity'] = 1;
-        $this->postJson(route('staff.pos.checkout'), $payload)->assertConflict();
+        $this->postJson(route('staff.pos.checkout'), ['payment_method' => 'cash', 'amount_tendered' => 10000000, ...$payload])->assertConflict();
         $this->assertSame(3, $product->fresh()->current_stock);
     }
 
@@ -57,7 +57,7 @@ class PosCheckoutTest extends TestCase
             ->assertSee('Owner POS Item')
             ->assertSee(route('admin.pos.checkout'));
 
-        $checkout = $this->actingAs($admin)->postJson(route('admin.pos.checkout'), [
+        $checkout = $this->actingAs($admin)->postJson(route('admin.pos.checkout'), ['payment_method' => 'cash', 'amount_tendered' => 10000000,
             'payment_method' => 'cash',
             'items' => [['product_id' => $product->product_id, 'quantity' => 2]],
         ])->assertCreated();
@@ -75,7 +75,7 @@ class PosCheckoutTest extends TestCase
         $staff = User::factory()->create(['role' => 'staff']);
 
         $this->actingAs($staff)->get(route('admin.pos'))->assertForbidden();
-        $this->actingAs($staff)->postJson(route('admin.pos.checkout'), [])->assertForbidden();
+        $this->actingAs($staff)->postJson(route('admin.pos.checkout'), ['payment_method' => 'cash', 'amount_tendered' => 10000000,])->assertForbidden();
     }
 
     public function test_pos_groups_categories_without_case_sensitive_duplicates(): void
@@ -113,7 +113,7 @@ class PosCheckoutTest extends TestCase
             'reorder_level' => 2,
         ]);
 
-        $response = $this->actingAs($staff)->postJson('/staff/pos/checkout', [
+        $response = $this->actingAs($staff)->postJson('/staff/pos/checkout', ['payment_method' => 'cash', 'amount_tendered' => 10000000,
             'items' => [
                 ['product_id' => $product->product_id, 'quantity' => 2],
             ],
@@ -158,7 +158,7 @@ class PosCheckoutTest extends TestCase
             'current_stock' => 3,
         ]);
 
-        $response = $this->actingAs($staff)->postJson(route('staff.pos.checkout'), [
+        $response = $this->actingAs($staff)->postJson(route('staff.pos.checkout'), ['payment_method' => 'cash', 'amount_tendered' => 10000000,
             'labor_amount' => 250.50,
             'items' => [['product_id' => $product->product_id, 'quantity' => 1]],
         ]);
@@ -178,14 +178,14 @@ class PosCheckoutTest extends TestCase
             ->get(route('staff.pos.receipts.show', $sale))
             ->assertOk()
             ->assertSee('Labor')
-            ->assertSee('P250.50');
+            ->assertSee('₱250.50');
     }
 
     public function test_staff_can_checkout_labor_only_without_buying_products(): void
     {
         $staff = User::factory()->create(['role' => 'staff']);
 
-        $response = $this->actingAs($staff)->postJson(route('staff.pos.checkout'), [
+        $response = $this->actingAs($staff)->postJson(route('staff.pos.checkout'), ['payment_method' => 'cash', 'amount_tendered' => 10000000,
             'labor_amount' => 450,
         ]);
 
@@ -207,7 +207,7 @@ class PosCheckoutTest extends TestCase
             ->assertOk()
             ->assertSee('Labor / service only')
             ->assertSee('No products purchased')
-            ->assertSee('P450.00');
+            ->assertSee('₱450.00');
 
         $this->actingAs($staff)->get(route('staff.pos'))
             ->assertOk()
@@ -219,7 +219,7 @@ class PosCheckoutTest extends TestCase
     {
         $staff = User::factory()->create(['role' => 'staff']);
 
-        $this->actingAs($staff)->postJson(route('staff.pos.checkout'), [
+        $this->actingAs($staff)->postJson(route('staff.pos.checkout'), ['payment_method' => 'cash', 'amount_tendered' => 10000000,
             'items' => [],
             'labor_amount' => 0,
         ])->assertUnprocessable()->assertJsonValidationErrors('checkout');
@@ -237,7 +237,7 @@ class PosCheckoutTest extends TestCase
             'current_stock' => 1,
         ]);
 
-        $this->actingAs($staff)->postJson(route('staff.pos.checkout'), [
+        $this->actingAs($staff)->postJson(route('staff.pos.checkout'), ['payment_method' => 'cash', 'amount_tendered' => 10000000,
             'labor_amount' => -1,
             'items' => [['product_id' => $product->product_id, 'quantity' => 1]],
         ])->assertUnprocessable()->assertJsonValidationErrors('labor_amount');
@@ -269,7 +269,7 @@ class PosCheckoutTest extends TestCase
             ->assertOk()
             ->assertViewHas('products', fn ($products) => $products->firstWhere('id', $product->product_id)['price'] === 150.0);
 
-        $this->actingAs($staff)->postJson(route('staff.pos.checkout'), [
+        $this->actingAs($staff)->postJson(route('staff.pos.checkout'), ['payment_method' => 'cash', 'amount_tendered' => 10000000,
             'items' => [['product_id' => $product->product_id, 'quantity' => 2]],
         ])->assertCreated()
             ->assertJsonPath('receipt.subtotal', 300)
@@ -312,12 +312,12 @@ class PosCheckoutTest extends TestCase
                     && $item['promotion']['bundleProduct']['id'] === $companion->product_id;
             });
 
-        $this->actingAs($staff)->postJson(route('staff.pos.checkout'), [
+        $this->actingAs($staff)->postJson(route('staff.pos.checkout'), ['payment_method' => 'cash', 'amount_tendered' => 10000000,
             'items' => [['product_id' => $freeProduct->product_id, 'quantity' => 1]],
         ])->assertUnprocessable()
             ->assertJsonValidationErrors('items');
 
-        $response = $this->actingAs($staff)->postJson(route('staff.pos.checkout'), [
+        $response = $this->actingAs($staff)->postJson(route('staff.pos.checkout'), ['payment_method' => 'cash', 'amount_tendered' => 10000000,
             'items' => [
                 ['product_id' => $companion->product_id, 'quantity' => 1],
                 ['product_id' => $freeProduct->product_id, 'quantity' => 1],
@@ -368,7 +368,7 @@ class PosCheckoutTest extends TestCase
             ->assertSee('HOLD-000001')
             ->assertSee('Held Brake Pad');
 
-        $checkoutResponse = $this->actingAs($staff)->postJson(route('staff.pos.checkout'), [
+        $checkoutResponse = $this->actingAs($staff)->postJson(route('staff.pos.checkout'), ['payment_method' => 'cash', 'amount_tendered' => 10000000,
             'held_order_id' => $heldOrder->held_order_id,
             'labor_amount' => 75,
             'items' => [['product_id' => $product->product_id, 'quantity' => 2]],
@@ -415,7 +415,7 @@ class PosCheckoutTest extends TestCase
             'current_stock' => 1,
         ]);
 
-        $response = $this->actingAs($staff)->postJson('/staff/pos/checkout', [
+        $response = $this->actingAs($staff)->postJson('/staff/pos/checkout', ['payment_method' => 'cash', 'amount_tendered' => 10000000,
             'items' => [
                 ['product_id' => $product->product_id, 'quantity' => 2],
             ],

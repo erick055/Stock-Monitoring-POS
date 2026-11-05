@@ -1,6 +1,6 @@
+import { money as peso } from './formatters';
 const dayBars = [...document.querySelectorAll('[data-day-bar]')];
 const chartInsight = document.querySelector('[data-chart-insight]');
-const peso = new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' });
 const chartRange = document.querySelector('[data-chart-range]');
 
 chartRange?.addEventListener('change', () => chartRange.form?.requestSubmit());
@@ -10,7 +10,7 @@ function selectDay(bar) {
     if (!chartInsight) return;
 
     chartInsight.querySelector('span').textContent = bar.dataset.day;
-    chartInsight.querySelector('strong').textContent = `${peso.format(Number(bar.dataset.total))} paid sales`;
+    chartInsight.querySelector('strong').textContent = `${peso.format(Number(bar.dataset.total))} net sales · Gross sales ${peso.format(Number(bar.dataset.gross))} · Refunds ${peso.format(Number(bar.dataset.refunds))}`;
 }
 
 dayBars.forEach((bar) => {

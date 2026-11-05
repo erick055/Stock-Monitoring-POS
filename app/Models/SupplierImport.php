@@ -12,7 +12,7 @@ class SupplierImport extends Model
 
     protected $fillable = [
         'supplier_id', 'source_filename', 'file_hash', 'status', 'row_count', 'valid_count',
-        'error_count', 'uploaded_by', 'approved_by', 'approved_at', 'archived_at',
+        'error_count', 'uploaded_by', 'approved_by', 'approved_at', 'archived_at', 'extraction_method', 'extraction_model',
     ];
 
     protected function casts(): array

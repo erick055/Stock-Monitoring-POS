@@ -25,6 +25,8 @@ class InventoryLiveService
             $product->product_id,
             $product->updated_at?->format('Y-m-d H:i:s.u'),
             $product->current_stock,
+            $product->reorder_level,
+            $product->unit_cost,
             $product->name,
             $product->sku,
             $product->category,

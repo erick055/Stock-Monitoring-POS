@@ -1,5 +1,5 @@
 @if ($paginator->hasPages())
-    <nav aria-label="Product pages">
+    <nav aria-label="{{ $paginationLabel ?? 'Product pages' }}">
         @if ($paginator->onFirstPage())<span class="page-disabled">←</span>@else<a href="{{ $paginator->previousPageUrl() }}" rel="prev">←</a>@endif
         @foreach ($elements as $element)
             @if (is_string($element))<span class="page-disabled">{{ $element }}</span>@endif

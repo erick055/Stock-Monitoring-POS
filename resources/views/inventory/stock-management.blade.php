@@ -13,14 +13,14 @@ $editErrorProduct = $errors->getBag('editProduct')->any()
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta name="session-activity-url" content="{{ route('session.activity') }}">
+    @include('partials.session-activity')
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <meta name="session-activity-url" content="{{ route('session.activity') }}">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stock Management | MotoSync</title>
     @vite(['resources/css/dashboard.css','resources/css/stock-management.css','resources/css/sorting-controls.css','resources/css/responsive.css','resources/js/dashboard.js','resources/js/stock-management.js'])
+    @include('partials.appearance')
 </head>
 <body data-live-inventory-page data-live-inventory-url="{{ route('inventory.live') }}" data-inventory-version="{{ $inventoryVersion }}">
 <div class="dashboard-shell stock-shell">
@@ -58,20 +58,21 @@ $editErrorProduct = $errors->getBag('editProduct')->any()
             <div class="flash-message error" role="alert"><strong>The product was not updated:</strong><ul>@foreach($errors->getBag('editProduct')->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>
         @endif
 
+        @include('partials.inventory-update-notice')
         <section class="stat-grid stock-stats" aria-label="Stock summary">
-            <article class="stat-card purple"><div class="stat-head"><span>TOTAL SKU</span><span class="trend-dot"></span></div><strong>{{ number_format($summary['total_sku']) }}</strong><small>Active products</small></article>
-            <article class="stat-card violet"><div class="stat-head"><span>TOTAL UNITS</span><span class="trend-dot"></span></div><strong>{{ number_format($summary['total_units']) }}</strong><small>Across all inventory</small></article>
-            <article class="stat-card red"><div class="stat-head"><span>CRITICAL LOW</span><span class="trend-dot"></span></div><strong>{{ number_format($summary['critical_low']) }}</strong><small>At or below reorder level</small></article>
-            <article class="stat-card cyan"><div class="stat-head"><span>STOCK VALUE</span><span class="trend-dot"></span></div><strong>₱{{ number_format($summary['stock_value'], 2) }}</strong><small>Based on current unit cost</small></article>
+            <article class="stat-card purple"><div class="stat-head"><span>TOTAL SKU</span><span class="trend-dot"></span></div><strong data-live-summary="total_sku">{{ number_format($summary['total_sku']) }}</strong><small>Active products</small></article>
+            <article class="stat-card violet"><div class="stat-head"><span>TOTAL UNITS</span><span class="trend-dot"></span></div><strong data-live-summary="total_units">{{ number_format($summary['total_units']) }}</strong><small>Across all inventory</small></article>
+            <article class="stat-card red"><div class="stat-head"><span>CRITICAL LOW</span><span class="trend-dot"></span></div><strong data-live-summary="critical_low">{{ number_format($summary['critical_low']) }}</strong><small>At or below reorder level</small></article>
+            <article class="stat-card cyan"><div class="stat-head"><span>STOCK VALUE</span><span class="trend-dot"></span></div><strong data-live-summary="stock_value">{{ \App\Support\Display::money($summary['stock_value']) }}</strong><small>Based on current unit cost</small></article>
         </section>
 
-        <section class="panel inventory-panel">
+        <section class="panel inventory-panel" id="inventory-table">
             <div class="section-heading inventory-heading">
                 <div><span class="section-kicker">PRODUCT BALANCES</span><h2>Current Stock Level</h2></div>
                 <div class="inventory-actions">
                     <form method="GET" data-filter-form>
                         <input type="hidden" name="search" value="{{ $search }}">
-                        <select name="per_page" aria-label="Products per page">@foreach([25,50,100] as $size)<option value="{{ $size }}" @selected($perPage === $size)>{{ $size }} per page</option>@endforeach</select>
+                        <select name="per_page" aria-label="Products per page">@foreach([20,50,100] as $size)<option value="{{ $size }}" @selected($perPage === $size)>{{ $size }} per page</option>@endforeach</select>
                         <select name="status" data-status-filter aria-label="Filter stock status"><option value="all" @selected($status === 'all')>All statuses</option><option value="healthy" @selected($status === 'healthy')>Healthy</option><option value="warning" @selected($status === 'warning')>Low stock</option><option value="critical" @selected($status === 'critical')>Critical</option></select>
                         <select name="sort" aria-label="Sort stock"><option value="name" @selected($sort === 'name')>Name A–Z</option><option value="name_desc" @selected($sort === 'name_desc')>Name Z–A</option><option value="newest" @selected($sort === 'newest')>Newest added</option><option value="stock_high" @selected($sort === 'stock_high')>Stock: high to low</option><option value="stock_low" @selected($sort === 'stock_low')>Stock: low to high</option><option value="cost_high" @selected($sort === 'cost_high')>Cost: high to low</option><option value="cost_low" @selected($sort === 'cost_low')>Cost: low to high</option></select>
                         <button class="sort-stock-button" type="submit">Sort</button>
@@ -80,11 +81,17 @@ $editErrorProduct = $errors->getBag('editProduct')->any()
                 </div>
             </div>
             <div class="table-wrap">
+                <div class="bulk-archive-toolbar">
+                    <label><input type="checkbox" data-select-page> Select all on this page</label>
+                    <span data-selected-count aria-live="polite">0 selected</span>
+                    <button class="delete-product-button" type="button" data-open-bulk-archive disabled><i class="bi bi-archive" aria-hidden="true"></i> Archive selected</button>
+                </div>
                 <table>
-                    <thead><tr><th>Product ID</th><th>Product</th><th>Category</th><th>Shelf location</th><th>Current stock</th><th>Reorder level</th><th>Unit cost</th><th>Selling price</th><th>Status</th><th>Actions</th></tr></thead>
+                    <thead><tr><th>Select</th><th>Product ID</th><th>Product</th><th>Category</th><th>Shelf location</th><th>Current stock</th><th>Reorder level</th><th>Unit cost</th><th>Selling price</th><th>Status</th><th>Actions</th></tr></thead>
                     <tbody>
                     @forelse($products as $product)
-                        <tr>
+                        <tr data-live-product-id="{{ $product->product_id }}">
+                            <td><input type="checkbox" data-archive-selection value="{{ $product->product_id }}" data-product-label="{{ $product->name }} ({{ $product->sku }})" aria-label="Select {{ $product->name }} for archiving"></td>
                             <td>#{{ $product->product_id }}</td>
                             <td><strong>{{ $product->name }}</strong><small>{{ $product->sku }}</small></td>
                             <td>
@@ -113,11 +120,11 @@ $editErrorProduct = $errors->getBag('editProduct')->any()
                                     <button type="submit"><i class="bi bi-check-lg" aria-hidden="true"></i> Save</button>
                                 </form>
                             </td>
-                            <td><div class="stock-level"><span>{{ number_format($product->current_stock) }} units</span><div><i style="width:{{ min(100, $product->reorder_level ? ($product->current_stock / ($product->reorder_level * 3)) * 100 : 100) }}%"></i></div></div></td>
-                            <td>{{ number_format($product->reorder_level) }}</td>
-                            <td>₱{{ number_format($product->unit_cost, 2) }}</td>
-                            <td>₱{{ number_format($product->unit_price, 2) }}</td>
-                            <td><span class="status-badge {{ $product->stock_status }}">{{ $product->stock_status === 'warning' ? 'Low stock' : ucfirst($product->stock_status) }}</span></td>
+                            <td><div class="stock-level"><span data-live-stock>{{ \App\Support\Display::count($product->current_stock, 'unit') }}</span><div><i style="width:{{ min(100, $product->reorder_level ? ($product->current_stock / ($product->reorder_level * 3)) * 100 : 100) }}%"></i></div></div></td>
+                            <td data-live-reorder>{{ number_format($product->reorder_level) }}</td>
+                            <td data-live-cost>{{ \App\Support\Display::money($product->unit_cost) }}</td>
+                            <td data-live-price>{{ \App\Support\Display::money($product->unit_price) }}</td>
+                            <td><span data-live-status class="status-badge {{ $product->stock_status }}">{{ $product->stock_status === 'warning' ? 'Low stock' : ucfirst($product->stock_status) }}</span></td>
                             <td><div class="product-row-actions">
                                 <button
                                     class="edit-product-button"
@@ -150,91 +157,55 @@ $editErrorProduct = $errors->getBag('editProduct')->any()
                             </div></td>
                         </tr>
                     @empty
-                        <tr><td colspan="10" class="empty-cell">No products found. Add your first product to begin.</td></tr>
+                        <tr><td colspan="11" class="empty-cell">No products found. Add your first product to begin.</td></tr>
                     @endforelse
                     </tbody>
                 </table>
             </div>
-            <footer class="inventory-pagination">
-                <span>Showing {{ $products->firstItem() ?? 0 }}–{{ $products->lastItem() ?? 0 }} of {{ $products->total() }} products</span>
-                @if($products->hasPages()){{ $products->onEachSide(1)->links('products.pagination') }}@endif
-            </footer>
+            @include('partials.ml-table-pagination', ['rows' => $products, 'sizeName' => 'per_page', 'pageName' => 'page', 'anchor' => 'inventory-table', 'tableLabel' => 'Inventory'])
         </section>
 
-        <section class="panel adjustment-panel">
+        <section class="panel adjustment-panel movement-launcher">
             <div class="section-heading movement-heading">
-                <div><span class="section-kicker">INVENTORY ENTRY</span><h2>Record Stock Movement</h2><small>Use one form for received stock, released stock, or inventory corrections.</small></div>
+                <div><span class="section-kicker">INVENTORY ENTRY</span><h2>Record Stock Movement</h2><small>Choose a movement to open its form.</small></div>
             </div>
-            <form class="movement-form" method="POST" action="{{ $movementStoreRoute }}" data-movement-form>
-                @csrf
-                <div class="movement-guidance" data-movement-guidance role="status">
-                    <strong data-guidance-title>Stock In adds units to the selected product.</strong>
-                    <span data-guidance-text>Use this for supplier deliveries, customer returns accepted back into stock, or recovered inventory.</span>
-                </div>
-
-                <div class="movement-fields">
-                    <label>1. Movement type
-                        <select name="movement_type" required data-movement-type>
-                            <option value="in" @selected(old('movement_type', 'in') === 'in')>Stock In — add inventory</option>
-                            <option value="out" @selected(old('movement_type') === 'out')>Stock Out — remove inventory</option>
-                            <option value="adjustment" @selected(old('movement_type') === 'adjustment')>Adjustment — correct inventory count</option>
-                        </select>
-                        <small>Choose what should happen to the selected product's balance.</small>
-                    </label>
-                    <label>2. Product
-                        <select name="product_id" required data-movement-product>
-                            <option value="">Select product</option>
-                            @foreach($allProducts as $product)
-                                <option value="{{ $product->product_id }}" data-stock="{{ $product->current_stock }}" @selected((string) old('product_id') === (string) $product->product_id)>{{ $product->sku }} — {{ $product->name }} ({{ $product->current_stock }} currently)</option>
-                            @endforeach
-                        </select>
-                    </label>
-                    <label><span data-quantity-label>3. Quantity received (+)</span>
-                        <input name="quantity" value="{{ old('quantity') }}" type="number" min="1" placeholder="Enter a positive quantity" required data-movement-quantity>
-                        <small data-quantity-help>Use - or + to add or deduct</small>
-                    </label>
-                    <label>4. Reason
-                        <select name="reason_code" required data-movement-reason data-old-reason="{{ old('reason_code') }}">
-                            <option value="">Select reason</option>
-                            <option value="PURCHASE_RECEIPT" data-types="in">Supplier delivery / purchase receipt</option>
-                            <option value="RETURN_TO_STOCK" data-types="in">Customer return accepted to stock</option>
-                            <option value="RECOVERED_STOCK" data-types="in">Recovered or previously unrecorded stock</option>
-                            <option value="SALE" data-types="out">Manual sale or release</option>
-                            <option value="DAMAGED" data-types="out">Damaged or unusable goods</option>
-                            <option value="SUPPLIER_RETURN" data-types="out">Returned to supplier</option>
-                            <option value="INTERNAL_USE" data-types="out">Internal or shop use</option>
-                            <option value="PHYSICAL_COUNT" data-types="adjustment">Physical count correction</option>
-                            <option value="DATA_CORRECTION" data-types="adjustment">Encoding or data correction</option>
-                            <option value="SHRINKAGE" data-types="adjustment">Loss, shrinkage, or discrepancy</option>
-                        </select>
-                    </label>
-                    <label>5. Reference number <small>Optional</small>
-                        <input name="reference" value="{{ old('reference') }}" maxlength="100" placeholder="Invoice, delivery receipt, sale, or memo no.">
-                    </label>
-                    <label><span data-counterparty-label>6. Supplier / source</span> <small>Optional</small>
-                        <input name="counterparty" value="{{ old('counterparty') }}" maxlength="150" placeholder="Who supplied or received the items" data-counterparty-input>
-                    </label>
-                    <label class="field-wide">7. Movement details <small>Optional</small>
-                        <textarea name="logs" rows="3" maxlength="1000" placeholder="Add condition, purpose, authorization, count findings, or other useful documentation">{{ old('logs') }}</textarea>
-                    </label>
-                </div>
-
-                <div class="movement-audit-note">
-                    <span>Recorded by <strong>{{ auth()->user()->name }}</strong></span>
-                    <span>Date and time are saved automatically when submitted.</span>
-                </div>
-
-                <div class="movement-result" aria-live="polite">
-                    <span><small>Current stock</small><strong data-current-stock>—</strong></span>
-                    <span><small>Movement</small><strong data-stock-change>—</strong></span>
-                    <span><small>Resulting stock</small><strong data-resulting-stock>—</strong></span>
-                </div>
-                <button class="movement-submit" type="submit" @disabled($allProducts->isEmpty()) data-movement-submit>Record stock in</button>
-            </form>
+            <div class="movement-choices">
+                <button type="button" data-open-movement="in"><i class="bi bi-box-arrow-in-down" aria-hidden="true"></i><span><strong>Stock In</strong><small>Receive or add inventory</small></span><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
+                <button type="button" data-open-movement="out"><i class="bi bi-box-arrow-up" aria-hidden="true"></i><span><strong>Stock Out</strong><small>Release or remove inventory</small></span><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
+                <button type="button" data-open-movement="adjustment"><i class="bi bi-sliders" aria-hidden="true"></i><span><strong>Adjustment</strong><small>Correct an inventory count</small></span><i class="bi bi-chevron-right" aria-hidden="true"></i></button>
+            </div>
         </section>
-
-        <section class="panel ledger-panel">
-            <div class="section-heading"><div><span class="section-kicker">INVENTORY LEDGER</span><h2>Movement Logs</h2></div><small class="ledger-count">Latest {{ $ledgers->count() }} records</small></div>
+        <section class="panel ledger-panel" id="archived-products" data-history-group="stock-records" data-history-order="2" data-history-panel="Archived products" data-history-page="archive_page" data-history-size="archive_rows" data-history-selected="{{ $errors->any() && old('archived_action') ? 'true' : 'false' }}" hidden>
+            <div class="section-heading"><div><span class="section-kicker">PRODUCT ARCHIVE</span><h2>Archived Products</h2><small>Archived products stay saved here with their quantities and history. They are hidden from active stock and POS.</small></div></div>
+            <form class="archive-search-form" method="GET" action="{{ route('admin.inventory') }}#archived-products" data-table-filter="archive_search">
+                @foreach(request()->query() as $key => $value)
+                    @if(! in_array($key, ['archive_search', 'archive_page'], true) && is_scalar($value))<input type="hidden" name="{{ $key }}" value="{{ $value }}">@endif
+                @endforeach
+                <label for="archived-product-search">Search archived products<input id="archived-product-search" name="archive_search" type="search" value="{{ $archiveSearch }}" placeholder="SKU, product, category, or shelf"></label>
+                <button class="panel-action" type="submit">Search archive</button>
+            </form>
+            <div class="table-wrap">
+                <div class="bulk-archive-toolbar">
+                    <label><input type="checkbox" data-select-archived-page> Select all on this page</label>
+                    <span data-archived-selected-count aria-live="polite">0 selected</span>
+                    <button class="panel-action" type="button" data-archived-action="restore" disabled>Restore selected</button>
+                    <button class="delete-product-button" type="button" data-archived-action="delete" disabled>Delete permanently</button>
+                </div>
+                <table>
+                    <thead><tr><th>Select</th><th>Product</th><th>Category</th><th>Shelf location</th><th>Preserved quantity</th><th>Archived by</th><th>Archived on</th><th>Archive note</th></tr></thead>
+                    <tbody>
+                    @forelse($archivedProducts as $archivedProduct)
+                        <tr><td><input type="checkbox" data-archived-selection value="{{ $archivedProduct->product_id }}" data-product-label="{{ $archivedProduct->name }} ({{ $archivedProduct->sku }})" aria-label="Select {{ $archivedProduct->name }}" @checked(in_array((string) $archivedProduct->product_id, array_map('strval', (array) old('archived_product_ids', [])), true))></td><td><strong>{{ $archivedProduct->name }}</strong><small>{{ $archivedProduct->sku }}</small></td><td>{{ $archivedProduct->category ?: '—' }}</td><td>{{ $archivedProduct->shelf_location ?: '—' }}</td><td>{{ number_format($archivedProduct->current_stock) }}</td><td>{{ $archivedProduct->latestLedger->user?->name ?? 'Former owner' }}</td><td>{{ $archivedProduct->latestLedger->created_at->format('M d, Y h:i A') }}</td><td class="log-cell">{{ $archivedProduct->latestLedger->logs }}</td></tr>
+                    @empty
+                        <tr><td colspan="8" class="empty-cell">{{ $archiveSearch !== '' ? 'No archived products match your search.' : 'No products have been archived from Stock Management yet.' }}</td></tr>
+                    @endforelse
+                    </tbody>
+                </table>
+            </div>
+            @include('partials.ml-table-pagination', ['rows' => $archivedProducts, 'sizeName' => 'archive_rows', 'pageName' => 'archive_page', 'anchor' => 'archived-products', 'tableLabel' => 'Archived products'])
+        </section>
+        <section class="panel ledger-panel" id="movement-logs" data-history-group="stock-records" data-history-order="1" data-history-panel="Movement logs" data-history-page="ledger_page" data-history-size="ledger_rows" hidden>
+            <div class="section-heading"><div><span class="section-kicker">INVENTORY LEDGER</span><h2>Movement Logs</h2></div><small class="ledger-count">{{ number_format($ledgers->total()) }} records</small></div>
             <div class="table-wrap">
                 <table>
                     <thead><tr><th>Ledger ID</th><th>Product ID</th><th>Product</th><th>Qty In</th><th>Qty Out</th><th>Reason Code</th><th>Logs</th><th>Added By</th><th>Timestamp</th></tr></thead>
@@ -247,7 +218,8 @@ $editErrorProduct = $errors->getBag('editProduct')->any()
                     </tbody>
                 </table>
             </div>
-        </section>
+        @include('partials.ml-table-pagination', ['rows' => $ledgers, 'sizeName' => 'ledger_rows', 'pageName' => 'ledger_page', 'anchor' => 'movement-logs', 'tableLabel' => 'Movement logs'])
+</section>
     </main>
 </div>
 
@@ -383,6 +355,106 @@ $editErrorProduct = $errors->getBag('editProduct')->any()
         </form>
     </section>
 </div>
+<dialog class="movement-dialog" data-movement-dialog data-open-on-error="{{ $errors->any() && old('movement_type') ? 'true' : 'false' }}" aria-labelledby="movement-dialog-title">
+    <div class="modal-header"><div><span class="section-kicker">INVENTORY ENTRY</span><h2 id="movement-dialog-title" data-movement-dialog-title>Record Stock Movement</h2></div><button type="button" data-close-movement aria-label="Close stock movement"><i class="bi bi-x-lg" aria-hidden="true"></i></button></div>
+    @if($errors->any() && old('movement_type'))<div class="modal-form-errors" role="alert"><ul>@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
+<form class="movement-form" method="POST" action="{{ $movementStoreRoute }}" data-movement-form>
+                @csrf
+                <div class="movement-guidance" data-movement-guidance role="status">
+                    <strong data-guidance-title>Stock In adds units to the selected product.</strong>
+                    <span data-guidance-text>Use this for supplier deliveries, customer returns accepted back into stock, or recovered inventory.</span>
+                </div>
+
+                <div class="movement-fields">
+                    <label data-movement-type-field hidden>1. Movement type
+                        <select name="movement_type" required data-movement-type>
+                            <option value="in" @selected(old('movement_type', 'in') === 'in')>Stock In — add inventory</option>
+                            <option value="out" @selected(old('movement_type') === 'out')>Stock Out — remove inventory</option>
+                            <option value="adjustment" @selected(old('movement_type') === 'adjustment')>Adjustment — correct inventory count</option>
+                        </select>
+                        <small>Choose what should happen to the selected product's balance.</small>
+                    </label>
+                    <label>Product
+                        <select name="product_id" required data-movement-product>
+                            <option value="">Select product</option>
+                            @foreach($allProducts as $product)
+                                <option value="{{ $product->product_id }}" data-stock="{{ $product->current_stock }}" @selected((string) old('product_id') === (string) $product->product_id)>{{ $product->sku }} — {{ $product->name }} ({{ $product->current_stock }} currently)</option>
+                            @endforeach
+                        </select>
+                    </label>
+                    <label><span data-quantity-label>Quantity received (+)</span>
+                        <input name="quantity" value="{{ old('quantity') }}" type="number" min="1" placeholder="Enter a positive quantity" required data-movement-quantity>
+                        <small data-quantity-help>Use - or + to add or deduct</small>
+                    </label>
+                    <label>Reason
+                        <select name="reason_code" required data-movement-reason data-old-reason="{{ old('reason_code') }}">
+                            <option value="">Select reason</option>
+                            <option value="PURCHASE_RECEIPT" data-types="in">Supplier delivery / purchase receipt</option>
+                            <option value="RETURN_TO_STOCK" data-types="in">Customer return accepted to stock</option>
+                            <option value="RECOVERED_STOCK" data-types="in">Recovered or previously unrecorded stock</option>
+                            <option value="SALE" data-types="out">Manual sale or release</option>
+                            <option value="DAMAGED" data-types="out">Damaged or unusable goods</option>
+                            <option value="SUPPLIER_RETURN" data-types="out">Returned to supplier</option>
+                            <option value="INTERNAL_USE" data-types="out">Internal or shop use</option>
+                            <option value="PHYSICAL_COUNT" data-types="adjustment">Physical count correction</option>
+                            <option value="DATA_CORRECTION" data-types="adjustment">Encoding or data correction</option>
+                            <option value="SHRINKAGE" data-types="adjustment">Loss, shrinkage, or discrepancy</option>
+                        </select>
+                    </label>
+                    <label>Reference number <small>Optional</small>
+                        <input name="reference" value="{{ old('reference') }}" maxlength="100" placeholder="Invoice, delivery receipt, sale, or memo no.">
+                    </label>
+                    <label><span data-counterparty-label>Supplier / source</span> <small>Optional</small>
+                        <input name="counterparty" value="{{ old('counterparty') }}" maxlength="150" placeholder="Who supplied or received the items" data-counterparty-input>
+                    </label>
+                    <label class="field-wide">Movement details <small>Optional</small>
+                        <textarea name="logs" rows="3" maxlength="1000" placeholder="Add condition, purpose, authorization, count findings, or other useful documentation">{{ old('logs') }}</textarea>
+                    </label>
+                </div>
+
+                <div class="movement-audit-note">
+                    <span>Recorded by <strong>{{ auth()->user()->name }}</strong></span>
+                    <span>Date and time are saved automatically when submitted.</span>
+                </div>
+
+                <div class="movement-result" aria-live="polite">
+                    <span><small>Current stock</small><strong data-current-stock>—</strong></span>
+                    <span><small>Movement</small><strong data-stock-change>—</strong></span>
+                    <span><small>Resulting stock</small><strong data-resulting-stock>—</strong></span>
+                </div>
+                <button type="button" class="secondary-button" data-close-movement>Cancel</button><button class="movement-submit" type="submit" @disabled($allProducts->isEmpty()) data-movement-submit>Record stock in</button>
+            </form>
+</dialog>
 @include('partials.login-stock-alert')
+<dialog class="bulk-archive-dialog" data-bulk-archive-dialog aria-labelledby="bulk-archive-title">
+    <h2 id="bulk-archive-title">Archive selected products</h2>
+    <p data-archive-summary></p>
+    <ul data-archive-list></ul>
+    <p>Archived products leave the active catalog and POS. Their quantities, supplier links, sales, and inventory history stay saved. Any active promotions involving these products will end.</p>
+    <form method="POST" action="{{ route('admin.inventory.products.archive') }}" data-bulk-archive-form>
+        @csrf @method('PATCH')
+        <div data-archive-inputs></div>
+        <label>Reason for archiving<textarea name="archive_reason" maxlength="500" rows="3" required></textarea></label>
+        <label>Confirm with your account password<input type="password" name="password" autocomplete="current-password" required></label>
+        <div class="modal-actions">
+            <button type="button" class="secondary-button" data-cancel-bulk-archive>Cancel</button>
+            <button type="submit" class="danger-button">Archive products</button>
+        </div>
+    </form>
+</dialog>
+<dialog class="bulk-archive-dialog" data-archived-action-dialog data-open-action="{{ $errors->any() ? old('archived_action') : '' }}" aria-labelledby="archived-action-title">
+    <h2 id="archived-action-title" data-archived-action-title></h2>
+    <p data-archived-action-description></p>
+    <ul data-archived-action-list></ul>
+    <form method="POST" action="{{ route('admin.inventory.archived.manage') }}">
+        @csrf @method('PATCH')
+        <input type="hidden" name="archived_action" data-archived-action-value>
+        <div data-archived-action-inputs></div>
+        <label>Reason<textarea name="archived_reason" rows="3" maxlength="500" required>{{ old('archived_reason') }}</textarea></label>
+        <label>Confirm with your account password<input name="password" type="password" autocomplete="current-password" required></label>
+        <label class="archived-delete-confirm" data-archived-delete-confirm hidden><input type="checkbox" name="confirm_permanent_delete" value="1"> I understand this permanently deletes the selected products and their movement logs.</label>
+        <div class="modal-actions"><button class="secondary-button" type="button" data-cancel-archived-action>Cancel</button><button class="primary-button" type="submit" data-submit-archived-action></button></div>
+    </form>
+</dialog>
 </body>
 </html>

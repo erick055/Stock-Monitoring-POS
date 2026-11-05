@@ -26,10 +26,8 @@ class SingleSessionLogin
                 'active_session_hash' => hash('sha256', $token),
                 'remember_token' => Str::random(60),
             ])->save();
-            if (config('session.driver') === 'database') {
-                DB::connection(config('session.connection'))->table(config('session.table', 'sessions'))
-                    ->where('user_id', $current->id)->delete();
-            }
+            // Keep replaced sessions until normal expiry so their next request can
+            // explain the replacement. The token check still rejects them immediately.
             Auth::login($current, false);
             $request->session()->regenerate();
             $request->session()->forget(['login_verification.user_id', 'login_verification.started_at']);

@@ -201,7 +201,7 @@ class AnalyticsPageTest extends TestCase
             ->assertForbidden();
     }
 
-    public function test_items_are_ranked_by_paid_purchase_frequency_and_quantity(): void
+    public function test_items_are_ranked_by_sales_velocity_with_purchase_frequency_as_support(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);
         $staff = User::factory()->create(['role' => 'staff']);
@@ -254,7 +254,8 @@ class AnalyticsPageTest extends TestCase
             ->assertOk()
             ->assertSee('Fast-Moving Item Ranking')
             ->assertSee('Purchase frequency')
-            ->assertSeeInOrder(['#1', 'Frequent Filter', '#2', 'Bulk Chain'])
+            ->assertSeeInOrder(['#1', 'Bulk Chain', '#2', 'Frequent Filter'])
+            ->assertSee('Sales velocity (units/day)')->assertDontSee('Fast-moving percentage')
             ->assertSee('<strong>3</strong><small>paid receipts</small>', false)
             ->assertSee('10.0 per purchase');
     }

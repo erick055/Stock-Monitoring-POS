@@ -101,3 +101,8 @@ body.receipt-open{overflow:hidden}
 @media(max-width:1100px){.pos-layout{grid-template-columns:1fr}.pos-search{min-width:0}}
 @media(max-width:640px){.pos-catalog-head,.checkout-log-head{flex-direction:column;align-items:stretch}.cart-actions,.receipt-modal-actions{grid-template-columns:1fr}.btn-pay{grid-column:span 1}.receipt-modal{padding:9px}.receipt-modal-card{max-height:calc(100dvh - 18px);padding:15px}.receipt-preview-meta{flex-direction:column}}
 .charge-action-note{grid-column:1/-1;margin:0;text-align:center;color:#b5a8ca;font-size:12px;line-height:1.5}
+.payment-dialog{width:min(480px,calc(100% - 32px));max-height:calc(100dvh - 32px);overflow:auto;border:1px solid #42485b;border-radius:14px;padding:24px;background:#10131d;color:#f4f2f8;box-shadow:0 28px 90px #000}
+.payment-dialog::backdrop{background:rgba(2,3,8,.82);backdrop-filter:blur(5px)}
+.payment-dialog h2{margin:0 0 18px}.payment-dialog label{display:grid;gap:8px;margin:16px 0;font-size:14px}.payment-dialog input,.payment-dialog select{width:100%;box-sizing:border-box;padding:12px;border:1px solid #555b70;border-radius:8px;background:#181c29;color:inherit;font:inherit}.payment-dialog-total{display:flex;justify-content:space-between;font-size:18px}.payment-dialog [data-payment-hint]{font-size:13px;line-height:1.5;color:#c1bad2}.payment-dialog button:disabled{opacity:.5;cursor:not-allowed}.payment-dialog [data-payment-change]{float:right}.payment-dialog [data-reference-fields] input{overflow-wrap:anywhere}body.modal-open{overflow:hidden}
+
+.payment-dialog .btn-pay{grid-column:auto}

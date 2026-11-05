@@ -74,8 +74,9 @@ class PosController extends Controller
             ->withCount('items')
             ->withSum('items as units_count', 'quantity')
             ->latest('sale_date')
-            ->limit(25)
-            ->get();
+            ->orderByDesc('sale_id')
+            ->paginate(\App\Support\TablePagination::size($request, 'checkout_rows'), ['*'], 'checkout_page')
+            ->withQueryString()->fragment('checkout-history');
 
         $heldOrders = HeldOrder::query()
             ->when($request->user()->role !== 'admin', fn ($query) => $query->where('staff_id', $request->user()->id))
@@ -185,7 +186,9 @@ class PosController extends Controller
             'items' => ['nullable', 'array'],
             'items.*.product_id' => ['required', 'integer', 'distinct'],
             'items.*.quantity' => ['required', 'integer', 'min:1', 'max:2147483647'],
-            'payment_method' => ['nullable', 'string', 'max:50'],
+            'payment_method' => ['required', Rule::in(['cash', 'gcash', 'maya', 'card'])],
+            'amount_tendered' => ['nullable', 'required_if:payment_method,cash', 'numeric', 'decimal:0,2', 'min:0', 'max:9999999999.99'],
+            'payment_reference' => ['nullable', 'required_if:payment_method,gcash,maya,card', 'string', 'max:255'],
             'held_order_id' => ['nullable', 'integer', 'exists:held_orders,held_order_id'],
             'labor_amount' => ['nullable', 'numeric', 'min:0', 'max:9999999999.99'],
         ]);
@@ -204,7 +207,9 @@ class PosController extends Controller
         }
 
         $fingerprint = hash('sha256', json_encode([
-            $cartItems, $laborAmount, $validated['payment_method'] ?? 'cash', $validated['held_order_id'] ?? null,
+            $cartItems, $laborAmount, $validated['payment_method'], $validated['held_order_id'] ?? null,
+            $validated['payment_method'] === 'cash' ? (float) $validated['amount_tendered'] : null,
+            $validated['payment_method'] !== 'cash' ? trim($validated['payment_reference']) : null,
         ], JSON_THROW_ON_ERROR));
         $replayed = false;
         $sale = DB::transaction(function () use ($validated, $cartItems, $laborAmount, $request, $fingerprint, &$replayed) {
@@ -271,6 +276,12 @@ class PosController extends Controller
                 throw ValidationException::withMessages(['checkout' => 'The order total exceeds the maximum supported receipt amount.']);
             }
 
+            $cash = $validated['payment_method'] === 'cash';
+            $tendered = $cash ? round((float) $validated['amount_tendered'], 2) : null;
+            if ($cash && (int) round($tendered * 100) < (int) round($total * 100)) {
+                throw ValidationException::withMessages(['amount_tendered' => 'Cash tendered must cover the order total.']);
+            }
+
             $sale = SalesTransaction::create([
                 'checkout_key' => $validated['checkout_key'],
                 'checkout_fingerprint' => $fingerprint,
@@ -280,7 +291,10 @@ class PosController extends Controller
                 'labor_amount' => $laborAmount,
                 'total_sale_amount' => $total,
                 'payment_status' => 'paid',
-                'payment_method' => $validated['payment_method'] ?? 'cash',
+                'payment_method' => $validated['payment_method'],
+                'amount_tendered' => $tendered,
+                'change_due' => $cash ? round($tendered - $total, 2) : 0,
+                'payment_reference' => $cash ? null : trim($validated['payment_reference']),
                 'sale_date' => now(),
             ]);
 
@@ -316,7 +330,7 @@ class PosController extends Controller
         $receiptNumber = 'POS-'.str_pad((string) $sale->sale_id, 6, '0', STR_PAD_LEFT);
 
         if (! $replayed) {
-            $sale->items->each(fn (SalesItem $item) => $alerts->checkProduct($item->product));
+            $alerts->checkProducts($sale->items->pluck('product'));
         }
 
         return response()->json([
@@ -324,11 +338,17 @@ class PosController extends Controller
             'sale_id' => $sale->sale_id,
             'total' => (float) $sale->total_sale_amount,
             'receipt' => [
+                'row_html' => view('staff.partials-checkout-row', [
+                    'sale' => $sale->loadMissing('staff'), 'posRoutePrefix' => $request->user()->role.'.pos',
+                ])->render(),
                 'number' => $receiptNumber,
                 'url' => route($request->user()->role.'.pos.receipts.show', $sale),
                 'date' => $sale->sale_date->format('M d, Y h:i A'),
                 'cashier' => $request->user()->name,
-                'payment_method' => ucfirst($sale->payment_method),
+                'payment_method' => $sale->payment_label,
+                'amount_tendered' => $sale->amount_tendered !== null ? (float) $sale->amount_tendered : null,
+                'change_due' => $sale->change_due !== null ? (float) $sale->change_due : null,
+                'payment_reference' => $sale->payment_reference,
                 'subtotal' => (float) $sale->subtotal,
                 'tax' => (float) $sale->tax_amount,
                 'labor' => (float) $sale->labor_amount,

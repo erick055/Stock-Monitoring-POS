@@ -28,13 +28,12 @@ class DeadStockController extends Controller
         $status = in_array((string) $request->query('status', 'queue'), ['queue', 'archived'], true)
             ? (string) $request->query('status', 'queue')
             : 'queue';
-        $perPage = in_array((int) $request->query('per_page', 25), [10, 25, 50, 100], true)
-            ? (int) $request->query('per_page', 25)
-            : 25;
+        $perPage = \App\Support\TablePagination::size($request);
         $products = Product::query()
             ->with(['activePromotion.administrator', 'activePromotion.bundleProduct', 'deadStockArchivedBy'])
             ->where('is_active', true)
             ->orderByDesc('current_stock')
+            ->orderBy('product_id')
             ->get();
 
         $salesLastNinetyDays = $this->soldUnitsByProduct(90);
@@ -115,11 +114,14 @@ class DeadStockController extends Controller
             )))
             ->sortByDesc(fn (array $item) => $item['ml_prediction']['probability'] ?? -1)
             ->values();
+        $outlookRows = in_array((int) $request->query('outlook_rows', 20), [20, 50, 100], true)
+            ? (int) $request->query('outlook_rows', 20) : 20;
         $outlookItems = new LengthAwarePaginator(
-            $outlookItems->forPage(LengthAwarePaginator::resolveCurrentPage('outlook_page'), $perPage)->values(),
-            $outlookItems->count(), $perPage, LengthAwarePaginator::resolveCurrentPage('outlook_page'),
+            $outlookItems->forPage(LengthAwarePaginator::resolveCurrentPage('outlook_page'), $outlookRows)->values(),
+            $outlookItems->count(), $outlookRows, LengthAwarePaginator::resolveCurrentPage('outlook_page'),
             ['path' => $request->url(), 'query' => $request->query(), 'pageName' => 'outlook_page']
         );
+        $outlookItems->fragment('demand-outlook');
 
         return view('admin.dead-stock', compact(
             'summary',

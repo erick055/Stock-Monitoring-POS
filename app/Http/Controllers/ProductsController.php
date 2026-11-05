@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\SalesAnalyticsService;
+
 use App\Models\Product;
 use App\Models\SalesItem;
 use App\Services\InventoryLiveService;
@@ -42,7 +44,6 @@ class ProductsController extends Controller
             ])
             ->withCount(['ledgers', 'supplierPrices'])
             ->withSum(['saleItems as units_sold' => fn ($query) => $query->whereHas('sale', fn ($sale) => $sale->where('payment_status', 'paid'))], 'quantity')
-            ->withSum(['saleItems as sales_revenue' => fn ($query) => $query->whereHas('sale', fn ($sale) => $sale->where('payment_status', 'paid'))], 'line_total')
             ->withSum(['customerReturns as returned_units' => fn ($query) => $query->where('status', 'approved')], 'quantity')
             ->withSum(['damagedGoods as damaged_units' => fn ($query) => $query->whereNotIn('status', ['pending', 'rejected'])], 'quantity')
             ->when($search, fn ($query) => $query->where(function ($query) use ($search) {
@@ -54,8 +55,17 @@ class ProductsController extends Controller
             ->when($category, fn ($query) => $query->where('category', $category))
             ->orderBy($sortColumn, $sortDirection)
             ->orderBy('product_id')
-            ->paginate(10)
+            ->paginate(\App\Support\TablePagination::size($request))
             ->withQueryString();
+
+        $productTotals = app(SalesAnalyticsService::class)->productSummaries($products->pluck('product_id')->all());
+        foreach ($products as $product) {
+            $totals = $productTotals[$product->product_id];
+            $product->sales_revenue = $totals['net_sales'];
+            $product->gross_sales = $totals['gross_sales'];
+            $product->refunds = $totals['refunds'];
+            $product->sales_profit = $totals['gross_profit'];
+        }
 
         $now = now();
         $movement = SalesItem::query()

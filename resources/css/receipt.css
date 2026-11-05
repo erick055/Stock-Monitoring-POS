@@ -23,3 +23,4 @@ body{margin:0;padding:28px 14px}
 .receipt-footer{margin-top:17px;padding-top:12px;border-top:1px dashed #777;text-align:center;font-size:10px;line-height:1.5}
 @media(max-width:420px){body{padding:10px}.receipt-actions{display:grid;grid-template-columns:1fr 1fr}.receipt-paper{padding:7mm 5mm}}
 @media print{@page{size:80mm auto;margin:0}body{padding:0;background:#fff}.receipt-actions{display:none}.receipt-paper{width:80mm;margin:0;padding:6mm 5mm;box-shadow:none}}
+@media screen and (max-width:640px){.receipt-actions{flex-wrap:wrap;max-width:100%}.receipt-paper{max-width:100%}.receipt-item-name,.receipt-item-sku,.receipt-meta{overflow-wrap:anywhere}.receipt-meta div{flex-wrap:wrap}.receipt-total-row{min-width:0}.receipt-total-row strong{overflow-wrap:anywhere;text-align:right}}

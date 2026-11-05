@@ -29,7 +29,8 @@ class SingleSessionLoginTest extends TestCase
         $this->assertNotSame($firstToken, $secondToken);
         $this->assertSame(hash('sha256', $secondToken), $owner->fresh()->active_session_hash);
         $this->actingAs($owner->fresh())->withSession([SingleSessionLogin::SESSION_KEY => $firstToken])
-            ->getJson(route('session.status'))->assertUnauthorized()->assertJsonPath('login_url', route('login'));
+            ->getJson(route('session.status'))->assertUnauthorized()->assertJsonPath('login_url', route('login'))->assertJsonPath('reason', 'session_replaced')
+            ->assertSessionHas('status', 'You signed in on another device. Please log in again.');
         $this->assertGuest();
         $this->actingAs($owner->fresh())->withSession([SingleSessionLogin::SESSION_KEY => $secondToken])
             ->getJson(route('session.status'))->assertOk();
@@ -37,7 +38,7 @@ class SingleSessionLoginTest extends TestCase
         $this->assertArrayNotHasKey('active_session_hash', $owner->fresh()->toArray());
     }
 
-    public function test_login_deletes_only_that_accounts_database_sessions(): void
+    public function test_login_retains_old_sessions_to_explain_token_replacement(): void
     {
         config(['session.driver' => 'database']);
         $owner = User::factory()->create(['role' => 'admin', 'password' => self::PASSWORD]);
@@ -46,7 +47,7 @@ class SingleSessionLoginTest extends TestCase
             DB::table('sessions')->insert(['id' => $id, 'user_id' => $userId, 'payload' => '', 'last_activity' => now()->timestamp]);
         }
         $this->post(route('login.store'), ['email' => $owner->email, 'password' => self::PASSWORD])->assertRedirect();
-        $this->assertDatabaseMissing('sessions', ['id' => 'old-owner-session']);
+        $this->assertDatabaseHas('sessions', ['id' => 'old-owner-session']);
         $this->assertDatabaseHas('sessions', ['id' => 'other-account-session']);
         $this->get(route('admin.dashboard'))->assertOk();
     }
@@ -84,7 +85,7 @@ class SingleSessionLoginTest extends TestCase
         $this->post(route('login.store'), ['email' => $owner->email, 'password' => self::PASSWORD])->assertRedirect();
         session()->forget(SingleSessionLogin::SESSION_KEY);
         $this->get(route('admin.dashboard'))->assertRedirect(route('login'))
-            ->assertSessionHas('status', 'Your account was signed in on another device. Please log in again.');
+            ->assertSessionHas('status', 'You signed in on another device. Please log in again.');
         $this->assertGuest();
     }
 

@@ -31,17 +31,19 @@ return [
 
     'connections' => [
 
-        'sync' => [
-            'driver' => 'sync',
+        // Use the application DB so enqueueing and product reservations commit together.
+        // The regular database/default queue worker processes these jobs.
+        'stock-alerts' => [
+            'driver' => 'database',
+            'connection' => null,
+            'table' => 'jobs',
+            'queue' => 'default',
+            'retry_after' => 90,
+            'after_commit' => false,
         ],
 
-        'ml' => [
-            'driver' => 'database',
-            'connection' => env('DB_QUEUE_CONNECTION'),
-            'table' => env('DB_QUEUE_TABLE', 'jobs'),
-            'queue' => 'ml',
-            'retry_after' => 1900,
-            'after_commit' => true,
+        'sync' => [
+            'driver' => 'sync',
         ],
 
         'ml' => [

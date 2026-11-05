@@ -104,11 +104,11 @@ class LowStocksPageTest extends TestCase
 
         $this->actingAs($admin)->get(route('admin.low-stocks'))
             ->assertOk()
-            ->assertViewHas('activeAlerts', fn ($alerts) => $alerts->total() === 35 && $alerts->count() === 25 && $alerts->lastPage() === 2);
+            ->assertViewHas('activeAlerts', fn ($alerts) => $alerts->total() === 35 && $alerts->count() === 20 && $alerts->lastPage() === 2);
 
-        $this->actingAs($admin)->get(route('admin.low-stocks', ['status' => 'critical', 'per_page' => 10]))
+        $this->actingAs($admin)->get(route('admin.low-stocks', ['status' => 'critical', 'per_page' => 50]))
             ->assertOk()
-            ->assertViewHas('activeAlerts', fn ($alerts) => $alerts->total() === 18 && $alerts->count() === 10);
+            ->assertViewHas('activeAlerts', fn ($alerts) => $alerts->total() === 18 && $alerts->count() === 18);
 
         $this->actingAs($admin)->get(route('admin.low-stocks', ['search' => 'Special Category']))
             ->assertOk()
@@ -145,7 +145,7 @@ class LowStocksPageTest extends TestCase
         $this->assertSame('08:30', $settings->daily_summary_time);
     }
 
-    public function test_stock_crossing_warning_threshold_sends_email_once(): void
+    public function test_stock_crossing_reorder_threshold_queues_one_digest(): void
     {
         Mail::fake();
         Http::fake();
@@ -157,7 +157,7 @@ class LowStocksPageTest extends TestCase
         $admin = User::factory()->create(['role' => 'admin']);
         $product = Product::create([
             'sku' => 'ALERT-01', 'name' => 'Alert Product', 'unit_price' => 100,
-            'current_stock' => 11, 'reorder_level' => 5,
+            'current_stock' => 7, 'reorder_level' => 5,
         ]);
 
         $payload = [
@@ -168,23 +168,27 @@ class LowStocksPageTest extends TestCase
         ];
         $this->actingAs($admin)->post(route('admin.inventory.movements.store'), $payload)->assertSessionHas('success');
 
-        $this->assertDatabaseHas('stock_alert_deliveries', ['channel' => 'email', 'alert_type' => 'immediate', 'status' => 'sent']);
+        Mail::assertNothingSent();
+        $this->assertDatabaseHas('stock_alert_deliveries', ['channel' => 'email', 'alert_type' => 'immediate', 'status' => 'queued']);
+        $job = \Illuminate\Support\Facades\Queue::connection('stock-alerts')->pop();
+        $this->assertNotNull($job);
+        $job->fire();
+        $job->delete();
+        $this->assertDatabaseHas('stock_alert_deliveries', ['status' => 'sent']);
         Http::assertNothingSent();
         $this->assertDatabaseMissing('stock_alert_deliveries', ['channel' => 'sms']);
 
         $emailMessage = StockAlertDelivery::where('channel', 'email')->value('message');
         $this->assertStringContainsString('MotoSync Inventory Alert', $emailMessage);
-        $this->assertStringContainsString('Recommended action', $emailMessage);
-        $this->assertStringContainsString('Suggested restock: 2+ unit(s)', $emailMessage);
-        $this->assertStringContainsString('Alert generated:', $emailMessage);
+        $this->assertStringContainsString('Recommended next steps', $emailMessage);
+        $this->assertStringContainsString('Suggested restock: 6+', $emailMessage);
+        $this->assertStringContainsString('Priority overview', $emailMessage);
         Mail::assertSent(InventoryAlertMail::class, function (InventoryAlertMail $mail) {
             $html = $mail->render();
 
-            return str_contains($html, '<strong style="font-weight:700;color:#111318;">Status:</strong>')
-                && str_contains($html, '<strong style="font-weight:700;color:#111318;">Product:</strong>')
-                && str_contains($html, '<strong style="font-weight:700;color:#111318;">SKU:</strong>')
-                && str_contains($html, '<strong style="font-weight:700;color:#111318;">Current stock:</strong>')
-                && str_contains($html, '<strong style="font-weight:700;color:#111318;">Reorder level:</strong>')
+            return str_contains($html, '[CRITICAL] Alert Product (ALERT-01)')
+                && str_contains($html, '<strong style="font-weight:700;color:#111318;">Stock:</strong>')
+                && str_contains($html, '<strong style="font-weight:700;color:#111318;">Reorder:</strong>')
                 && str_contains($html, '<strong style="font-weight:700;color:#111318;">Suggested restock:</strong>');
         });
 
@@ -208,6 +212,11 @@ class LowStocksPageTest extends TestCase
         ]);
 
         Artisan::call('stock-alerts:daily-summary', ['--force' => true]);
+        Mail::assertNothingSent();
+        $job = \Illuminate\Support\Facades\Queue::connection('stock-alerts')->pop();
+        $this->assertNotNull($job);
+        $job->fire();
+        $job->delete();
 
         $this->assertDatabaseHas('stock_alert_deliveries', [
             'channel' => 'email', 'alert_type' => 'daily_summary', 'status' => 'sent',
@@ -282,12 +291,12 @@ class LowStocksPageTest extends TestCase
 
         $this->actingAs($admin)
             ->post(route('admin.low-stocks.run-now'))
-            ->assertSessionHas('success', 'Stock alert check completed. 1 new notification(s) sent.');
+            ->assertSessionHas('success', 'Stock alert check completed. 1 new notification(s) queued.');
 
         $this->assertDatabaseHas('stock_alert_deliveries', [
-            'product_id' => $product->product_id,
+            'product_id' => null,
             'channel' => 'email',
-            'status' => 'sent',
+            'status' => 'queued',
         ]);
     }
 
@@ -308,7 +317,7 @@ class LowStocksPageTest extends TestCase
         ]);
 
         $this->actingAs($admin)->post(route('admin.low-stocks.run-now'))
-            ->assertSessionHas('success', 'Stock alert check completed. 0 new notification(s) sent.');
+            ->assertSessionHas('success', 'Stock alert check completed. 0 new notification(s) queued.');
 
         Http::assertNothingSent();
         $this->assertDatabaseMissing('stock_alert_deliveries', ['channel' => 'sms']);

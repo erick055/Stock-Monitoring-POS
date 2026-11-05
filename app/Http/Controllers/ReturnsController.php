@@ -85,17 +85,20 @@ class ReturnsController extends Controller
             ->with(['product', 'sale', 'user'])
             ->orderByRaw("CASE WHEN status = 'pending' THEN 0 ELSE 1 END")
             ->latest('returned_at')
-            ->limit(20)
-            ->get();
+            ->orderByDesc('return_id')
+            ->paginate(\App\Support\TablePagination::size($request, 'returns_rows'), ['*'], 'returns_page')
+            ->withQueryString()->fragment('customer-returns');
         $damageLogs = DamagedGood::query()
             ->whereNotIn('status', ['pending', 'rejected'])
             ->with(['product', 'sale', 'user'])
             ->latest('reported_at')
-            ->limit(20)
-            ->get();
+            ->orderByDesc('damage_id')
+            ->paginate(\App\Support\TablePagination::size($request, 'damage_rows'), ['*'], 'damage_page')
+            ->withQueryString()->fragment('damage-history');
 
         $pendingDamages = $request->user()->role === 'admin'
-            ? DamagedGood::with(['product', 'sale', 'user'])->where('status', 'pending')->oldest('reported_at')->limit(50)->get()
+            ? DamagedGood::with(['product', 'sale', 'user'])->where('status', 'pending')->oldest('reported_at')->orderBy('damage_id')
+                ->paginate(\App\Support\TablePagination::size($request, 'pending_rows'), ['*'], 'pending_page')->withQueryString()->fragment('pending-damages')
             : collect();
         $monthStart = now()->startOfMonth();
         $approvedReturns = CustomerReturn::query()->where('status', 'approved')->where('returned_at', '>=', $monthStart);
@@ -159,6 +162,7 @@ class ReturnsController extends Controller
                 'user_id' => $request->user()->id,
                 'refund_amount' => $validated['refund_amount'] ?? 0,
                 'returned_at' => now(),
+                'approved_at' => $validated['status'] === 'approved' ? now() : null,
             ]);
 
             if ($validated['status'] === 'approved' && $validated['item_condition'] === 'sellable') {
@@ -196,7 +200,7 @@ class ReturnsController extends Controller
                 throw ValidationException::withMessages(['decision' => 'This return has already been reviewed.']);
             }
             $product = Product::lockForUpdate()->findOrFail($return->product_id);
-            $return->update(['status' => $validated['decision']]);
+            $return->update(['status' => $validated['decision'], 'approved_at' => $validated['decision'] === 'approved' ? now() : null]);
             if ($validated['decision'] === 'approved' && $return->item_condition === 'sellable') {
                 $product->increment('current_stock', $return->quantity);
                 InventoryLedger::create([

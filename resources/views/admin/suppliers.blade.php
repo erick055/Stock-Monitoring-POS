@@ -8,12 +8,13 @@ $navigation = [
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta name="session-activity-url" content="{{ route('session.activity') }}">
+    @include('partials.session-activity')
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Supplier Price | MotoSync</title>
     @vite(['resources/css/dashboard.css','resources/css/suppliers.css','resources/css/sorting-controls.css','resources/css/responsive.css','resources/js/dashboard.js','resources/js/suppliers.js'])
+    @include('partials.appearance')
 </head>
 <body>
 <div class="dashboard-shell suppliers-shell">
@@ -46,7 +47,7 @@ $navigation = [
             <div class="supplier-message error" role="alert"><strong>Please correct the following:</strong><ul>@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>
         @endif
 
-        <section class="stat-grid suppliers-stats" aria-label="Supplier price summary">
+        <section class="stat-grid suppliers-stats" id="supplier-price-summary" data-table-summary-for="supplier-prices" aria-label="Supplier price summary">
             <article class="stat-card purple"><div class="stat-head"><span>ACTIVE SUPPLIERS</span></div><strong>{{ $summary['suppliers'] }}</strong><small>With imported pricing</small></article>
             <article class="stat-card violet"><div class="stat-head"><span>PUBLISHED PRICES</span></div><strong>{{ $summary['prices'] }}</strong><small>Current supplier SKUs</small></article>
             <article class="stat-card orange"><div class="stat-head"><span>PRICE CHANGES</span></div><strong>{{ $summary['changes'] }}</strong><small>Changed since previous import</small></article>
@@ -75,15 +76,18 @@ $navigation = [
         <section class="panel import-panel">
             <div class="section-heading">
                 <div><span class="section-kicker">STEP 1</span><h2>Upload supplier price list</h2></div>
-                <span class="source-badge">CSV or XLSX · maximum 10 MB / 2,000 rows</span>
+                <span class="source-badge"><i class="bi bi-stars" aria-hidden="true"></i> AI document extraction available</span>
             </div>
-            <form class="supplier-import-form" method="POST" action="{{ route('admin.suppliers.imports.upload') }}" enctype="multipart/form-data">
+            <form class="supplier-import-form" method="POST" action="{{ route('admin.suppliers.imports.upload') }}" enctype="multipart/form-data" data-supplier-upload-form>
                 @csrf
                 <label>Supplier name<input name="supplier_name" value="{{ old('supplier_name') }}" required maxlength="150" placeholder="ABC Motor Parts"></label>
                 <label>Supplier code<input name="supplier_code" value="{{ old('supplier_code') }}" required maxlength="50" pattern="[A-Za-z0-9_-]+" placeholder="ABC-MOTOR"></label>
+                <label>Import method<select name="import_mode" data-supplier-import-mode><option value="spreadsheet" @selected(old('import_mode', 'spreadsheet') === 'spreadsheet')>Standard CSV / XLSX</option><option value="ai" @selected(old('import_mode') === 'ai')>AI document extraction</option></select></label>
+                <label data-ai-import-settings @if(old('import_mode') !== 'ai') hidden @endif>Currency if not stated<input name="default_currency" value="{{ old('default_currency', 'PHP') }}" maxlength="3" pattern="[A-Za-z]{3}" placeholder="PHP"></label>
                 <label class="file-field">Price-list file<input name="price_file" type="file" accept=".csv,.xlsx" required data-supplier-file><span data-file-name>Choose CSV or XLSX file</span></label>
                 <button class="apply-button" type="submit">Upload and preview</button>
             </form>
+            <p class="import-note" data-ai-import-note @if(old('import_mode') !== 'ai') hidden @endif><i class="bi bi-stars" aria-hidden="true"></i> AI reads SKU, product name, and supplier unit price from PDF, DOCX, TXT, CSV, XLSX, PNG, JPG, or WEBP. Maximum 5 MB / 200 items; split larger lists. This sends your document to the configured OpenAI service. Review the detected rows and correct missing or uncertain values before publishing.</p>
             <div class="format-guide">
                 <strong>Required columns:</strong>
                 <code>supplier_sku</code><code>product_name</code><code>unit_price</code>
@@ -99,6 +103,7 @@ $navigation = [
             <form class="archive-filter" method="GET" action="{{ route('admin.suppliers') }}">
                 <input type="hidden" name="sort" value="{{ $sort }}">
                 <input type="hidden" name="search" value="{{ $search }}">
+                <input type="hidden" name="per_page" value="{{ $perPage }}">
                 <label for="archive-import">Import date / file
                     <select id="archive-import" name="import" required @disabled($imports->isEmpty())>
                         <option value="">{{ $imports->isEmpty() ? 'No imports available' : 'Select an import' }}</option>
@@ -121,7 +126,7 @@ $navigation = [
         </section>
 
         @if($selectedImport)
-            <section class="panel preview-panel">
+            <section class="panel preview-panel" id="import-records">
                 <div class="section-heading">
                     <div><span class="section-kicker">{{ $selectedImport->status === 'pending' && ! $selectedImport->archived_at ? 'STEP 2 · REVIEW' : 'ARCHIVED IMPORT · READ ONLY' }}</span><h2>{{ $selectedImport->supplier->name }} — {{ $selectedImport->source_filename }}</h2></div>
                     <div class="import-heading-actions">
@@ -131,16 +136,16 @@ $navigation = [
                         @endif
                     </div>
                 </div>
-                <p class="archive-note">Uploaded {{ $selectedImport->created_at->format('M d, Y h:i A') }} · {{ $selectedImport->archived_at ? 'Archived '.strtolower($selectedImport->status) : ucfirst($selectedImport->status) }} · {{ $importRows->total() }} {{ $importSearch !== '' ? 'matching records' : 'records' }}. Prices below are from this import.</p>
+                <p class="archive-note">Uploaded {{ $selectedImport->created_at->format('M d, Y h:i A') }} · {{ $selectedImport->archived_at ? 'Archived '.strtolower($selectedImport->status) : ucfirst($selectedImport->status) }} · {{ $importRows->total() }} {{ $importSearch !== '' ? 'matching records' : 'records' }}. Prices below are from this import. @if($selectedImport->extraction_method === 'ai')<strong><i class="bi bi-stars" aria-hidden="true"></i> AI extracted · verify against your original document</strong>@endif</p>
                 <div class="supplier-table-wrap">
                     <table>
-                        <thead><tr><th>Row</th><th>Supplier SKU</th><th>Product</th><th>MotoSync match</th><th>Price</th><th>Availability</th><th>Status</th></tr></thead>
+                        <thead><tr><th>Row</th><th>Supplier SKU</th><th>Product</th><th>MotoSync match</th><th>Price</th><th>Availability</th><th>Status</th><th>Review</th></tr></thead>
                         <tbody>
                         @forelse($importRows as $row)
                             <tr class="{{ $row->validation_errors ? 'row-error' : '' }}">
                                 <td>{{ $row->row_number }}</td>
                                 <td>{{ $row->supplier_sku }}</td>
-                                <td>{{ $row->product_name }}</td>
+                                <td>{{ $row->product_name }}@if($row->source_reference)<small>Source: {{ $row->source_reference }}</small>@endif</td>
                                 <td>
                                     @if($row->product)
                                         <span class="match-label matched">Matched: {{ $row->product->sku }} — {{ $row->product->name }}</span>
@@ -157,18 +162,36 @@ $navigation = [
                                         <span class="valid-label">{{ $selectedImport->status === 'pending' ? 'Ready' : ucfirst($selectedImport->status) }}</span>
                                     @endif
                                 </td>
+                                <td>
+                                    @if($selectedImport->status === 'pending' && !$selectedImport->archived_at)
+                                        <button class="apply-button" type="button" data-open-row-review="import-row-{{ $row->supplier_import_row_id }}" aria-haspopup="dialog">Review / correct</button>
+                                        <dialog class="supplier-price-dialog import-row-dialog" id="import-row-{{ $row->supplier_import_row_id }}" data-import-row-dialog data-open-on-error="{{ $errors->any() && (string) old('_import_row_dialog') === (string) $row->supplier_import_row_id ? 'true' : 'false' }}" aria-labelledby="import-row-title-{{ $row->supplier_import_row_id }}">
+                                            <header class="supplier-price-dialog-header"><h2 id="import-row-title-{{ $row->supplier_import_row_id }}">Review import row {{ $row->row_number }}</h2><button type="button" data-close-row-review aria-label="Close row review"><i class="bi bi-x-lg" aria-hidden="true"></i></button></header>
+                                            @if($row->validation_errors)<div class="supplier-message error"><ul>@foreach($row->validation_errors as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
+                                            @if($errors->any() && (string) old('_import_row_dialog') === (string) $row->supplier_import_row_id)<div class="supplier-message error" role="alert">{{ $errors->first() }}</div>@endif
+                                            <form method="POST" action="{{ route('admin.suppliers.imports.rows.update', [$selectedImport, $row]) }}" class="import-row-form">
+                                                @csrf @method('PATCH')
+                                                <input type="hidden" name="_import_row_dialog" value="{{ $row->supplier_import_row_id }}">
+                                                <label>Supplier SKU<input name="supplier_sku" value="{{ (string) old('_import_row_dialog') === (string) $row->supplier_import_row_id ? old('supplier_sku') : $row->supplier_sku }}" maxlength="255" required></label>
+                                                <label>Product name<input name="product_name" value="{{ (string) old('_import_row_dialog') === (string) $row->supplier_import_row_id ? old('product_name') : $row->product_name }}" maxlength="255" required></label>
+                                                <label>Supplier unit price<input name="unit_price" type="number" min="0.01" max="9999999999.99" step="0.01" value="{{ (string) old('_import_row_dialog') === (string) $row->supplier_import_row_id ? old('unit_price') : $row->unit_price }}" required></label>
+                                                <label>Currency<input name="currency" maxlength="3" pattern="[A-Za-z]{3}" value="{{ (string) old('_import_row_dialog') === (string) $row->supplier_import_row_id ? old('currency') : $row->currency }}" required></label>
+                                                <label class="import-review-confirm"><input type="checkbox" name="confirm_review" value="1" required> I checked these values against the original supplier document.</label>
+                                                <button class="apply-button" type="submit">Save reviewed row</button>
+                                            </form>
+                                        </dialog>
+                                    @else
+                                        Read only
+                                    @endif
+                                </td>
                             </tr>
                         @empty
-                            <tr><td colspan="7" class="empty-state">{{ $importSearch !== '' ? 'No imported prices match your search. Try another product name or SKU.' : 'No records in this import.' }}</td></tr>
+                            <tr><td colspan="8" class="empty-state">{{ $importSearch !== '' ? 'No imported prices match your search. Try another product name or SKU.' : 'No records in this import.' }}</td></tr>
                         @endforelse
                         </tbody>
                     </table>
                 </div>
-                <nav class="archive-pagination" aria-label="Import records pagination">
-                    <span>Showing {{ $importRows->firstItem() ?? 0 }}–{{ $importRows->lastItem() ?? 0 }} of {{ $importRows->total() }}</span>
-                    @if($importRows->previousPageUrl())<a href="{{ $importRows->previousPageUrl() }}">Previous</a>@endif
-                    @if($importRows->nextPageUrl())<a href="{{ $importRows->nextPageUrl() }}">Next</a>@endif
-                </nav>
+                @include('partials.ml-table-pagination', ['rows' => $importRows, 'sizeName' => 'import_rows', 'pageName' => 'import_page', 'anchor' => 'import-records', 'tableLabel' => 'Import records'])
             </section>
 
             @if($selectedImport->status === 'pending' && ! $selectedImport->archived_at)
@@ -188,12 +211,15 @@ $navigation = [
             @endif
         @endif
 
-        <section class="panel suppliers-panel">
+        <section class="panel suppliers-panel" id="supplier-prices">
             <div class="section-heading">
                 <div><span class="section-kicker">CURRENT DATA</span><h2>Published supplier prices</h2></div>
                 <form class="supplier-sort-form" method="GET" action="{{ route('admin.suppliers') }}">
                     @if($selectedImport)<input type="hidden" name="import" value="{{ $selectedImport->supplier_import_id }}">@endif
                     @if($importSearch !== '')<input type="hidden" name="import_search" value="{{ $importSearch }}">@endif
+                    <label for="supplier-per-page">Rows per page
+                        <select id="supplier-per-page" name="per_page" data-supplier-page-size>@foreach([20,50,100] as $size)<option value="{{ $size }}" @selected($perPage === $size)>{{ $size }} rows</option>@endforeach</select>
+                    </label>
                     <label class="supplier-price-search" for="supplier-price-search">Search products
                         <input id="supplier-price-search" name="search" type="search" value="{{ $search }}" placeholder="Product, SKU, category, part number, or supplier">
                     </label>
@@ -211,19 +237,20 @@ $navigation = [
                         </select>
                     </label>
                     <button class="supplier-sort-button" type="submit">Search &amp; sort</button>
-                    @if($search)<a class="supplier-search-clear" href="{{ route('admin.suppliers', array_filter(['sort' => $sort, 'import' => $selectedImport?->supplier_import_id, 'import_search' => $importSearch])) }}">Clear</a>@endif
+                    @if($search)<a class="supplier-search-clear" href="{{ route('admin.suppliers', array_filter(['sort' => $sort, 'per_page' => $perPage, 'import' => $selectedImport?->supplier_import_id, 'import_search' => $importSearch])) }}">Clear</a>@endif
                 </form>
             </div>
-            @if($prices->contains(fn ($price) => ! $price->product_id && strtoupper($price->currency) === 'PHP'))
                 <div class="bulk-product-toolbar">
-                    <div><strong>Bulk add to Products</strong><span>Select unmatched PHP supplier items below, then create them together.</span></div>
+                    <div><strong>Bulk add to Products</strong><span>Select unmatched PHP supplier items across pages, then create them together. Selections stay while browsing this table.</span></div>
                     <div class="bulk-product-actions">
-                        <label class="bulk-select-all"><input type="checkbox" data-bulk-select-all><span>Select all eligible</span></label>
+                        <label class="bulk-select-all"><input type="checkbox" data-bulk-select-all><span>Select all eligible on this page</span></label>
                         <button class="apply-button" type="button" data-open-bulk-products disabled>Bulk add selected (<span data-bulk-count>0</span>)</button>
                     </div>
                 </div>
-            @endif
-            <div class="pricing-list">
+            <div class="supplier-table-wrap published-price-table">
+                <table>
+                    <thead><tr><th>Select</th><th>Product / SKU</th><th>Supplier</th><th>Unit price</th><th>Supplier stock</th><th>Product match</th><th>Updated</th><th>Actions</th></tr></thead>
+                    <tbody>
                 @forelse($prices as $price)
                     @php
                         $change = $price->previous_price && (float) $price->previous_price > 0
@@ -237,10 +264,26 @@ $navigation = [
                         $isAutomaticSkuMatch = $price->product
                             && mb_strtolower(trim($price->supplier_sku), 'UTF-8') === mb_strtolower(trim($price->product->sku), 'UTF-8');
                     @endphp
-                    <article class="pricing-card">
+                    <tr>
+                        <td>
                         @if(! $price->product_id && strtoupper($price->currency) === 'PHP')
-                            <label class="bulk-product-select"><input type="checkbox" value="{{ $price->supplier_price_id }}" data-bulk-product-checkbox><span>Select</span></label>
+                            <input type="checkbox" value="{{ $price->supplier_price_id }}" data-bulk-product-checkbox aria-label="Select {{ $price->product_name }} for bulk product creation">
+                        @else
+                            <span class="selection-unavailable" aria-label="Not eligible for bulk product creation">—</span>
                         @endif
+                        </td>
+                        <td><strong>{{ $price->product_name }}</strong><small>{{ $price->supplier_sku }}</small></td>
+                        <td>{{ $price->supplier->name }}</td>
+                        <td>{{ $price->currency }} {{ number_format((float) $price->unit_price, 2) }}</td>
+                        <td>{{ $price->available_quantity ?? 'Unknown' }}</td>
+                        <td><span class="match-label {{ $price->product ? 'matched' : 'unmatched' }}">{{ $price->product ? 'Matched: '.$price->product->sku : 'Unmatched' }}</span></td>
+                        <td>{{ $isStale ? 'Stale · ' : '' }}{{ $price->last_updated_at->diffForHumans() }}</td>
+                        <td>
+                            <button class="supplier-price-manage apply-button" type="button" data-open-price-dialog="supplier-price-{{ $price->supplier_price_id }}" aria-haspopup="dialog" aria-controls="supplier-price-{{ $price->supplier_price_id }}"><i class="bi bi-eye" aria-hidden="true"></i> View / manage</button>
+                            <dialog class="supplier-price-dialog" id="supplier-price-{{ $price->supplier_price_id }}" data-supplier-price-dialog data-open-on-error="{{ $errors->any() && (string) old('_supplier_price_dialog') === (string) $price->supplier_price_id ? 'true' : 'false' }}" data-price-id="{{ $price->supplier_price_id }}" aria-labelledby="supplier-price-title-{{ $price->supplier_price_id }}">
+                                <header class="supplier-price-dialog-header"><h2 id="supplier-price-title-{{ $price->supplier_price_id }}">Supplier price details</h2><button type="button" data-close-price-dialog aria-label="Close supplier price details"><i class="bi bi-x-lg" aria-hidden="true"></i></button></header>
+                                @if($errors->any() && (string) old('_supplier_price_dialog') === (string) $price->supplier_price_id)<div class="supplier-message error" role="alert"><ul>@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
+                    <article class="pricing-card">
                         <div class="supplier-line">
                             <strong>{{ $price->product_name }}</strong>
                             <small>{{ $price->supplier->name }} · Supplier SKU: {{ $price->supplier_sku }}</small>
@@ -262,8 +305,8 @@ $navigation = [
                                     <div><span>Product SKU</span><strong>{{ $price->product->sku }}</strong></div>
                                     <div><span>Model / Product Name</span><strong>{{ $price->product->name }}</strong>@if($price->product->manufacturer_part_number)<small>Part no. {{ $price->product->manufacturer_part_number }}</small>@endif</div>
                                     <div><span>Supplier Unit Price</span><strong>{{ $price->currency }} {{ number_format((float) $price->unit_price, 2) }}</strong></div>
-                                    <div><span>Product Unit Cost</span><strong>₱{{ number_format((float) $price->product->unit_cost, 2) }}</strong></div>
-                                    <div><span>Product Selling Price</span><strong>₱{{ number_format((float) $price->product->unit_price, 2) }}</strong></div>
+                                    <div><span>Product Unit Cost</span><strong>{{ \App\Support\Display::money((float) $price->product->unit_cost) }}</strong></div>
+                                    <div><span>Product Selling Price</span><strong>{{ \App\Support\Display::money((float) $price->product->unit_price) }}</strong></div>
                                     <div class="{{ $costDifference === null ? 'comparison-warning' : ($costDifference > 0 ? 'comparison-higher' : ($costDifference < 0 ? 'comparison-lower' : 'comparison-equal')) }}">
                                         <span>Cost Difference</span>
                                         <strong>
@@ -286,8 +329,8 @@ $navigation = [
                                 <small>Match this supplier item to the correct SKU or create it in Products before comparing or applying its cost.</small>
                             </section>
                         @endif
-                        <details class="catalog-sync">
-                            <summary>{{ $price->product ? 'Manage product match and cost' : 'Match or add this item to Products' }}</summary>
+                        <section class="catalog-sync">
+                            <h3>{{ $price->product ? 'Manage product match and cost' : 'Match or add this item to Products' }}</h3>
                             <div class="catalog-sync-body">
                                 <div class="sync-explanation">
                                     <strong>{{ $price->product ? 'Currently matched to '.$price->product->sku.' — '.$price->product->name : 'This supplier item is not connected to Products yet.' }}</strong>
@@ -315,7 +358,7 @@ $navigation = [
                                     </form>
                                     <form class="apply-cost-form" method="POST" action="{{ route('admin.suppliers.prices.apply-cost', $price) }}" data-apply-supplier-cost data-product-name="{{ $price->product->name }}" data-cost="{{ $price->currency }} {{ number_format((float) $price->unit_price, 2) }}">
                                         @csrf @method('PATCH')
-                                        <div><small>Current product cost</small><strong>₱{{ number_format((float) $price->product->unit_cost, 2) }}</strong></div>
+                                        <div><small>Current product cost</small><strong>{{ \App\Support\Display::money((float) $price->product->unit_cost) }}</strong></div>
                                         <div><small>Supplier cost to apply</small><strong>{{ $price->currency }} {{ number_format((float) $price->unit_price, 2) }}</strong></div>
                                         <button class="apply-button" type="submit" @disabled(strtoupper($price->currency) !== 'PHP')>Apply supplier cost</button>
                                     </form>
@@ -336,12 +379,19 @@ $navigation = [
                                     <p class="currency-warning">Convert this supplier price to PHP before applying it to the product catalog.</p>
                                 @endif
                             </div>
-                        </details>
+                        </section>
                     </article>
+                                <footer class="supplier-price-dialog-footer"><button class="modal-cancel-button" type="button" data-close-price-dialog>Close</button></footer>
+                            </dialog>
+                        </td>
+                    </tr>
                 @empty
-                    <div class="empty-state">{{ $search ? 'No supplier prices match “'.$search.'”. Try a product name, SKU, category, part number, or supplier.' : 'No supplier prices have been published. Upload a price list to begin.' }}</div>
+                    <tr><td colspan="8" class="empty-state">{{ $search ? 'No supplier prices match “'.$search.'”. Try a product name, SKU, category, part number, or supplier.' : 'No supplier prices have been published. Upload a price list to begin.' }}</td></tr>
                 @endforelse
+                    </tbody>
+                </table>
             </div>
+            @include('partials.ml-table-pagination', ['rows' => $prices, 'sizeName' => 'per_page', 'pageName' => 'prices_page', 'anchor' => 'supplier-prices', 'tableLabel' => 'Supplier prices'])
         </section>
 
         <div class="supplier-modal" data-bulk-products-modal hidden role="dialog" aria-modal="true" aria-labelledby="bulk-products-title">
@@ -368,10 +418,10 @@ $navigation = [
             @endforeach
         </datalist>
 
-        <section class="panel imports-panel">
+        <section class="panel imports-panel" id="import-history" data-history-panel="Import audit trail" data-history-page="history_page" data-history-size="history_rows" hidden>
             <div class="section-heading"><div><span class="section-kicker">AUDIT TRAIL</span><h2>Recent imports</h2></div></div>
             <div class="import-list">
-                @forelse($imports->take(10) as $import)
+                @forelse($importHistory as $import)
                     <a href="{{ route('admin.suppliers', ['import' => $import->supplier_import_id]) }}">
                         <strong>{{ $import->supplier->name }}</strong>
                         <span>{{ $import->source_filename }}</span>
@@ -383,7 +433,8 @@ $navigation = [
                     <div class="empty-state">No import history yet.</div>
                 @endforelse
             </div>
-        </section>
+        @include('partials.ml-table-pagination', ['rows' => $importHistory, 'sizeName' => 'history_rows', 'pageName' => 'history_page', 'anchor' => 'import-history', 'tableLabel' => 'Import audit trail'])
+</section>
     </main>
 </div>
 @include('partials.login-stock-alert')

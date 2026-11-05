@@ -1,6 +1,25 @@
+import { currency, plural } from './formatters';
 const returnButtons = document.querySelectorAll('[data-return-action], .mini-button');
 const returnsToast = document.querySelector('[data-returns-toast]');
 const receiptDataElement = document.querySelector('#receipt-selector-data');
+
+const openReturnsDialog = (dialog) => {
+    if (!dialog || dialog.open) return;
+    dialog.showModal();
+    document.body.classList.add('modal-open');
+};
+
+document.querySelectorAll('[data-open-returns-dialog]').forEach((button) => {
+    button.addEventListener('click', () => openReturnsDialog(document.getElementById(button.dataset.openReturnsDialog)));
+});
+document.querySelectorAll('[data-returns-dialog]').forEach((dialog) => {
+    dialog.querySelectorAll('[data-close-returns-dialog]').forEach((button) => {
+        button.addEventListener('click', () => dialog.close());
+    });
+    dialog.addEventListener('close', () => {
+        if (!document.querySelector('dialog[open]')) document.body.classList.remove('modal-open');
+    });
+});
 
 let receipts = [];
 if (receiptDataElement) {
@@ -41,20 +60,20 @@ document.querySelectorAll('[data-receipt-form]').forEach((form) => {
         const selectedQuantity = Math.max(Number(quantity.value) || 1, 1);
         const maximumRefund = unitPrice * selectedQuantity;
         quantity.max = String(available);
-        quantity.setAttribute('aria-description', `Maximum ${available} item(s) from this receipt.`);
+        quantity.setAttribute('aria-description', `Maximum ${plural(available, 'item')} from this receipt.`);
 
         if (refundValue) {
             refundValue.innerHTML = `
                 <span>Selected item value</span>
-                <strong>₱${unitPrice.toFixed(2)} each</strong>
-                <small>${selectedQuantity} × ₱${unitPrice.toFixed(2)} = <b>₱${maximumRefund.toFixed(2)}</b> maximum refundable value</small>
+                <strong>${currency(unitPrice)} each</strong>
+                <small>${selectedQuantity} × ${currency(unitPrice)} = <b>${currency(maximumRefund)}</b> maximum refundable value</small>
             `;
             refundValue.hidden = false;
         }
 
         if (refund) {
             refund.max = maximumRefund.toFixed(2);
-            refund.placeholder = `Up to ₱${maximumRefund.toFixed(2)}`;
+            refund.placeholder = `Up to ${currency(maximumRefund)}`;
         }
     };
 
@@ -72,7 +91,7 @@ document.querySelectorAll('[data-receipt-form]').forEach((form) => {
         product.append(new Option('Select an item from this receipt', ''));
         receipt.items.forEach((item) => {
             const option = new Option(
-                `${item.sku} — ${item.name} — ₱${Number(item.unit_price).toFixed(2)} each (available ${item.available_quantity})`,
+                `${item.sku} — ${item.name} — ${currency(Number(item.unit_price))} each (available ${item.available_quantity})`,
                 item.product_id,
             );
             option.dataset.available = item.available_quantity;
@@ -83,7 +102,7 @@ document.querySelectorAll('[data-receipt-form]').forEach((form) => {
         const itemRows = receipt.items.map((item) => `
             <div class="receipt-preview-item">
                 <div><strong>${escapeHtml(item.name)}</strong><small>${escapeHtml(item.sku)} · ${item.available_quantity} of ${item.quantity_sold} available</small></div>
-                <div class="receipt-item-value"><strong>₱${Number(item.unit_price).toFixed(2)}</strong><small>each · ₱${Number(item.available_value).toFixed(2)} available value</small></div>
+                <div class="receipt-item-value"><strong>${currency(Number(item.unit_price))}</strong><small>each · ${currency(Number(item.available_value))} available value</small></div>
             </div>
         `).join('');
         preview.innerHTML = `
@@ -91,7 +110,7 @@ document.querySelectorAll('[data-receipt-form]').forEach((form) => {
                 <strong>${escapeHtml(receipt.number)}</strong>
                 <span>${escapeHtml(receipt.date)}</span>
                 <span>Cashier: ${escapeHtml(receipt.cashier)}</span>
-                <span>Receipt total: ₱${escapeHtml(receipt.total)}</span>
+                <span>Receipt total: ${currency(receipt.total)}</span>
             </div>
             <div class="receipt-preview-items">${itemRows}</div>
         `;
@@ -134,6 +153,8 @@ function escapeHtml(value) {
     element.textContent = String(value ?? '');
     return element.innerHTML;
 }
+
+openReturnsDialog(document.querySelector('[data-returns-dialog][data-open-on-error="true"]'));
 
 returnButtons.forEach((button) => {
     button.addEventListener('click', () => {

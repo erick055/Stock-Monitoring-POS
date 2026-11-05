@@ -93,7 +93,8 @@ class AccountManagementController extends Controller
             }))
             ->orderByRaw("CASE account_status WHEN 'pending' THEN 0 WHEN 'active' THEN 1 ELSE 2 END")
             ->latest()
-            ->paginate(20)
+            ->orderByDesc('id')
+            ->paginate(\App\Support\TablePagination::size($request))
             ->withQueryString();
 
         $summary = User::query()->where('role', 'staff')->selectRaw(

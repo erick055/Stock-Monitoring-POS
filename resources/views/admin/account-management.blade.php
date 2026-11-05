@@ -9,12 +9,13 @@ $navigation = [
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta name="session-activity-url" content="{{ route('session.activity') }}">
+    @include('partials.session-activity')
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Account Management | MotoSync</title>
     @vite(['resources/css/dashboard.css','resources/css/account-management.css','resources/css/responsive.css','resources/js/dashboard.js'])
+    @include('partials.appearance')
 </head>
 <body>
 <div class="dashboard-shell">
@@ -49,23 +50,30 @@ $navigation = [
         </section>
 
         <section class="panel accounts-panel account-create-panel">
-            <div class="section-heading"><div><span class="section-kicker">OWNER ONLY</span><h2>Create staff account</h2></div></div>
+            <div class="section-heading account-create-heading">
+                <div><span class="section-kicker">OWNER ONLY</span><h2>Staff account creation</h2></div>
+                <button type="button" class="edit-staff-button create-staff-button" data-open-account-dialog="create-staff-account" aria-haspopup="dialog" aria-controls="create-staff-account"><i class="bi bi-person-plus" aria-hidden="true"></i> Create staff account</button>
+            </div>
+        </section>
+        <dialog class="account-dialog" id="create-staff-account" data-account-dialog data-open-on-error="{{ $errors->createAccount->any() ? 'true' : 'false' }}" aria-labelledby="create-staff-title">
+            <header class="account-dialog-header"><h2 id="create-staff-title">Create staff account</h2><button type="button" data-close-account-dialog aria-label="Close create staff account"><i class="bi bi-x-lg" aria-hidden="true"></i></button></header>
             <p class="account-form-note">The password you set is temporary. Staff must create their own password on first login and verify their email before using the system.</p>
             @if($errors->createAccount->any())<div class="account-message error" role="alert"><ul>@foreach($errors->createAccount->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
             <form class="staff-account-form" method="POST" action="{{ route('admin.accounts.store') }}">
                 @csrf
                 <label>Full name<input name="name" value="{{ $errors->createAccount->any() ? old('name') : '' }}" minlength="2" maxlength="100" autocomplete="name" required></label>
                 <label>Email address<input type="email" name="email" value="{{ $errors->createAccount->any() ? old('email') : '' }}" maxlength="255" autocomplete="email" required></label>
-                <label>Password<input type="password" name="password" minlength="12" autocomplete="new-password" required></label>
-                <label>Confirm password<input type="password" name="password_confirmation" minlength="12" autocomplete="new-password" required></label>
+                <label><span>Password</span><x-password-input id="create-staff-password" minlength="12" autocomplete="new-password" required /></label>
+                <label><span>Confirm password</span><x-password-input id="create-staff-password-confirmation" name="password_confirmation" minlength="12" autocomplete="new-password" required /></label>
                 <p class="account-form-note">Use at least 12 characters with uppercase, lowercase, a number, and a symbol.</p>
-                <button type="submit">Create staff account</button>
+                <div class="account-dialog-footer"><button class="account-cancel-button" type="button" data-close-account-dialog>Cancel</button><button type="submit">Create staff account</button></div>
             </form>
-        </section>
+        </dialog>
 
-        <section class="panel accounts-panel">
+        <section class="panel accounts-panel" id="staff-accounts">
             <div class="section-heading"><div><span class="section-kicker">STAFF ACCESS</span><h2>Staff accounts and status</h2></div></div>
             <form class="account-toolbar" method="GET">
+                <input type="hidden" name="per_page" value="{{ $staff->perPage() }}">
                 <label><span>Search</span><input type="search" name="search" value="{{ $search }}" placeholder="Name or email"></label>
                 <label><span>Status</span><select name="status"><option value="all">All accounts</option>@foreach(['pending','active','disabled'] as $option)<option value="{{ $option }}" @selected($status === $option)>{{ ucfirst($option) }}</option>@endforeach</select></label>
                 <button type="submit">Apply filters</button>
@@ -95,34 +103,40 @@ $navigation = [
                                 <form method="POST" action="{{ route('admin.accounts.reactivate', $account) }}">@csrf @method('PATCH')<button class="reactivate-button" type="submit">Restore staff access</button></form>
                             @endif
                         </div>
-                        <details class="account-edit" @if($errors->getBag('editAccount'.$account->id)->any()) open @endif>
-                            <summary>Edit staff account</summary>
+                        <div class="account-dialog-actions">
+                            <button type="button" class="edit-staff-button" data-open-account-dialog="edit-staff-{{ $account->id }}" aria-haspopup="dialog" aria-controls="edit-staff-{{ $account->id }}"><i class="bi bi-pencil-square" aria-hidden="true"></i> Edit staff account</button>
+                            <button type="button" class="delete-staff-button" data-open-account-dialog="delete-staff-{{ $account->id }}" aria-haspopup="dialog" aria-controls="delete-staff-{{ $account->id }}"><i class="bi bi-trash" aria-hidden="true"></i> Delete staff account</button>
+                        </div>
+                        <dialog class="account-dialog" id="edit-staff-{{ $account->id }}" data-account-dialog data-open-on-error="{{ $errors->getBag('editAccount'.$account->id)->any() ? 'true' : 'false' }}" aria-labelledby="edit-staff-title-{{ $account->id }}">
+                            <header class="account-dialog-header"><div><h2 id="edit-staff-title-{{ $account->id }}">Edit staff account</h2><p>{{ $account->name }} · {{ $account->email }}</p></div><button type="button" data-close-account-dialog aria-label="Close edit staff account"><i class="bi bi-x-lg" aria-hidden="true"></i></button></header>
                             @if($errors->getBag('editAccount'.$account->id)->any())<div class="account-message error" role="alert"><ul>@foreach($errors->getBag('editAccount'.$account->id)->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
                             <form class="staff-account-form" method="POST" action="{{ route('admin.accounts.update', $account) }}">
                                 @csrf @method('PATCH')
                                 <label>Full name<input name="name" value="{{ $errors->getBag('editAccount'.$account->id)->any() ? old('name', $account->name) : $account->name }}" minlength="2" maxlength="100" required></label>
                                 <label>Email address<input type="email" name="email" value="{{ $errors->getBag('editAccount'.$account->id)->any() ? old('email', $account->email) : $account->email }}" maxlength="255" required></label>
-                                <label>New password<input type="password" name="password" minlength="12" autocomplete="new-password" placeholder="Leave blank to keep current password"></label>
-                                <label>Confirm new password<input type="password" name="password_confirmation" minlength="12" autocomplete="new-password"></label>
+                                <label><span>New password</span><x-password-input :id="'staff-password-'.$account->id" minlength="12" autocomplete="new-password" placeholder="Leave blank to keep current password" /></label>
+                                <label><span>Confirm new password</span><x-password-input :id="'staff-password-confirmation-'.$account->id" name="password_confirmation" minlength="12" autocomplete="new-password" /></label>
                                 <p class="account-form-note">Passwords require 12 characters, uppercase, lowercase, a number, and a symbol. Changing email or password signs staff out. A reset password must be changed at next login. A changed email requires verification.</p>
-                                <button type="submit">Save staff account</button>
+                                <div class="account-dialog-footer"><button class="account-cancel-button" type="button" data-close-account-dialog>Cancel</button><button type="submit">Save staff account</button></div>
                             </form>
-                        </details>
-                        <details class="account-delete">
-                            <summary>Delete staff account</summary>
+                        </dialog>
+                        <dialog class="account-dialog account-delete-dialog" id="delete-staff-{{ $account->id }}" data-account-dialog data-open-on-error="{{ $errors->has('confirm_delete') && (string) old('delete_account_id') === (string) $account->id ? 'true' : 'false' }}" aria-labelledby="delete-staff-title-{{ $account->id }}">
+                            <header class="account-dialog-header"><h2 id="delete-staff-title-{{ $account->id }}">Delete staff account</h2><button type="button" data-close-account-dialog aria-label="Close delete staff account"><i class="bi bi-x-lg" aria-hidden="true"></i></button></header>
+                            @if($errors->has('confirm_delete') && (string) old('delete_account_id') === (string) $account->id)<div class="account-message error" role="alert">{{ $errors->first('confirm_delete') }}</div>@endif
                             <p>Permanently remove {{ $account->name }}'s login account from the database. This cannot be undone. Sales and inventory records will be preserved.</p>
                             <form method="POST" action="{{ route('admin.accounts.destroy', $account) }}">
                                 @csrf @method('DELETE')
-                                <label><input type="checkbox" name="confirm_delete" value="1" required> I confirm that I want to permanently delete this staff account.</label>
-                                <button class="disable-button" type="submit">Permanently delete staff</button>
+                                <input type="hidden" name="delete_account_id" value="{{ $account->id }}">
+                                <label class="account-delete-confirm"><input type="checkbox" name="confirm_delete" value="1" required> I confirm that I want to permanently delete this staff account.</label>
+                                <div class="account-dialog-footer"><button class="account-cancel-button" type="button" data-close-account-dialog>Cancel</button><button class="disable-button" type="submit">Permanently delete staff</button></div>
                             </form>
-                        </details>
+                        </dialog>
                     </article>
                 @empty
                     <div class="empty-accounts"><strong>No staff accounts found</strong><span>Create a staff account above to grant access.</span></div>
                 @endforelse
             </div>
-            @if($staff->hasPages())<div class="account-pagination">{{ $staff->links() }}</div>@endif
+            @include('partials.ml-table-pagination', ['rows' => $staff, 'sizeName' => 'per_page', 'pageName' => 'page', 'anchor' => 'staff-accounts', 'tableLabel' => 'Staff accounts'])
         </section>
     </main>
 </div>

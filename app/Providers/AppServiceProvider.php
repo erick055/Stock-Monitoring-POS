@@ -22,8 +22,15 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        $this->registerIsolatedRateLimits();
+        RateLimiter::for('inventory-archive', fn (Request $request) =>
+            Limit::perMinute(10)->by((string) $request->user()->id)->response(function (Request $request, array $headers) {
+                $message = 'Please wait before archiving more products. No products were changed.';
+                if ($request->expectsJson()) return response()->json(['message' => $message], 429, $headers);
+                return redirect()->route('admin.inventory')->withErrors(['archive' => $message])->withHeaders($headers);
+            }));
         RateLimiter::for('email-verification-status', fn (Request $request) =>
-            Limit::perMinute(30)->by((string) $request->user()->id));
+            Limit::perMinute(120)->by((string) $request->user()->id));
         RateLimiter::for('email-verification-resend', function (Request $request) {
             return Limit::perMinute(1)->by((string) $request->user()->id)
                 ->response(function (Request $request, array $headers) {
@@ -62,6 +69,47 @@ class AppServiceProvider extends ServiceProvider
         \Illuminate\Http\Middleware\TrustProxies::at($proxies);
         if ($this->app->environment('production')) {
             \Illuminate\Support\Facades\URL::forceScheme('https');
+        }
+    }
+
+    private function registerIsolatedRateLimits(): void
+    {
+        $limits = [
+            'session-status' => [120, 1, null],
+            'session-activity' => [60, 1, null],
+            'inventory-live' => [240, 1, null],
+            'verification-link' => [30, 1, 'login'],
+            'login-code-resend' => [3, 10, 'login.verify'],
+            'password-email' => [3, 1, 'password.request'],
+            'password-reset' => [5, 1, 'password.reset'],
+            'staff-password-change' => [5, 1, 'staff.password.edit'],
+            'inventory-removal' => [5, 1, 'admin.inventory'],
+            'analytics-export' => [10, 1, 'admin.analytics'],
+            'dead-stock-training' => [2, 10, 'admin.dead-stock'],
+            'supplier-purge' => [5, 1, 'admin.suppliers'],
+            'supplier-document-import' => [5, 10, 'admin.suppliers'],
+        ];
+        foreach ($limits as $name => [$attempts, $minutes, $destination]) {
+            RateLimiter::for($name, function (Request $request) use ($attempts, $minutes, $destination) {
+                $key = $request->user() ? 'user:'.$request->user()->id : 'ip:'.$request->ip();
+                return Limit::perMinutes($minutes, $attempts)->by($key)
+                    ->response(function (Request $request, array $headers) use ($destination) {
+                        $seconds = max(1, (int) ($headers['Retry-After'] ?? 60));
+                        $message = "Please wait {$seconds} seconds before trying this action again. This request was not processed.";
+                        if ($request->expectsJson() || $destination === null) {
+                            return response()->json(['message' => $message, 'retry_after' => $seconds], 429, $headers);
+                        }
+                        $target = $destination === 'password.reset' && ! $request->filled('token')
+                            ? 'password.request' : $destination;
+                        $parameters = $target === 'password.reset'
+                            ? ['token' => (string) $request->input('token'), 'email' => (string) $request->input('email')]
+                            : [];
+                        // Only restore non-secret fields, never passwords or verification codes.
+                        return redirect()->route($target, $parameters)
+                            ->withInput($request->only('email'))
+                            ->withErrors(['rate_limit' => $message])->withHeaders($headers);
+                    });
+            });
         }
     }
 }

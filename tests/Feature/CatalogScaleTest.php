@@ -75,22 +75,22 @@ class CatalogScaleTest extends TestCase
         $target = sprintf('SCALE-%04d', $size);
         $this->get('/admin/products?search='.$target)->assertOk()
             ->assertViewHas('products', fn ($rows) => $rows->total() === 1 && $rows->first()->sku === $target);
-        $this->get('/admin/products?page='.ceil($size / 10))->assertOk()
-            ->assertViewHas('products', fn ($rows) => $rows->total() === $size && $rows->count() === 10);
+        $this->get('/admin/products?page='.ceil($size / 20))->assertOk()
+            ->assertViewHas('products', fn ($rows) => $rows->total() === $size && $rows->count() === (($size - 1) % 20) + 1);
         $this->get('/admin/inventory?search='.$target)->assertOk()
             ->assertViewHas('products', fn ($rows) => $rows->count() === 1 && $rows->first()->sku === $target);
         $this->get('/admin/inventory')->assertOk()
-            ->assertViewHas('products', fn ($rows) => $rows->total() === $size && $rows->count() === 25)
+            ->assertViewHas('products', fn ($rows) => $rows->total() === $size && $rows->count() === 20)
             ->assertViewHas('allProducts', fn ($rows) => $rows->count() === $size);
         $this->get('/admin/inventory?per_page=50&page='.ceil($size / 50))->assertOk()
             ->assertViewHas('products', fn ($rows) => $rows->total() === $size && $rows->count() === 50);
-        $this->get('/admin/inventory?status=healthy&per_page=25')->assertOk()
+        $this->get('/admin/inventory?status=healthy&per_page=20')->assertOk()
             ->assertViewHas('products', fn ($rows) => $rows->total() === intdiv($size + 1, 4)
                 && $rows->every(fn ($product) => $product->stock_status === 'healthy'));
-        $this->get('/admin/deadstock?per_page=10&page=2')->assertOk()
-            ->assertViewHas('riskItems', fn ($rows) => $rows->total() > 100 && $rows->count() === 10);
-        $this->get('/admin/low-stocks?per_page=10&page=2')->assertOk()
-            ->assertViewHas('activeAlerts', fn ($rows) => $rows->total() > 100 && $rows->count() === 10);
+        $this->get('/admin/deadstock?per_page=20&page=2')->assertOk()
+            ->assertViewHas('riskItems', fn ($rows) => $rows->total() > 100 && $rows->count() === 20);
+        $this->get('/admin/low-stocks?per_page=20&page=2')->assertOk()
+            ->assertViewHas('activeAlerts', fn ($rows) => $rows->total() > 100 && $rows->count() === 20);
         $this->actingAs($staff)->get('/staff/products')->assertOk();
         $this->get('/staff/pos')->assertOk()
             ->assertViewHas('products', fn ($rows) => $rows->count() === $size - intdiv($size, 4));
@@ -99,8 +99,8 @@ class CatalogScaleTest extends TestCase
         $saleCount = SalesTransaction::count();
         $payload = ['items' => [['product_id' => $lastStocked->product_id, 'quantity' => 1]]];
         $this->withHeader('Idempotency-Key', (string) Str::uuid());
-        $checkout = $this->postJson(route('staff.pos.checkout'), $payload)->assertCreated();
-        $this->postJson(route('staff.pos.checkout'), $payload)->assertCreated()->assertJsonPath('sale_id', $checkout->json('sale_id'));
+        $checkout = $this->postJson(route('staff.pos.checkout'), ['payment_method' => 'cash', 'amount_tendered' => 10000000, ...$payload])->assertCreated();
+        $this->postJson(route('staff.pos.checkout'), ['payment_method' => 'cash', 'amount_tendered' => 10000000, ...$payload])->assertCreated()->assertJsonPath('sale_id', $checkout->json('sale_id'));
         $this->assertSame($beforeStock - 1, $lastStocked->fresh()->current_stock);
         $this->assertSame($saleCount + 1, SalesTransaction::count());
         $this->get($checkout->json('receipt.url'))->assertOk()->assertSee($lastStocked->name);

@@ -20,12 +20,13 @@ $statuses = [
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta name="session-activity-url" content="{{ route('session.activity') }}">
+    @include('partials.session-activity')
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Motorcycle Parts Compatibility | MotoSync</title>
     @vite(['resources/css/dashboard.css','resources/css/compatibility.css','resources/css/responsive.css','resources/js/dashboard.js','resources/js/compatibility.js'])
+    @include('partials.appearance')
 </head>
 <body>
 <div class="dashboard-shell compatibility-shell">
@@ -170,7 +171,7 @@ $statuses = [
                                 @endif
                                 <footer>
                                     <span>AI fitment assessment</span>
-                                    <span>{{ $product->current_stock > 0 ? $product->current_stock.' in stock' : 'Out of stock' }} · ₱{{ number_format((float) $product->unit_price, 2) }}</span>
+                                    <span>{{ $product->current_stock > 0 ? $product->current_stock.' in stock' : 'Out of stock' }} · {{ \App\Support\Display::money((float) $product->unit_price) }}</span>
                                 </footer>
                             </article>
                         @empty
