@@ -8,11 +8,12 @@ use DateTimeInterface;
 use InvalidArgumentException;
 use OpenSpout\Reader\CSV\Reader as CsvReader;
 use OpenSpout\Reader\ReaderInterface;
+use Illuminate\Support\Str;
 use OpenSpout\Reader\XLSX\Reader as XlsxReader;
 
 class SupplierSpreadsheetImporter
 {
-    private const REQUIRED_HEADERS = ['supplier_sku', 'product_name', 'unit_price'];
+    private const REQUIRED_HEADERS = ['product_name', 'unit_price'];
 
     private const ALLOWED_HEADERS = [
         'supplier_sku', 'product_name', 'internal_sku', 'currency', 'unit_price',
@@ -21,13 +22,39 @@ class SupplierSpreadsheetImporter
 
     public function __construct(private readonly SupplierProductMatcher $productMatcher) {}
 
+    public function recognizesColumns(string $path, string $extension): bool
+    {
+        $reader = $this->reader($extension);
+        try {
+            $reader->open($path);
+            foreach ($reader->getSheetIterator() as $sheet) {
+                foreach ($sheet->getRowIterator() as $row) {
+                    $values = array_map($this->stringValue(...), $row->toArray());
+                    if ($this->isEmptyRow($values)) continue;
+                    $this->validateHeaders(array_map($this->normalizeHeader(...), $values));
+                    return true;
+                }
+                break;
+            }
+        } catch (InvalidArgumentException) {
+            return false;
+        } finally {
+            $reader->close();
+        }
+
+        return false;
+    }
+
     public function stageExtractedRows(SupplierImport $import, array $rows, string $defaultCurrency): void
     {
         $stream = tmpfile();
         if ($stream === false) throw new InvalidArgumentException('Could not prepare the extracted rows for validation.');
         try {
-            fputcsv($stream, ['supplier_sku', 'product_name', 'unit_price', 'currency'], ',', '"', '');
-            foreach ($rows as $row) fputcsv($stream, [$row['supplier_sku'] ?? '', $row['product_name'] ?? '', $row['unit_price'] ?? '', $row['currency'] ?? $defaultCurrency], ',', '"', '');
+            fputcsv($stream, self::ALLOWED_HEADERS, ',', '"', '');
+            foreach ($rows as $row) {
+                $row['currency'] = $row['currency'] ?? $defaultCurrency;
+                fputcsv($stream, array_map(fn ($field) => $row[$field] ?? '', self::ALLOWED_HEADERS), ',', '"', '');
+            }
             fflush($stream);
             $this->stage($import, stream_get_meta_data($stream)['uri'], 'csv');
             foreach ($import->rows()->orderBy('row_number')->get() as $index => $storedRow) {
@@ -91,6 +118,7 @@ class SupplierSpreadsheetImporter
                     $values = array_map($this->stringValue(...), $row->toArray());
 
                     if ($headers === []) {
+                        if ($this->isEmptyRow($values)) continue;
                         $headers = array_map($this->normalizeHeader(...), $values);
                         $this->validateHeaders($headers);
 
@@ -111,6 +139,13 @@ class SupplierSpreadsheetImporter
                         if (in_array($header, self::ALLOWED_HEADERS, true)) {
                             $data[$header] = trim($values[$columnIndex] ?? '');
                         }
+                    }
+
+                    if (blank($data['supplier_sku']) && filled($data['product_name'])) {
+                        $name = mb_strtolower(preg_replace('/\s+/u', ' ', trim($data['product_name'])));
+                        // Stable across price changes and repeat imports; supplier prices are scoped by supplier.
+                        $prefix = strtoupper(substr(Str::slug($name), 0, 48)) ?: 'ITEM';
+                        $data['supplier_sku'] = 'AUTO-'.$prefix.'-'.strtoupper(substr(hash('sha256', $name), 0, 16));
                     }
 
                     $errors = $this->validateRow($data);
@@ -172,6 +207,10 @@ class SupplierSpreadsheetImporter
 
     private function validateHeaders(array $headers): void
     {
+        $recognized = array_values(array_intersect($headers, self::ALLOWED_HEADERS));
+        if (count($recognized) !== count(array_unique($recognized))) {
+            throw new InvalidArgumentException('Multiple columns describe the same field. Review the detected supplier prices before approval.');
+        }
         $missing = array_values(array_diff(self::REQUIRED_HEADERS, $headers));
         if ($missing !== []) {
             throw new InvalidArgumentException('Missing required columns: '.implode(', ', $missing).'.');
@@ -218,7 +257,18 @@ class SupplierSpreadsheetImporter
 
     private function normalizeHeader(string $value): string
     {
-        return mb_strtolower(trim(preg_replace('/[^A-Za-z0-9]+/', '_', $value), '_'));
+        $header = mb_strtolower(trim(preg_replace('/[^A-Za-z0-9]+/', '_', $value), '_'));
+
+        return match ($header) {
+            'item_description', 'description', 'product_description', 'item_name', 'product', 'item' => 'product_name',
+            'part_no', 'part_number', 'item_code', 'product_code', 'sku', 'supplier_code' => 'supplier_sku',
+            'dealer_price', 'supplier_price', 'purchase_price', 'cost_price', 'unit_cost', 'cost', 'price' => 'unit_price',
+            'available_qty', 'available_stock', 'stock', 'stock_quantity', 'quantity_available', 'qty', 'quantity' => 'available_quantity',
+            'currency_code' => 'currency',
+            'moq', 'min_order_qty', 'minimum_order' => 'minimum_order_quantity',
+            'lead_time', 'delivery_days' => 'lead_time_days',
+            default => $header,
+        };
     }
 
     private function stringValue(mixed $value): string

@@ -177,7 +177,7 @@ input,select,textarea{min-width:0}
     .product-title,.product-meta small,.item-details,.item-details h4,.item-details p{min-width:0;overflow-wrap:anywhere}
     .cart-header{flex-wrap:wrap}
     .cart-badges{justify-content:flex-start;max-width:100%;overflow-wrap:anywhere}
-    .cart-items{min-height:160px;max-height:44dvh}
+    .cart-items{min-height:0;max-height:44dvh}
     .item-controls{flex-wrap:wrap}
     .qty-btn{width:44px;min-width:44px;height:44px}
     .held-order-actions,.receipt-modal-actions{grid-template-columns:minmax(0,1fr)}

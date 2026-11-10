@@ -66,14 +66,15 @@ class AnalyticsCalendarTest extends TestCase
         $this->actingAs(User::factory()->create(['role' => 'staff']))->get(route('admin.analytics', ['period' => 'day', 'transaction_date' => '2026-11-03']))->assertForbidden();
     }
 
-    public function test_calendar_is_an_option_inside_the_existing_sales_view_not_a_separate_panel(): void
+    public function test_specific_date_opens_the_transactions_tab_and_uses_one_native_calendar(): void
     {
         $owner = User::factory()->create(['role' => 'admin']);
         $this->actingAs($owner)->get(route('admin.analytics'))->assertOk()->assertSee('Specific date')
-            ->assertDontSee('class="specific-date-view"', false)->assertDontSee('Transaction calendar');
+            ->assertViewHas('analyticsTab', 'overview')->assertDontSee('Transaction calendar');
         $response = $this->get(route('admin.analytics', ['period' => 'day', 'range' => '2026-09-15']))->assertOk()
             ->assertSee('Sales for a Specific Date')->assertSee('Transactions for September 15, 2026');
         $response->assertSee('type="date"', false)->assertDontSee('calendar-day-grid');
+        $response->assertViewHas('analyticsTab', 'transactions');
         $this->assertSame('2026-09-15', $response->viewData('selectedTransactionDate')->toDateString());
         $this->assertSame(1, substr_count($response->getContent(), 'class="specific-date-view"'));
     }

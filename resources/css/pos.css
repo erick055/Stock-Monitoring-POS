@@ -1,6 +1,8 @@
 .pos-main{padding-top:22px}
 .pos-topbar{margin-bottom:18px}
 .pos-layout{display:grid;grid-template-columns:minmax(0,1.55fr) 390px;gap:16px;align-items:start}
+.pos-browse-column{display:grid;gap:16px;min-width:0}
+.pos-browse-column>.held-orders{margin-top:0}
 .pos-catalog,.pos-cart{padding:18px}
 .pos-catalog-head{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:16px}
 .pos-catalog-head h2,.cart-header h3{margin:4px 0 0;font-size:20px}
@@ -27,8 +29,8 @@
 .cashier-badge{padding:7px 10px;border:1px solid #6840aa;border-radius:999px;background:#151127;color:#c7b4ef;font-size:9px}
 .cart-badges{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:6px}
 .active-hold-badge{padding:7px 10px;border:1px solid #8c692b;border-radius:999px;background:#2a2111;color:#f0c66f;font-size:9px}
-.cart-items{min-height:320px;max-height:430px;overflow:auto;padding:16px 0}
-.empty-cart{display:grid;place-items:center;height:100%;color:#808596;font-size:12px;text-align:center}
+.cart-items{min-height:0;max-height:430px;overflow:auto;padding:16px 0}
+.empty-cart{display:grid;place-items:center;min-height:88px;color:#808596;font-size:12px;text-align:center}
 .cart-item{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 0;border-bottom:1px dashed #2b3042}
 .item-details h4{font-size:12px;margin:0 0 5px}
 .item-details p{font-size:10px;color:#888d9d}
@@ -98,7 +100,7 @@
 .receipt-print-link{display:grid;place-items:center;grid-column:auto;text-decoration:none;text-align:center}
 body.receipt-open{overflow:hidden}
 [hidden]{display:none!important}
-@media(max-width:1100px){.pos-layout{grid-template-columns:1fr}.pos-search{min-width:0}}
+@media(max-width:1100px){.pos-layout{grid-template-columns:1fr}.pos-search{min-width:0}.pos-browse-column{display:contents}.pos-layout .pos-catalog{order:1}.pos-layout .pos-cart{order:2}.pos-layout .held-orders{order:3}}
 @media(max-width:640px){.pos-catalog-head,.checkout-log-head{flex-direction:column;align-items:stretch}.cart-actions,.receipt-modal-actions{grid-template-columns:1fr}.btn-pay{grid-column:span 1}.receipt-modal{padding:9px}.receipt-modal-card{max-height:calc(100dvh - 18px);padding:15px}.receipt-preview-meta{flex-direction:column}}
 .charge-action-note{grid-column:1/-1;margin:0;text-align:center;color:#b5a8ca;font-size:12px;line-height:1.5}
 .payment-dialog{width:min(480px,calc(100% - 32px));max-height:calc(100dvh - 32px);overflow:auto;border:1px solid #42485b;border-radius:14px;padding:24px;background:#10131d;color:#f4f2f8;box-shadow:0 28px 90px #000}

@@ -16,13 +16,13 @@ historyGroups.forEach((group, key) => {
     placeholder.setAttribute('role', 'tabpanel');
     placeholder.tabIndex = 0;
     placeholder.className = 'history-overview';
-    placeholder.textContent = 'Open a tab to review saved records.';
+    placeholder.textContent = 'History is hidden. Select a tab to view saved records.';
     const views = [placeholder, ...panels];
     const buttons = views.map((view, index) => {
         const button = document.createElement('button');
         button.type = 'button';
         button.id = view.id + '-tab';
-        button.textContent = index === 0 ? 'Overview' : view.dataset.historyPanel;
+        button.textContent = index === 0 ? 'Hide history' : view.dataset.historyPanel;
         button.setAttribute('role', 'tab');
         button.setAttribute('aria-controls', view.id);
         view.setAttribute('role', 'tabpanel');

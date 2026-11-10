@@ -17,6 +17,66 @@ class SuppliersPageTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_supplier_popup_creates_shared_category_and_shelf_options(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $price = $this->createSupplierPrice('OPTION-001', 'Option Test Product', 100);
+        $payload = [
+            'supplier_price_ids' => [$price->supplier_price_id], 'markup_percent' => 30,
+            'category' => '__new__', 'new_category' => '  Workshop   Parts ',
+            'shelf_location' => '__new__', 'new_shelf_location' => ' Rack   D ', 'reorder_level' => 5,
+        ];
+        $this->actingAs($admin)->post(route('admin.suppliers.prices.bulk-create-products'), $payload)
+            ->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('products', [
+            'sku' => 'OPTION-001', 'category' => 'Workshop Parts', 'shelf_location' => 'Rack D',
+        ]);
+        $this->get(route('admin.suppliers'))->assertOk()
+            ->assertViewHas('categories', fn ($values) => $values->contains('Workshop Parts'))
+            ->assertViewHas('shelves', fn ($values) => $values->contains('Rack D'))
+            ->assertSee('+ Create category')->assertSee('+ Create shelf');
+    }
+
+    public function test_new_supplier_catalog_options_require_names(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $price = $this->createSupplierPrice('OPTION-002', 'Missing Option Product', 100);
+        $this->actingAs($admin)->post(route('admin.suppliers.prices.create-product', $price), [
+            'sku' => 'OPTION-002', 'manufacturer_part_number' => 'OPTION-002', 'selling_price' => 130,
+            'category' => '__new__', 'shelf_location' => '__new__', 'reorder_level' => 5,
+        ])->assertSessionHasErrors(['new_category', 'new_shelf_location']);
+        $this->assertDatabaseMissing('products', ['sku' => 'OPTION-002']);
+    }
+
+    public function test_missing_skus_are_generated_stably_and_duplicate_names_are_flagged(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        foreach ([100, 120] as $price) {
+            $this->actingAs($admin)->post(route('admin.suppliers.imports.upload'), [
+                'supplier_name' => 'Generated Supplier', 'supplier_code' => 'GENERATED',
+                'price_file' => UploadedFile::fake()->createWithContent('prices.csv',
+                    "product_name,unit_price,selling_price\nSpark Plug,$price,200\n"),
+            ])->assertSessionHasNoErrors();
+        }
+        $imports = SupplierImport::orderBy('supplier_import_id')->get();
+        $first = $imports[0]->rows()->firstOrFail();
+        $this->assertStringStartsWith('AUTO-SPARK-PLUG-', $first->supplier_sku);
+        $this->assertSame($first->supplier_sku, $imports[1]->rows()->firstOrFail()->supplier_sku);
+        $this->assertSame(1, $imports[1]->valid_count);
+
+        $this->actingAs($admin)->post(route('admin.suppliers.imports.upload'), [
+            'supplier_name' => 'Generated Supplier', 'supplier_code' => 'GENERATED',
+            'price_file' => UploadedFile::fake()->createWithContent('duplicates.csv',
+                "supplier_sku,product_name,unit_price\n,Spark Plug,100\n,SPARK  PLUG,110\nREAL-1,Brake Pad,200\n,,300\n"),
+        ])->assertSessionHasNoErrors();
+        $rows = SupplierImport::latest('supplier_import_id')->firstOrFail()->rows()->orderBy('row_number')->get();
+        $this->assertSame($first->supplier_sku, $rows[0]->supplier_sku);
+        $this->assertSame($rows[0]->supplier_sku, $rows[1]->supplier_sku);
+        $this->assertContains('Duplicate supplier_sku in this file.', $rows[1]->validation_errors);
+        $this->assertSame('REAL-1', $rows[2]->supplier_sku);
+        $this->assertContains('product_name is required.', $rows[3]->validation_errors);
+    }
+
     public function test_import_archive_lists_older_uploads_and_paginates_the_original_prices(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);
@@ -234,6 +294,7 @@ class SuppliersPageTest extends TestCase
         $writer->openToFile($path);
         $writer->addRow(Row::fromValues(['supplier_sku', 'product_name', 'unit_price']));
         $writer->addRow(Row::fromValues(['XLSX-001', 'Excel Imported Part', 150.75]));
+        $writer->addRow(Row::fromValues(['', 'Excel Part Without SKU', 200]));
         $writer->close();
 
         $file = new UploadedFile(
@@ -255,6 +316,9 @@ class SuppliersPageTest extends TestCase
             'product_name' => 'Excel Imported Part',
             'unit_price' => 150.75,
         ]);
+        $generated = \App\Models\SupplierImportRow::where('product_name', 'Excel Part Without SKU')->firstOrFail();
+        $this->assertStringStartsWith('AUTO-EXCEL-PART-WITHOUT-SKU-', $generated->supplier_sku);
+        $this->assertEmpty($generated->validation_errors);
     }
 
     public function test_import_smart_matches_by_supplier_sku_and_unique_product_name(): void
@@ -371,6 +435,29 @@ class SuppliersPageTest extends TestCase
             'qty_in' => 0,
             'qty_out' => 0,
             'reason_code' => 'SUPPLIER_IMPORT',
+        ]);
+    }
+
+    public function test_bulk_opening_stock_is_validated_and_recorded_in_the_ledger(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $price = $this->createSupplierPrice('OPENING-ONE', 'Opening Stock Product', 100, 50);
+        $payload = [
+            'supplier_price_ids' => [$price->supplier_price_id],
+            'markup_percent' => 25, 'reorder_level' => 4,
+            'initial_stocks' => [$price->supplier_price_id => -1],
+        ];
+        $this->actingAs($admin)->post(route('admin.suppliers.prices.bulk-create-products'), $payload)
+            ->assertSessionHasErrors('initial_stocks.'.$price->supplier_price_id);
+        $this->assertDatabaseMissing('products', ['sku' => 'OPENING-ONE']);
+        $payload['initial_stocks'][$price->supplier_price_id] = 7;
+        $this->actingAs($admin)->post(route('admin.suppliers.prices.bulk-create-products'), $payload)
+            ->assertSessionHasNoErrors()->assertRedirect();
+        $product = Product::where('sku', 'OPENING-ONE')->firstOrFail();
+        $this->assertSame(7, $product->current_stock);
+        $this->assertDatabaseHas('inventory_ledgers', [
+            'product_id' => $product->product_id, 'qty_in' => 7,
+            'qty_out' => 0, 'reason_code' => 'SUPPLIER_IMPORT',
         ]);
     }
 

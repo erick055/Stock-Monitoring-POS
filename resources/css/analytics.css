@@ -91,3 +91,10 @@
 .daily-transaction-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px}
 .daily-transaction-summary>span{display:flex;flex-direction:column;gap:5px;padding:12px;border:1px solid #303447;border-radius:8px;background:#10121b}
 @media(max-width:640px){.daily-records-section h3{font-size:15px}.specific-date-view .ml-table-pagination{align-items:flex-start}.specific-date-view .ml-table-pagination nav{width:100%;justify-content:space-between}}
+
+/* Keep the period picker visible beside the sales chart title. */
+.analytics-panel .chart-period-menu .chart-period-toggle{display:inline-flex;align-items:center;justify-content:center;gap:9px;width:auto;min-height:36px;padding:8px 12px;border:1px solid #9964e3;border-radius:8px;background:#302047;color:#eee1ff;font-size:12px;font-weight:600;white-space:nowrap;box-shadow:0 0 0 2px #8752ca1a}
+.analytics-panel .chart-period-menu .chart-period-toggle:hover,.analytics-panel .chart-period-menu .chart-period-toggle[aria-expanded=true]{background:#473060;border-color:#bd8eff;color:#fff}
+.analytics-panel .chart-period-menu .chart-period-toggle:focus-visible{outline:2px solid #bd8eff;outline-offset:3px}
+html[data-theme="light"] .analytics-panel .chart-period-menu .chart-period-toggle{background:#efe4ff;border-color:#9964d0;color:#602c91}
+html[data-theme="light"] .analytics-panel .chart-period-menu .chart-period-toggle:hover,html[data-theme="light"] .analytics-panel .chart-period-menu .chart-period-toggle[aria-expanded=true]{background:#e2cdf9;border-color:#7745ad;color:#49206f}

@@ -1,7 +1,9 @@
 import { money as peso } from './formatters';
-const dayBars = [...document.querySelectorAll('[data-day-bar]')];
-const chartInsight = document.querySelector('[data-chart-insight]');
-const chartRange = document.querySelector('[data-chart-range]');
+import './analytics-tabs';
+document.querySelectorAll('[data-sales-chart]').forEach(chart => {
+const dayBars = [...chart.querySelectorAll('[data-day-bar]')];
+const chartInsight = chart.querySelector('[data-chart-insight]');
+const chartRange = chart.querySelector('[data-chart-range]');
 
 chartRange?.addEventListener('change', () => chartRange.form?.requestSubmit());
 
@@ -26,7 +28,7 @@ if (dayBars.length) {
     selectDay(highestDay);
 }
 
-const periodMenu = document.querySelector('[data-chart-period-menu]');
+const periodMenu = chart.querySelector('[data-chart-period-menu]');
 const periodToggle = periodMenu?.querySelector('[data-chart-period-toggle]');
 const periodOptions = periodMenu?.querySelector('[data-chart-period-options]');
 
@@ -52,6 +54,8 @@ document.addEventListener('keydown', (event) => {
         closePeriodMenu();
         periodToggle.focus();
     }
+});
+
 });
 
 const exportMenu = document.querySelector('[data-export-menu]');

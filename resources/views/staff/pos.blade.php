@@ -45,6 +45,7 @@ $activeIndex = $isAdmin ? 3 : 2;
         </header>
 
         <section class="pos-layout" data-pos-app data-cashier-id="{{ auth()->id() }}" data-products='@json($products)' data-held-orders='@json($heldOrders)' data-inventory-version="{{ $inventoryVersion }}" data-live-inventory-url="{{ route('inventory.live') }}" data-checkout-url="{{ route($posRoutePrefix.'.checkout') }}" data-hold-url="{{ route($posRoutePrefix.'.holds.store') }}">
+            <div class="pos-browse-column">
             <div class="pos-catalog panel">
                 <div class="pos-catalog-head">
                     <div>
@@ -65,6 +66,21 @@ $activeIndex = $isAdmin ? 3 : 2;
                 </div>
 
                 <div class="product-grid" data-product-grid aria-live="polite"></div>
+            </div>
+
+        <section class="held-orders panel" aria-labelledby="held-orders-title">
+            <div class="checkout-log-head">
+                <div>
+                    <span class="section-kicker">PARKED CARTS</span>
+                    <h2 id="held-orders-title">Held Orders</h2>
+                    <p>Resume a saved cart when the customer is ready to continue.</p>
+                </div>
+                <span class="log-count" data-held-count>{{ $heldOrders->count() }} active</span>
+            </div>
+            <div class="held-order-grid" data-held-order-list>
+                <div class="empty-holds" data-empty-holds {{ $heldOrders->isNotEmpty() ? 'hidden' : '' }}>No active held orders.</div>
+            </div>
+        </section>
             </div>
 
             <aside class="pos-cart panel">
@@ -106,20 +122,6 @@ $activeIndex = $isAdmin ? 3 : 2;
                     <p id="charge-action-note" class="charge-action-note">Review payment details before confirming the sale.</p>
                 </div>
             </aside>
-        </section>
-
-        <section class="held-orders panel" aria-labelledby="held-orders-title">
-            <div class="checkout-log-head">
-                <div>
-                    <span class="section-kicker">PARKED CARTS</span>
-                    <h2 id="held-orders-title">Held Orders</h2>
-                    <p>Resume a saved cart when the customer is ready to continue.</p>
-                </div>
-                <span class="log-count" data-held-count>{{ $heldOrders->count() }} active</span>
-            </div>
-            <div class="held-order-grid" data-held-order-list>
-                <div class="empty-holds" data-empty-holds {{ $heldOrders->isNotEmpty() ? 'hidden' : '' }}>No active held orders.</div>
-            </div>
         </section>
 
         <section class="checkout-log panel" aria-labelledby="checkout-log-title" id="checkout-history" data-history-panel="Checkout log" data-history-page="checkout_page" data-history-size="checkout_rows" hidden>

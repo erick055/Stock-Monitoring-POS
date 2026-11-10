@@ -74,7 +74,14 @@ class SupplierPriceController extends Controller
         $catalogProducts = Product::query()
             ->where('is_active', true)
             ->orderBy('name')
-            ->get(['product_id', 'sku', 'name', 'unit_cost']);
+            ->get(['product_id', 'sku', 'name', 'unit_cost', 'category', 'shelf_location']);
+
+        $options = fn (string $column) => $catalogProducts->pluck($column)
+            ->filter(fn ($value) => trim((string) $value) !== '')
+            ->unique(fn ($value) => mb_strtolower(trim((string) $value), 'UTF-8'))
+            ->sort(fn ($left, $right) => strcasecmp((string) $left, (string) $right))->values();
+        $categories = $options('category');
+        $shelves = $options('shelf_location');
 
         $imports = SupplierImport::query()
             ->with('supplier')
@@ -111,7 +118,7 @@ class SupplierPriceController extends Controller
             'stale' => (clone $priceSummaryQuery)->reorder()->where('last_updated_at', '<', now()->subDays(30))->count(),
         ];
 
-        return view('admin.suppliers', compact('prices', 'imports', 'importHistory', 'selectedImport', 'importRows', 'summary', 'catalogProducts', 'sort', 'search', 'importSearch', 'perPage'));
+        return view('admin.suppliers', compact('prices', 'imports', 'importHistory', 'selectedImport', 'importRows', 'summary', 'catalogProducts', 'categories', 'shelves', 'sort', 'search', 'importSearch', 'perPage'));
     }
 
     public function upload(Request $request, SupplierSpreadsheetImporter $importer, \App\Services\AiSupplierPriceExtractor $extractor): RedirectResponse
@@ -131,6 +138,13 @@ class SupplierPriceController extends Controller
         $duplicate = SupplierImport::query()->where('file_hash', $fileHash)->first();
         if ($duplicate) throw ValidationException::withMessages(['price_file' => 'This exact file was already imported on '.$duplicate->created_at->format('M d, Y h:i A').'. Choose a newer price list.']);
         try {
+            // Known supplier headings convert locally; unfamiliar layouts use AI automatically.
+            if ($mode !== 'ai' && ! $importer->recognizesColumns($file->getRealPath(), $file->getClientOriginalExtension())) {
+                if ($file->getSize() > 5 * 1024 * 1024) {
+                    throw new InvalidArgumentException('This unfamiliar layout needs AI formatting. Split the file into files under 5 MB and 200 items.');
+                }
+                $mode = 'ai';
+            }
             $rows = $mode === 'ai' ? $extractor->extract($file, $validated['default_currency']) : null;
             $import = DB::transaction(function () use ($request, $validated, $file, $fileHash, $mode, $rows, $importer) {
                 $supplier = Supplier::query()->updateOrCreate(
@@ -154,7 +168,7 @@ class SupplierPriceController extends Controller
             return back()->withErrors(['price_file' => 'The document could not be imported. Try a clearer or smaller file, or use a formatted CSV/XLSX. No prices were published.'])->withInput($request->except('price_file'));
         }
         return redirect()->route('admin.suppliers', ['import' => $import->supplier_import_id])
-            ->with('success', $mode === 'ai' ? 'AI extraction staged. Check every SKU, product name, and unit price before approval. Edit flagged rows to confirm or correct them.' : 'Spreadsheet staged. Review the rows before approval.');
+            ->with('success', $mode === 'ai' ? 'AI automatically formatted your file. Review the converted rows and correct any flagged values before approval.' : 'Spreadsheet columns automatically detected and formatted. Review the rows before approval.');
     }
 
     public function updateImportRow(Request $request, SupplierImport $supplierImport, SupplierImportRow $row, SupplierSpreadsheetImporter $importer): RedirectResponse
@@ -313,10 +327,13 @@ class SupplierPriceController extends Controller
             'selling_price' => ['required', 'numeric', 'min:0', 'max:9999999999.99'],
             'manufacturer_part_number' => ['required', 'string', 'max:150'],
             'category' => ['nullable', 'string', 'max:100'],
+            'new_category' => ['nullable', 'required_if:category,__new__', 'string', 'max:100', 'regex:/\S/u'],
             'shelf_location' => ['nullable', 'string', 'max:100'],
+            'new_shelf_location' => ['nullable', 'required_if:shelf_location,__new__', 'string', 'max:100', 'regex:/\S/u'],
             'reorder_level' => ['required', 'integer', 'min:0', 'max:2147483647'],
         ]);
 
+        $validated = $this->resolveCatalogOptions($validated);
         $validated['sku'] = trim($validated['sku']);
         $validated['manufacturer_part_number'] = $this->nullableCleanString($validated['manufacturer_part_number']);
         $inactiveProduct = $duplicates->findInactiveBySku($validated['sku']);
@@ -385,11 +402,17 @@ class SupplierPriceController extends Controller
         $validated = $request->validate([
             'supplier_price_ids' => ['required', 'array', 'min:1', 'max:500'],
             'supplier_price_ids.*' => ['integer', 'distinct', 'exists:supplier_prices,supplier_price_id'],
+            'initial_stocks' => ['sometimes', 'array', 'max:500'],
+            'initial_stocks.*' => ['required', 'integer', 'min:0', 'max:2147483647'],
             'markup_percent' => ['required', 'numeric', 'min:0', 'max:1000'],
             'category' => ['nullable', 'string', 'max:100'],
+            'new_category' => ['nullable', 'required_if:category,__new__', 'string', 'max:100', 'regex:/\S/u'],
             'shelf_location' => ['nullable', 'string', 'max:100'],
+            'new_shelf_location' => ['nullable', 'required_if:shelf_location,__new__', 'string', 'max:100', 'regex:/\S/u'],
             'reorder_level' => ['required', 'integer', 'min:0', 'max:2147483647'],
         ]);
+
+        $validated = $this->resolveCatalogOptions($validated);
 
         $prices = SupplierPrice::query()
             ->with('supplier')
@@ -415,6 +438,7 @@ class SupplierPriceController extends Controller
             $count = 0;
             foreach ($prices as $price) {
                 $sku = trim($price->supplier_sku);
+                $initialStock = (int) ($validated['initial_stocks'][$price->supplier_price_id] ?? 0);
                 $inactiveProduct = $duplicates->findInactiveBySku($sku);
                 $duplicates->assertUnique([
                     'sku' => $sku,
@@ -431,7 +455,7 @@ class SupplierPriceController extends Controller
                     'shelf_location' => $this->nullableCleanString($validated['shelf_location'] ?? null),
                     'unit_cost' => $price->unit_price,
                     'unit_price' => round((float) $price->unit_price * (1 + ((float) $validated['markup_percent'] / 100)), 2),
-                    'current_stock' => 0,
+                    'current_stock' => $initialStock,
                     'reorder_level' => $validated['reorder_level'],
                     'is_active' => true,
                     'dead_stock_archived_at' => null,
@@ -454,10 +478,10 @@ class SupplierPriceController extends Controller
                 InventoryLedger::create([
                     'product_id' => $product->product_id,
                     'user_id' => $request->user()->id,
-                    'qty_in' => 0,
+                    'qty_in' => $initialStock,
                     'qty_out' => 0,
                     'reason_code' => 'SUPPLIER_IMPORT',
-                    'logs' => "Product bulk-created from supplier price {$price->supplier_sku}. Supplier availability was not added to store inventory.",
+                    'logs' => "Product bulk-created from supplier price {$price->supplier_sku} with {$initialStock} opening units entered by the owner. Supplier availability was not copied to store inventory.",
                 ]);
                 $price->update(['product_id' => $product->product_id, 'auto_match_disabled' => false]);
                 $this->syncImportRowMatches($price, $product);
@@ -467,7 +491,7 @@ class SupplierPriceController extends Controller
             return $count;
         });
 
-        return back()->with('success', "{$created} supplier ".Str::plural('item', $created).' added to Products with zero store stock.');
+        return back()->with('success', "{$created} supplier ".Str::plural('item', $created).' added to Products with the entered opening stock.');
     }
 
     public function reject(SupplierImport $supplierImport): RedirectResponse
@@ -548,6 +572,19 @@ class SupplierPriceController extends Controller
                 'currency' => 'Only PHP supplier prices can be applied to product costs. Convert the price to PHP before applying it.',
             ]);
         }
+    }
+
+    private function resolveCatalogOptions(array $validated): array
+    {
+        foreach (['category' => 'new_category', 'shelf_location' => 'new_shelf_location'] as $column => $newField) {
+            $value = $this->nullableCleanString(($validated[$column] ?? null) === '__new__'
+                ? ($validated[$newField] ?? null) : ($validated[$column] ?? null));
+            $validated[$column] = $value === null ? null : (Product::query()->whereNotNull($column)
+                ->distinct()->pluck($column)->first(fn ($existing) =>
+                    mb_strtolower(trim($existing), 'UTF-8') === mb_strtolower($value, 'UTF-8')) ?? $value);
+        }
+
+        return $validated;
     }
 
     private function nullableCleanString(?string $value): ?string

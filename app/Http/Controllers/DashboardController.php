@@ -38,6 +38,7 @@ class DashboardController extends Controller
                 ['arrow-repeat', 'Returns & Damages', '/admin/returns'], ['tags', 'Supplier Price', '/admin/suppliers'], ['gear', 'Part Compatibility', '/admin/compatibility'], ['people', 'Account Management', '/admin/accounts'],
             ],
             'sales_summary' => $monthSummary,
+            'sales_target' => app(\App\Services\SalesTargetService::class)->current(),
             'sales_period' => 'This month',
             'stats' => [
                 ['TOTAL PRODUCTS', number_format($products->count()), $products->filter(fn (Product $product) => $product->created_at?->isCurrentMonth())->count().' added this month', 'purple'],

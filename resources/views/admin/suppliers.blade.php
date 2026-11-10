@@ -55,8 +55,11 @@ $navigation = [
         </section>
 
         @if($summary['prices'])
-            <details class="panel supplier-danger-zone">
-                <summary>Clear published supplier prices</summary>
+            <div class="supplier-purge-launch">
+                <button class="delete-all-button" type="button" data-open-supplier-purge aria-haspopup="dialog" aria-controls="supplier-purge-dialog"><i class="bi bi-trash3" aria-hidden="true"></i> Clear published supplier prices</button>
+            </div>
+            <dialog class="supplier-price-dialog supplier-purge-dialog" id="supplier-purge-dialog" aria-labelledby="supplier-purge-title">
+                <header class="supplier-price-dialog-header"><h2 id="supplier-purge-title">Clear published supplier prices</h2><button type="button" data-close-supplier-purge aria-label="Close"><i class="bi bi-x-lg" aria-hidden="true"></i></button></header>
                 <div class="danger-zone-content">
                     <div>
                         <strong>Start active supplier pricing from a clean slate</strong>
@@ -67,34 +70,32 @@ $navigation = [
                         <label>Confirm with your account password
                             <input name="password" type="password" autocomplete="current-password" placeholder="Enter your password" data-purge-password required>
                         </label>
-                        <button class="delete-all-button" type="submit" data-purge-button>Clear published prices</button>
+                        <div class="supplier-purge-actions"><button class="modal-cancel-button" type="button" data-close-supplier-purge>Cancel</button><button class="delete-all-button" type="submit" data-purge-button>Clear published prices</button></div>
                     </form>
                 </div>
-            </details>
+            </dialog>
         @endif
 
         <section class="panel import-panel">
             <div class="section-heading">
                 <div><span class="section-kicker">STEP 1</span><h2>Upload supplier price list</h2></div>
-                <span class="source-badge"><i class="bi bi-stars" aria-hidden="true"></i> AI document extraction available</span>
             </div>
             <form class="supplier-import-form" method="POST" action="{{ route('admin.suppliers.imports.upload') }}" enctype="multipart/form-data" data-supplier-upload-form>
                 @csrf
                 <label>Supplier name<input name="supplier_name" value="{{ old('supplier_name') }}" required maxlength="150" placeholder="ABC Motor Parts"></label>
                 <label>Supplier code<input name="supplier_code" value="{{ old('supplier_code') }}" required maxlength="50" pattern="[A-Za-z0-9_-]+" placeholder="ABC-MOTOR"></label>
-                <label>Import method<select name="import_mode" data-supplier-import-mode><option value="spreadsheet" @selected(old('import_mode', 'spreadsheet') === 'spreadsheet')>Standard CSV / XLSX</option><option value="ai" @selected(old('import_mode') === 'ai')>AI document extraction</option></select></label>
+                <label>Import method<select name="import_mode" data-supplier-import-mode><option value="spreadsheet" @selected(old('import_mode', 'spreadsheet') === 'spreadsheet')>Automatic CSV / XLSX</option><option value="ai" @selected(old('import_mode') === 'ai')>AI document extraction</option></select></label>
                 <label data-ai-import-settings @if(old('import_mode') !== 'ai') hidden @endif>Currency if not stated<input name="default_currency" value="{{ old('default_currency', 'PHP') }}" maxlength="3" pattern="[A-Za-z]{3}" placeholder="PHP"></label>
                 <label class="file-field">Price-list file<input name="price_file" type="file" accept=".csv,.xlsx" required data-supplier-file><span data-file-name>Choose CSV or XLSX file</span></label>
                 <button class="apply-button" type="submit">Upload and preview</button>
             </form>
             <p class="import-note" data-ai-import-note @if(old('import_mode') !== 'ai') hidden @endif><i class="bi bi-stars" aria-hidden="true"></i> AI reads SKU, product name, and supplier unit price from PDF, DOCX, TXT, CSV, XLSX, PNG, JPG, or WEBP. Maximum 5 MB / 200 items; split larger lists. This sends your document to the configured OpenAI service. Review the detected rows and correct missing or uncertain values before publishing.</p>
             <div class="format-guide">
-                <strong>Required columns:</strong>
-                <code>supplier_sku</code><code>product_name</code><code>unit_price</code>
+                <strong>Standard field names (automatically converted):</strong>
+                <code>product_name</code><code>unit_price</code>
                 <strong>Optional:</strong>
-                <code>internal_sku</code><code>currency</code><code>available_quantity</code><code>minimum_order_quantity</code><code>lead_time_days</code><code>effective_date</code>
+                <code>supplier_sku</code><code>internal_sku</code><code>currency</code><code>available_quantity</code><code>minimum_order_quantity</code><code>lead_time_days</code><code>effective_date</code>
             </div>
-            <p class="import-note">Matching checks internal SKU first, then supplier SKU, then a unique exact product name. Publishing does not change product costs or store inventory until the owner applies an item.</p>
         </section>
 
         <section class="panel imports-panel" aria-labelledby="import-archive-title">
@@ -267,7 +268,7 @@ $navigation = [
                     <tr>
                         <td>
                         @if(! $price->product_id && strtoupper($price->currency) === 'PHP')
-                            <input type="checkbox" value="{{ $price->supplier_price_id }}" data-bulk-product-checkbox aria-label="Select {{ $price->product_name }} for bulk product creation">
+                            <input type="checkbox" value="{{ $price->supplier_price_id }}" data-bulk-product-checkbox data-product-name="{{ $price->product_name }}" data-product-sku="{{ $price->supplier_sku }}" aria-label="Select {{ $price->product_name }} for bulk product creation">
                         @else
                             <span class="selection-unavailable" aria-label="Not eligible for bulk product creation">—</span>
                         @endif
@@ -368,8 +369,7 @@ $navigation = [
                                         <label>Product SKU<input name="sku" value="{{ $price->supplier_sku }}" maxlength="100" required></label>
                                         <label>Manufacturer part number (required)<input name="manufacturer_part_number" maxlength="150" required placeholder="Official number from manufacturer or packaging"></label>
                                         <label>Selling price (₱)<input name="selling_price" type="number" min="0" step="0.01" placeholder="Set owner selling price" required></label>
-                                        <label>Category<input name="category" maxlength="100" placeholder="e.g. Brake Parts"></label>
-                                        <label>Shelf location<input name="shelf_location" maxlength="100" placeholder="e.g. Aisle B · Shelf 2"></label>
+                                        @include('admin.partials.supplier-catalog-options')
                                         <label>Reorder level<input name="reorder_level" type="number" min="0" value="5" required></label>
                                         <button class="apply-button" type="submit" @disabled(strtoupper($price->currency) !== 'PHP')>Create in Products</button>
                                     </form>
@@ -399,13 +399,13 @@ $navigation = [
                 <button class="supplier-modal-close" type="button" data-close-modal aria-label="Close"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
                 <span class="section-kicker">BULK PRODUCT CREATION</span>
                 <h2 id="bulk-products-title">Add selected supplier items to Products?</h2>
-                <p><strong data-bulk-modal-count>0</strong> products will be created with their supplier SKU as the product SKU and part number. Store stock starts at zero.</p>
+                <p><strong data-bulk-modal-count>0</strong> products will be created with their supplier SKU as the product SKU and part number. Enter the actual units in your shop for each product. Leave zero for items you do not have; supplier availability is separate.</p>
                 <form class="bulk-product-form" method="POST" action="{{ route('admin.suppliers.prices.bulk-create-products') }}" data-bulk-product-form>
                     @csrf
                     <div data-bulk-product-ids></div>
+                    <div class="bulk-opening-stocks" data-bulk-opening-stocks></div>
                     <label>Selling price markup (%)<input name="markup_percent" type="number" min="0" max="1000" step="0.01" value="30" required></label>
-                    <label>Category<input name="category" maxlength="100" placeholder="e.g. Supplier Import"></label>
-                    <label>Shelf location<input name="shelf_location" maxlength="100" placeholder="Optional default location"></label>
+                    @include('admin.partials.supplier-catalog-options')
                     <label>Reorder level<input name="reorder_level" type="number" min="0" value="5" required></label>
                     <div class="supplier-modal-actions"><button class="modal-cancel-button" type="button" data-close-modal>Cancel</button><button class="apply-button" type="submit">Create selected products</button></div>
                 </form>

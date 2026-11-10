@@ -102,6 +102,12 @@ its OPcache configuration requires it.
 
 ## After deployment
 
+November 5 addition: include the new sales-target table migration, target model,
+controller/service, shared target card/CSS, and Analytics tab script/partials.
+See `sales-targets-and-analytics-tabs-2026-11-05.md`. Verify owner target saving,
+refund-adjusted progress, history pagination, and all five Analytics tabs after
+the normal migration/build/cache steps.
+
 Check owner and staff login, email verification/delivery, forced password change,
 and session behavior. Check dashboards in both themes, table Next/Previous and
 row-size controls without full reload, and grouped Movement Logs / Archived

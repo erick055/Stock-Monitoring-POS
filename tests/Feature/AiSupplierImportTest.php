@@ -16,6 +16,43 @@ class AiSupplierImportTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_standard_upload_converts_supplier_headings_without_ai(): void
+    {
+        Http::preventStrayRequests();
+        $stream = tmpfile();
+        $writer = new \OpenSpout\Writer\XLSX\Writer;
+        $writer->openToFile(stream_get_meta_data($stream)['uri']);
+        $writer->addRow(\OpenSpout\Common\Entity\Row::fromValues(['Part No.', 'Item Description', 'Dealer Price', 'Retail Price', 'Available Qty']));
+        $writer->addRow(\OpenSpout\Common\Entity\Row::fromValues(['000123', 'Brake Pad Set', 125.50, 200, 25]));
+        $writer->close();
+        $file = UploadedFile::fake()->createWithContent('supplier.xlsx', file_get_contents(stream_get_meta_data($stream)['uri']));
+        fclose($stream);
+        $this->actingAs(User::factory()->create(['role' => 'admin']))
+            ->post(route('admin.suppliers.imports.upload'), [
+                'supplier_name' => 'Auto Supplier', 'supplier_code' => 'AUTO-SUPPLIER',
+                'price_file' => $file,
+            ])->assertSessionHasNoErrors();
+        Http::assertNothingSent();
+        $this->assertDatabaseHas('supplier_import_rows', [
+            'supplier_sku' => '000123', 'product_name' => 'Brake Pad Set',
+            'unit_price' => 125.50, 'available_quantity' => 25,
+        ]);
+    }
+
+    public function test_unfamiliar_standard_upload_automatically_uses_ai_and_keeps_availability(): void
+    {
+        $this->fakeExtraction([$this->row(['available_quantity' => '25'])]);
+        $this->actingAs(User::factory()->create(['role' => 'admin']))
+            ->post(route('admin.suppliers.imports.upload'), [
+                'supplier_name' => 'Auto AI Supplier', 'supplier_code' => 'AUTO-AI',
+                'price_file' => UploadedFile::fake()->createWithContent('supplier.csv',
+                    "Reference,Merchandise,Trade Amount\n000123,Brake Pad Set,125.50"),
+            ])->assertSessionHasNoErrors();
+        $this->assertSame('ai', SupplierImport::firstOrFail()->extraction_method);
+        $this->assertDatabaseHas('supplier_import_rows', ['supplier_sku' => '000123', 'available_quantity' => 25]);
+        Http::assertSentCount(1);
+    }
+
     private function fakeExtraction(array $rows, bool $complete = true, string $status = 'completed'): void
     {
         config(['openai.api_key' => 'test-only-key', 'openai.ca_bundle' => '', 'openai.base_url' => 'https://api.openai.com/v1', 'openai.supplier_import_model' => 'test-model']);

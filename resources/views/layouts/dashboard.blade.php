@@ -56,6 +56,9 @@
             </section>
         @endif
 
+        @if(isset($dashboard['sales_target']))
+            @include('partials.sales-target-card', ['salesTarget' => $dashboard['sales_target']])
+        @endif
         <section class="panel modules-panel">
             <div class="section-heading"><div><span class="section-kicker">QUICK ACCESS</span><h2>{{ $dashboard['modules_title'] }}</h2></div></div>
             <div class="module-grid {{ count($dashboard['modules']) <= 4 ? 'compact-module-grid' : '' }}">

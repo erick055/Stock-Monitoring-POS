@@ -15,7 +15,7 @@ syncImportMode();
 document.querySelector('[data-supplier-upload-form]')?.addEventListener('submit', (event) => {
     const button = event.target.querySelector('button[type="submit"]');
     button.disabled = true;
-    button.textContent = importMode.value === 'ai' ? 'AI is reading the document…' : 'Importing…';
+    button.textContent = importMode.value === 'ai' ? 'AI is reading the document…' : 'Detecting columns and importing…';
 });
 document.querySelector('[data-supplier-page-size]')?.addEventListener('change', (event) => event.target.form.requestSubmit());
 const supplierFileName = document.querySelector('[data-file-name]');
@@ -27,6 +27,19 @@ supplierFile?.addEventListener('change', () => {
 });
 
 const supplierPurgeForm = document.querySelector('[data-supplier-purge]');
+const supplierPurgeDialog = document.querySelector('#supplier-purge-dialog');
+document.querySelector('[data-open-supplier-purge]')?.addEventListener('click', () => {
+    supplierPurgeDialog.showModal();
+    document.body.classList.add('supplier-modal-open');
+    supplierPurgeDialog.querySelector('[data-purge-password]')?.focus();
+});
+supplierPurgeDialog?.querySelectorAll('[data-close-supplier-purge]').forEach(button => {
+    button.addEventListener('click', () => supplierPurgeDialog.close());
+});
+supplierPurgeDialog?.addEventListener('close', () => {
+    supplierPurgeForm?.reset();
+    document.body.classList.remove('supplier-modal-open');
+});
 
 supplierPurgeForm?.addEventListener('submit', (event) => {
     if (!window.confirm('Clear all published supplier prices? Original import rows will remain in the archive.')) {
@@ -77,10 +90,15 @@ const bulkModalCount = bulkModal?.querySelector('[data-bulk-modal-count]');
 const bulkIds = bulkModal?.querySelector('[data-bulk-product-ids]');
 
 const bulkSelection = new Set();
+const bulkProductDetails = new Map();
+const bulkOpeningStocks = new Map();
 const selectedBulkIds = () => [...bulkSelection];
 const syncBulkSelection = () => {
     const visible = bulkCheckboxes();
-    visible.forEach(checkbox => { checkbox.checked = bulkSelection.has(checkbox.value); });
+    visible.forEach(checkbox => {
+        checkbox.checked = bulkSelection.has(checkbox.value);
+        bulkProductDetails.set(checkbox.value, `${checkbox.dataset.productName} (${checkbox.dataset.productSku})`);
+    });
     const count = selectedBulkIds().length;
     if (bulkCount) bulkCount.textContent = String(count);
     if (bulkButton) bulkButton.disabled = count === 0;
@@ -116,6 +134,22 @@ bulkButton?.addEventListener('click', () => {
         input.name = 'supplier_price_ids[]';
         input.value = id;
         return input;
+    }));
+    const stocks = bulkModal.querySelector('[data-bulk-opening-stocks]');
+    stocks?.replaceChildren(...ids.map(id => {
+        const label = document.createElement('label');
+        label.textContent = `${bulkProductDetails.get(id) ?? id} — Opening stock`;
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.name = `initial_stocks[${id}]`;
+        input.min = '0';
+        input.max = '2147483647';
+        input.step = '1';
+        input.required = true;
+        input.value = bulkOpeningStocks.get(id) ?? '0';
+        input.addEventListener('input', () => bulkOpeningStocks.set(id, input.value));
+        label.append(input);
+        return label;
     }));
     if (bulkModalCount) bulkModalCount.textContent = String(ids.length);
     openModal(bulkModal);
@@ -213,3 +247,15 @@ function initializeSupplierRows() {
 }
 initializeSupplierRows();
 document.addEventListener('motosync:table-updated', initializeSupplierRows);
+
+// Delegated for supplier dialogs replaced by table pagination.
+document.addEventListener('change', (event) => {
+    if (!event.target.matches('[data-catalog-option-select]')) return;
+    const field = event.target.closest('[data-catalog-option]').querySelector('[data-catalog-option-new]');
+    const input = field.querySelector('input');
+    const creating = event.target.value === '__new__';
+    field.hidden = !creating;
+    input.disabled = !creating;
+    input.required = creating;
+    if (creating) input.focus();
+});

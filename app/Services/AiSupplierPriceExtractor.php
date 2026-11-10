@@ -62,6 +62,8 @@ class AiSupplierPriceExtractor
                 'Read ALL pages and all tables. Return every priced product once per source row, in document order. Do not merge duplicate SKUs.',
                 'Extract supplier_sku exactly, including leading zeros, product_name, unit_price as a decimal string without currency/thousands separators, currency as a three-letter code, and source_reference (page/table/row).',
                 'Use supplier unit price, not a line total, selling price, quantity, tax, or invoice grand total. Do not calculate an unknown unit price.',
+                'Map unfamiliar column headings automatically. Prefer an explicitly labeled dealer or supplier cost over a retail price. If competing prices cannot be resolved, return null unit_price and explain in warning.',
+                'Extract available_quantity, minimum_order_quantity, and lead_time_days as whole-number strings, internal_sku only if explicitly labeled as the store internal SKU, and effective_date as YYYY-MM-DD. Return null for absent optional values. Supplier availability is not store inventory.',
                 'Never invent or complete a missing SKU, product name, or price: return null. Put ambiguity, illegibility, alternative prices, or uncertain column interpretation in warning.',
                 'Use '.$defaultCurrency.' only when the source does not specify currency; this fallback was chosen by the owner.',
                 'Return complete=true only if every item in the entire document was extracted. Maximum '.self::MAX_ROWS.' rows. For oversized, partially read, or truncated documents, return complete=false. Never claim a spreadsheet summary is the full list.',
@@ -104,7 +106,7 @@ class AiSupplierPriceExtractor
     private function schema(): array
     {
         $properties = [];
-        foreach (['supplier_sku', 'product_name', 'unit_price', 'currency', 'source_reference', 'warning'] as $field) $properties[$field] = ['type' => ['string', 'null']];
+        foreach (['supplier_sku', 'product_name', 'unit_price', 'currency', 'source_reference', 'warning', 'internal_sku', 'available_quantity', 'minimum_order_quantity', 'lead_time_days', 'effective_date'] as $field) $properties[$field] = ['type' => ['string', 'null']];
         return ['type' => 'object', 'additionalProperties' => false, 'required' => ['complete', 'rows'], 'properties' => [
             'complete' => ['type' => 'boolean'],
             'rows' => ['type' => 'array', 'items' => ['type' => 'object', 'additionalProperties' => false, 'required' => array_keys($properties), 'properties' => $properties]],

@@ -36,6 +36,12 @@ class AnalyticsController extends Controller
         $data['speedRows'] = \App\Support\TablePagination::collection(collect($data['sellingSpeedRanking']), $request, 'speed', 'selling-speed');
         $data['slowRows'] = \App\Support\TablePagination::collection(collect($data['slowMovingProducts']), $request, 'slow', 'slow-products');
         $data['refundRows'] = \App\Support\TablePagination::collection(collect($data['dailyRefunds']), $request, 'refund', 'daily-refunds');
+        $targets = app(\App\Services\SalesTargetService::class);
+        $data['salesTarget'] = $targets->current();
+        $data['targetRows'] = $targets->history($request);
+        $data['analyticsTab'] = in_array($request->query('tab'), ['overview', 'transactions', 'movement', 'ai', 'targets'], true)
+            ? $request->query('tab') : ($data['salesPeriod'] === 'day' ? 'transactions' : 'overview');
+        if ($request->session()->get('errors')?->hasAny(['target_month', 'target_amount'])) $data['analyticsTab'] = 'targets';
 
         return view('admin.analytics', $data);
     }

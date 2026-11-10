@@ -38,7 +38,7 @@ $navigation = [
             <div>
                 <p class="welcome">CONNECTED TO POS</p>
                 <h1>Sales &amp; Analytics Dashboard</h1>
-                <p>Highest and lowest stock, sales, demand, best sellers, and selectable historical sales periods.</p>
+                <p>Explore sales, transactions, product movement, AI insights, and monthly targets.</p>
             </div>
             <div class="header-tools">
                 <span class="period-select">Live POS Data</span>
@@ -56,6 +56,13 @@ $navigation = [
         @if(session('error'))<div class="analytics-message error" role="alert">{{ session('error') }}</div>@endif
         @if($errors->any())<div class="analytics-message error" role="alert">{{ $errors->first() }}</div>@endif
 
+<nav class="analytics-tabs" role="tablist" aria-label="Analytics sections" data-analytics-tabs>
+@foreach(['overview' => 'Overview', 'transactions' => 'Transactions', 'movement' => 'Product Movement', 'ai' => 'AI Insights', 'targets' => 'Sales Targets'] as $key => $label)
+<button type="button" id="analytics-tab-{{ $key }}" role="tab" aria-controls="analytics-{{ $key }}" aria-selected="{{ $analyticsTab === $key ? 'true' : 'false' }}" tabindex="{{ $analyticsTab === $key ? '0' : '-1' }}" data-analytics-tab="{{ $key }}">{{ $label }}</button>
+@endforeach
+</nav>
+<div class="analytics-tab-panel" id="analytics-overview" role="tabpanel" aria-labelledby="analytics-tab-overview" data-analytics-panel="overview" @if($analyticsTab !== 'overview') hidden @endif>
+        <p class="sales-target-note">All-time sales summary · chart periods and monthly targets are shown separately below.</p>
         <section class="stat-grid analytics-stats" aria-label="Analytics summary">
             <article class="stat-card purple"><div class="stat-head"><span>NET SALES</span><span class="trend-dot"></span></div><strong>{{ \App\Support\Display::money($summary['total_sales']) }}</strong><small>Gross sales: {{ \App\Support\Display::money($summary['gross_sales']) }}</small><small>Refunds: {{ \App\Support\Display::money($summary['refunds']) }}</small></article>
             <article class="stat-card violet"><div class="stat-head"><span>TRANSACTIONS</span><span class="trend-dot"></span></div><strong>{{ number_format($summary['transactions']) }}</strong><small>Paid receipts recorded</small></article>
@@ -63,7 +70,9 @@ $navigation = [
             <article class="stat-card cyan"><div class="stat-head"><span>GROSS PROFIT</span><span class="trend-dot"></span></div><strong>{{ \App\Support\Display::money($summary['gross_profit']) }}</strong><small>Sale margins minus approved returned-unit margins</small></article>
         </section>
 
-        <section class="analytics-grid">
+@include('partials.sales-target-card')
+<section class="analytics-grid">
+@include('admin.partials.sales-period-chart', ['chartTab' => 'overview'])
             <article class="panel analytics-panel">
                 <div class="section-heading">
                     <div><span class="section-kicker">BEST SELLERS</span><h2>Top POS Items</h2></div>
@@ -77,62 +86,15 @@ $navigation = [
                     @endforelse
                 </div>
             </article>
-
-            <article class="panel analytics-panel">
-                <div class="section-heading">
-                    <div><span class="section-kicker">{{ strtoupper($chartPeriodLabel) }} VIEW · {{ strtoupper($chartRangeLabel) }}</span><h2>{{ $salesPeriod === 'day' ? 'Sales for a Specific Date' : ($salesPeriod === 'year' ? 'Sales Month by Month' : 'Sales Day by Day') }}</h2></div>
-                    <div class="chart-period-menu" data-chart-period-menu>
-                        <button class="chart-period-toggle" type="button" data-chart-period-toggle aria-label="Choose sales chart period" aria-haspopup="menu" aria-expanded="false"><i class="bi bi-three-dots" aria-hidden="true"></i></button>
-                        <div class="chart-period-options" data-chart-period-options role="menu" hidden>
-                            <a href="{{ route('admin.analytics', ['period' => 'day', 'range' => $selectedTransactionDate->toDateString()]) }}#transaction-history" role="menuitem" class="{{ $salesPeriod === 'day' ? 'is-active' : '' }}" @if($salesPeriod === 'day') aria-current="page" @endif><strong>Specific date</strong><small>Choose one day from the calendar</small></a>
-                            <a href="{{ route('admin.analytics', ['period' => 'week', 'range' => $periodRanges['week'], 'transaction_date' => $selectedTransactionDate->toDateString()]) }}" role="menuitem" class="{{ $salesPeriod === 'week' ? 'is-active' : '' }}" @if($salesPeriod === 'week') aria-current="page" @endif><strong>Weekly view</strong><small>Choose a week · day by day</small></a>
-                            <a href="{{ route('admin.analytics', ['period' => 'month', 'range' => $periodRanges['month'], 'transaction_date' => $selectedTransactionDate->toDateString()]) }}" role="menuitem" class="{{ $salesPeriod === 'month' ? 'is-active' : '' }}" @if($salesPeriod === 'month') aria-current="page" @endif><strong>Monthly view</strong><small>Choose a month · day by day</small></a>
-                            <a href="{{ route('admin.analytics', ['period' => 'year', 'range' => $periodRanges['year'], 'transaction_date' => $selectedTransactionDate->toDateString()]) }}" role="menuitem" class="{{ $salesPeriod === 'year' ? 'is-active' : '' }}" @if($salesPeriod === 'year') aria-current="page" @endif><strong>Yearly view</strong><small>Choose a year · month by month</small></a>
-                        </div>
-                    </div>
-                </div>
-                @if($salesPeriod === 'day')
-                    @include('admin.partials.transaction-calendar')
-                @else
-                <form class="chart-range-filter" method="GET" action="{{ route('admin.analytics') }}">
-                    <input type="hidden" name="transaction_date" value="{{ $selectedTransactionDate->toDateString() }}">
-                    <input type="hidden" name="period" value="{{ $salesPeriod }}">
-                    <label for="chart-range">Specific {{ $salesPeriod }}
-                        <select id="chart-range" name="range" data-chart-range>
-                            @foreach($chartRangeOptions as $option)
-                                <option value="{{ $option['value'] }}" @selected($option['value'] === $periodRanges[$salesPeriod])>{{ $option['label'] }}</option>
-                            @endforeach
-                        </select>
-                    </label>
-                    <button type="submit">View transactions</button>
-                </form>
-                <div class="chart-insight" data-chart-insight aria-live="polite">
-                    <span>Select a day</span><strong>View its net sales total</strong>
-                </div>
-                <div class="day-chart-scroll" tabindex="0" role="region" aria-label="{{ $chartPeriodLabel }} sales chart; scroll horizontally to view all dates">
-                <div class="day-chart period-{{ $salesPeriod }}" data-day-chart role="group" aria-label="Interactive {{ strtolower($chartPeriodLabel) }} bar chart of paid sales less approved refunds" style="--chart-columns: {{ $weeklySales->count() }}">
-                    @foreach($weeklySales as $index => $day)
-                        <button
-                            class="day-column"
-                            type="button"
-                            data-day-bar
-                            data-day="{{ $day['label'] }} · {{ $day['date'] }}"
-                            data-total="{{ $day['total'] }}" data-gross="{{ $day['gross_sales'] }}" data-refunds="{{ $day['refunds'] }}"
-                            style="--bar-height: {{ $day['total'] != 0 ? max(8, $day['percent']) : 2 }}%; --bar-index: {{ $index }}"
-                            aria-label="{{ $day['label'] }}, {{ $day['date'] }}: {{ \App\Support\Display::money($day['total']) }} in net sales"
-                        >
-                            <strong class="day-value">{{ \App\Support\Display::money($day['total']) }}</strong>
-                            <span class="day-bar-track"><i></i></span>
-                            <span class="day-label">{{ $day['label'] }}</span>
-                            <small>{{ $day['date'] }}</small>
-                        </button>
-                    @endforeach
-                </div>
-                </div>
-                @endif
-            </article>
-        </section>
-
+</section>
+</div>
+<div class="analytics-tab-panel" id="analytics-transactions" role="tabpanel" aria-labelledby="analytics-tab-transactions" data-analytics-panel="transactions" @if($analyticsTab !== 'transactions') hidden @endif>
+@include('admin.partials.sales-period-chart', ['chartTab' => 'transactions'])
+<section class="panel analytics-panel"><div class="section-heading"><div><span class="section-kicker">TRANSACTION HISTORY</span><h2>Sales for a Specific Date</h2></div></div>
+@include('admin.partials.transaction-calendar')
+</section>
+</div>
+<div class="analytics-tab-panel" id="analytics-movement" role="tabpanel" aria-labelledby="analytics-tab-movement" data-analytics-panel="movement" @if($analyticsTab !== 'movement') hidden @endif>
         <section class="panel analytics-panel velocity-panel" id="selling-speed">
             <div class="section-heading velocity-heading">
                 <div><span class="section-kicker">SELLING SPEED</span><h2>Fast-Moving Item Ranking</h2><small>Sales velocity = units sold on paid receipts in the last 30 calendar days ÷ 30, including days with no sales. Ranked from highest to lowest; ties use purchase frequency.</small></div>
@@ -162,6 +124,25 @@ $navigation = [
         @include('partials.ml-table-pagination', ['rows' => $speedRows, 'sizeName' => 'speed_rows', 'pageName' => 'speed_page', 'anchor' => 'selling-speed', 'tableLabel' => 'Selling speed'])
 </section>
 
+        <section class="panel analytics-panel slow-products-panel" id="slow-products">
+            <div class="section-heading">
+                <div><span class="section-kicker">INVENTORY TURNOVER</span><h2><i class="bi bi-hourglass-split" aria-hidden="true"></i> Slow-Moving / Non-moving Products</h2><small>Based on paid sales over the last 30 and 90 days, stock levels, and inventory age.</small></div>
+                <a href="{{ route('admin.dead-stock', ['classification' => 'slow']) }}">Review products <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
+            </div>
+            <div class="velocity-table-wrap">
+                <table class="velocity-table">
+                    <thead><tr><th>Product</th><th>Stock</th><th>30-Day Sales</th><th>Last Sale</th><th>Stock Cost</th><th>Recommendation</th></tr></thead>
+                    <tbody>
+                        @forelse($slowRows as $item)
+                            <tr><td><strong>{{ $item['name'] }}</strong><small>{{ $item['sku'] }}</small></td><td>{{ number_format($item['stock']) }}</td><td>{{ \App\Support\Display::count($item['monthly_units'], 'unit') }}</td><td>{{ $item['last_sale'] }}</td><td>{{ $item['total_cost'] }}</td><td>{{ $item['recommendation'] }}</td></tr>
+                        @empty
+                            <tr><td colspan="6" class="empty-analytics">No slow-moving products detected. Dead stock is tracked separately on the Dead Stock page.</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        @include('partials.ml-table-pagination', ['rows' => $slowRows, 'sizeName' => 'slow_rows', 'pageName' => 'slow_page', 'anchor' => 'slow-products', 'tableLabel' => 'Slow-moving products'])
+</section>
         <section class="analytics-grid inventory-analytics-grid">
             <article class="panel analytics-panel">
                 <div class="section-heading"><div><span class="section-kicker">STOCK LEVELS</span><h2>Highest Stock</h2></div></div>
@@ -186,7 +167,30 @@ $navigation = [
             </article>
         </section>
 
-        <section class="analytics-grid">
+<section class="analytics-grid">            <article class="panel analytics-panel">
+                <div class="section-heading"><div><span class="section-kicker">OBSERVED DEMAND</span><h2>Most Requested Items</h2></div><span class="period">Past 30 days · actual sales</span></div>
+                <div class="sales-list">
+                    @forelse($demand as $item)
+                        <div class="sales-item"><strong>{{ $item->name }}</strong><span>{{ \App\Support\Display::count($item->demand_units, 'unit') }} demanded</span></div>
+                    @empty
+                        <div class="empty-analytics">No demand yet because no POS sales are saved.</div>
+                    @endforelse
+                </div>
+            </article>
+<section class="panel flow-panel">
+                <div class="section-heading">
+                    <div><span class="section-kicker">INVENTORY MOVEMENT</span><h2>Stock Flow Summary</h2></div>
+                    <span class="period">Live snapshot</span>
+                </div>
+                <div class="flow-grid">
+                    <article class="flow-card green"><small>Added to Stock</small><strong>{{ number_format($stockFlow['added']) }} ITEMS</strong></article>
+                    <article class="flow-card blue"><small>Sold</small><strong>{{ number_format($stockFlow['sold']) }} ITEMS</strong></article>
+                    <article class="flow-card orange"><small>Manual Stock Out</small><strong>{{ number_format($stockFlow['stock_out']) }} ITEMS</strong></article>
+                    <article class="flow-card violet"><small>Current Stock</small><strong>{{ number_format($stockFlow['current']) }} ITEMS</strong></article>
+                </div>
+            </section></section>
+</div>
+<div class="analytics-tab-panel" id="analytics-ai" role="tabpanel" aria-labelledby="analytics-tab-ai" data-analytics-panel="ai" @if($analyticsTab !== 'ai') hidden @endif>
             <article class="panel analytics-panel ai-demand-panel" id="future-demand">
                 <div class="future-outlook-header">
                     <div class="future-outlook-icon" aria-hidden="true"><i class="bi bi-stars"></i></div>
@@ -230,50 +234,10 @@ $navigation = [
                 </div>
                 @include('partials.ml-table-pagination', ['rows' => $forecastItems, 'sizeName' => 'forecast_rows', 'pageName' => 'forecast_page', 'anchor' => 'future-demand', 'tableLabel' => 'Future product demand'])
             </article>
-
-            <article class="panel analytics-panel">
-                <div class="section-heading"><div><span class="section-kicker">OBSERVED DEMAND</span><h2>Most Requested Items</h2></div><span class="period">Past 30 days · actual sales</span></div>
-                <div class="sales-list">
-                    @forelse($demand as $item)
-                        <div class="sales-item"><strong>{{ $item->name }}</strong><span>{{ \App\Support\Display::count($item->demand_units, 'unit') }} demanded</span></div>
-                    @empty
-                        <div class="empty-analytics">No demand yet because no POS sales are saved.</div>
-                    @endforelse
-                </div>
-            </article>
-
-            <section class="panel flow-panel">
-                <div class="section-heading">
-                    <div><span class="section-kicker">INVENTORY MOVEMENT</span><h2>Stock Flow Summary</h2></div>
-                    <span class="period">Live snapshot</span>
-                </div>
-                <div class="flow-grid">
-                    <article class="flow-card green"><small>Added to Stock</small><strong>{{ number_format($stockFlow['added']) }} ITEMS</strong></article>
-                    <article class="flow-card blue"><small>Sold</small><strong>{{ number_format($stockFlow['sold']) }} ITEMS</strong></article>
-                    <article class="flow-card orange"><small>Manual Stock Out</small><strong>{{ number_format($stockFlow['stock_out']) }} ITEMS</strong></article>
-                    <article class="flow-card violet"><small>Current Stock</small><strong>{{ number_format($stockFlow['current']) }} ITEMS</strong></article>
-                </div>
-            </section>
-        </section>
-        <section class="panel analytics-panel slow-products-panel" id="slow-products">
-            <div class="section-heading">
-                <div><span class="section-kicker">INVENTORY TURNOVER</span><h2><i class="bi bi-hourglass-split" aria-hidden="true"></i> Slow-Moving / Non-moving Products</h2><small>Based on paid sales over the last 30 and 90 days, stock levels, and inventory age.</small></div>
-                <a href="{{ route('admin.dead-stock', ['classification' => 'slow']) }}">Review products <i class="bi bi-arrow-right" aria-hidden="true"></i></a>
-            </div>
-            <div class="velocity-table-wrap">
-                <table class="velocity-table">
-                    <thead><tr><th>Product</th><th>Stock</th><th>30-Day Sales</th><th>Last Sale</th><th>Stock Cost</th><th>Recommendation</th></tr></thead>
-                    <tbody>
-                        @forelse($slowRows as $item)
-                            <tr><td><strong>{{ $item['name'] }}</strong><small>{{ $item['sku'] }}</small></td><td>{{ number_format($item['stock']) }}</td><td>{{ \App\Support\Display::count($item['monthly_units'], 'unit') }}</td><td>{{ $item['last_sale'] }}</td><td>{{ $item['total_cost'] }}</td><td>{{ $item['recommendation'] }}</td></tr>
-                        @empty
-                            <tr><td colspan="6" class="empty-analytics">No slow-moving products detected. Dead stock is tracked separately on the Dead Stock page.</td></tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
-        @include('partials.ml-table-pagination', ['rows' => $slowRows, 'sizeName' => 'slow_rows', 'pageName' => 'slow_page', 'anchor' => 'slow-products', 'tableLabel' => 'Slow-moving products'])
-</section>
+</div>
+<div class="analytics-tab-panel" id="analytics-targets" role="tabpanel" aria-labelledby="analytics-tab-targets" data-analytics-panel="targets" @if($analyticsTab !== 'targets') hidden @endif>
+@include('admin.partials.sales-targets')
+</div>
     </main>
 </div>
 @include('partials.login-stock-alert')
