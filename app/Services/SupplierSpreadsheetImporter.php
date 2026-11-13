@@ -18,6 +18,7 @@ class SupplierSpreadsheetImporter
     private const ALLOWED_HEADERS = [
         'supplier_sku', 'product_name', 'internal_sku', 'currency', 'unit_price',
         'available_quantity', 'minimum_order_quantity', 'lead_time_days', 'effective_date',
+        'manufacturer_part_number', 'shop_received_quantity',
     ];
 
     public function __construct(private readonly SupplierProductMatcher $productMatcher) {}
@@ -129,10 +130,6 @@ class SupplierSpreadsheetImporter
                         continue;
                     }
 
-                    if ($rowCount >= 2000) {
-                        throw new InvalidArgumentException('The file exceeds the 2,000-row import limit.');
-                    }
-
                     $rowCount++;
                     $data = array_fill_keys(self::ALLOWED_HEADERS, null);
                     foreach ($headers as $columnIndex => $header) {
@@ -144,8 +141,13 @@ class SupplierSpreadsheetImporter
                     if (blank($data['supplier_sku']) && filled($data['product_name'])) {
                         $name = mb_strtolower(preg_replace('/\s+/u', ' ', trim($data['product_name'])));
                         // Stable across price changes and repeat imports; supplier prices are scoped by supplier.
-                        $prefix = strtoupper(substr(Str::slug($name), 0, 48)) ?: 'ITEM';
-                        $data['supplier_sku'] = 'AUTO-'.$prefix.'-'.strtoupper(substr(hash('sha256', $name), 0, 16));
+                        $slug = strtoupper(Str::slug($name));
+                        $hash = strtoupper(hash('sha256', $name));
+                        $legacySku = 'AUTO-'.(substr($slug, 0, 48) ?: 'ITEM').'-'.substr($hash, 0, 16);
+                        $shortSku = (substr(str_replace('-', '', $slug), 0, 4) ?: 'ITEM').'-'.substr($hash, 0, 8);
+                        $data['supplier_sku'] = $import->supplier->prices()->where('supplier_sku', $legacySku)->exists()
+                            ? $legacySku
+                            : $shortSku;
                     }
 
                     $errors = $this->validateRow($data);
@@ -173,6 +175,8 @@ class SupplierSpreadsheetImporter
                         'minimum_order_quantity' => $this->nullableInteger($data['minimum_order_quantity']),
                         'lead_time_days' => $this->nullableInteger($data['lead_time_days']),
                         'effective_date' => $this->nullableDate($data['effective_date']),
+                        'manufacturer_part_number' => mb_substr($data['manufacturer_part_number'] ?? '', 0, 150) ?: null,
+                        'shop_received_quantity' => $this->nullableInteger($data['shop_received_quantity']),
                         'validation_errors' => $errors ?: null,
                     ]);
 
@@ -239,7 +243,10 @@ class SupplierSpreadsheetImporter
         if (filled($data['currency']) && ! preg_match('/^[A-Za-z]{3}$/', $data['currency'])) {
             $errors[] = 'currency must be a three-letter code.';
         }
-        foreach (['available_quantity', 'minimum_order_quantity', 'lead_time_days'] as $field) {
+        if (mb_strlen((string) $data['manufacturer_part_number']) > 150) {
+            $errors[] = 'manufacturer_part_number cannot exceed 150 characters.';
+        }
+        foreach (['available_quantity', 'minimum_order_quantity', 'lead_time_days', 'shop_received_quantity'] as $field) {
             if (filled($data[$field]) && filter_var($data[$field], FILTER_VALIDATE_INT) === false) {
                 $errors[] = "{$field} must be a whole number.";
             }
@@ -267,6 +274,8 @@ class SupplierSpreadsheetImporter
             'currency_code' => 'currency',
             'moq', 'min_order_qty', 'minimum_order' => 'minimum_order_quantity',
             'lead_time', 'delivery_days' => 'lead_time_days',
+            'mpn', 'manufacturer_part_no' => 'manufacturer_part_number',
+            'units_received_by_shop', 'shop_units_received', 'store_units_received', 'opening_stock', 'shop_opening_stock', 'store_opening_stock' => 'shop_received_quantity',
             default => $header,
         };
     }

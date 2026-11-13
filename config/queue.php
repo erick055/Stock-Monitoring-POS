@@ -36,7 +36,7 @@ return [
         'stock-alerts' => [
             'driver' => 'database',
             'connection' => null,
-            'table' => 'jobs',
+            'table' => env('DB_QUEUE_TABLE', 'jobs'),
             'queue' => 'default',
             'retry_after' => 90,
             'after_commit' => false,

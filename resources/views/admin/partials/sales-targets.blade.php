@@ -5,10 +5,10 @@
     <form class="sales-target-form" method="POST" action="{{ route('admin.analytics.targets.store') }}">
         @csrf
         <label for="target-month">Target month<input id="target-month" name="target_month" type="month" min="2000-01" max="2100-12" value="{{ old('target_month', now()->format('Y-m')) }}" required></label>
-        <label for="target-amount">Target amount (₱)<input id="target-amount" name="target_amount" type="number" min="0.01" max="9999999999.99" step="0.01" value="{{ old('target_amount', $salesTarget['amount']) }}" required></label>
+        <label for="target-amount">Stock purchase target (₱)<input id="target-amount" name="target_amount" type="number" min="0.01" max="9999999999.99" step="0.01" value="{{ old('target_amount', $salesTarget['amount']) }}" required></label>
         <button class="sales-target-button" type="submit">Save target</button>
     </form>
-    <p class="sales-target-note">Saving a month that already has a target updates its amount. Past targets are listed below.</p>
+    <p class="sales-target-note">Enter the stock purchase cost you want to recover for the selected month. Saving an existing month updates its target.</p>
 </section>
 <section class="panel analytics-panel" id="sales-target-history">
     <div class="section-heading"><div><span class="section-kicker">TARGET HISTORY</span><h2>Monthly results</h2></div></div>

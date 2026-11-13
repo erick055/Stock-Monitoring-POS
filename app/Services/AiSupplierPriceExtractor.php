@@ -12,7 +12,7 @@ use OpenSpout\Reader\XLSX\Reader as XlsxReader;
 
 class AiSupplierPriceExtractor
 {
-    public const MAX_ROWS = 200;
+    private const SPREADSHEET_BATCH_ROWS = 40;
 
     public function extract(UploadedFile $file, string $defaultCurrency = 'PHP'): array
     {
@@ -26,34 +26,80 @@ class AiSupplierPriceExtractor
             'jpg', 'jpeg' => 'image/jpeg', 'png' => 'image/png', 'webp' => 'image/webp',
             default => throw new InvalidArgumentException('AI import supports PDF, DOCX, CSV, XLSX, TXT, PNG, JPG, and WEBP files.'),
         };
+        if (in_array($mime, ['text/csv', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'], true)) {
+            return $this->extractSpreadsheet($file, $defaultCurrency);
+        }
+
         $bytes = file_get_contents($file->getRealPath());
-        if ($bytes === false || $bytes === '') throw new InvalidArgumentException('The uploaded document is empty or unreadable.');
+        if ($bytes === false || $bytes === '') {
+            throw new InvalidArgumentException('The uploaded document is empty or unreadable.');
+        }
+
         $data = 'data:'.$mime.';base64,'.base64_encode($bytes);
         $content = str_starts_with($mime, 'image/')
             ? ['type' => 'input_image', 'image_url' => $data]
             : ['type' => 'input_file', 'filename' => basename($file->getClientOriginalName()), 'file_data' => $data];
-        if (in_array(strtolower($file->getClientOriginalExtension()), ['csv', 'xlsx'], true)) {
-            // Read every sheet locally; do not rely on a remote spreadsheet summary or row sampling.
-            $reader = strtolower($file->getClientOriginalExtension()) === 'csv' ? new CsvReader : new XlsxReader;
-            $sheets = [];
-            $rowCount = 0;
-            $characters = 0;
-            try {
-                $reader->open($file->getRealPath());
-                foreach ($reader->getSheetIterator() as $sheet) {
-                    $lines = [];
-                    foreach ($sheet->getRowIterator() as $line) {
-                        $values = array_map(fn ($value) => $value instanceof \DateTimeInterface ? $value->format('Y-m-d') : (string) ($value ?? ''), $line->toArray());
-                        if (!array_filter($values, fn ($value) => trim($value) !== '')) continue;
-                        $characters += strlen(json_encode($values, JSON_UNESCAPED_UNICODE));
-                        if (++$rowCount > 2000 || $characters > 200000) throw new InvalidArgumentException('The spreadsheet is too large for AI extraction. Split it into smaller files, or use standard CSV/XLSX import.');
-                        $lines[] = $values;
-                    }
-                    $sheets[] = ['sheet' => $sheet->getName(), 'rows' => $lines];
-                }
-            } finally { $reader->close(); }
-            $content = ['type' => 'input_text', 'text' => json_encode(['complete_spreadsheet' => $sheets], JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR)];
+
+        $rows = $this->extractContent($content, $defaultCurrency);
+        if ($rows === []) {
+            throw new InvalidArgumentException('The document contains no supplier price rows.');
         }
+
+        return $rows;
+    }
+
+    private function extractSpreadsheet(UploadedFile $file, string $currency): array
+    {
+        $reader = strtolower($file->getClientOriginalExtension()) === 'csv' ? new CsvReader : new XlsxReader;
+        $rows = [];
+        $reader->open($file->getRealPath());
+        try {
+            foreach ($reader->getSheetIterator() as $sheet) {
+                $context = [];
+                $batch = [];
+                $extractBatch = function () use ($sheet, $currency, &$context, &$batch, &$rows): void {
+                    $content = ['type' => 'input_text', 'text' => json_encode([
+                        'sheet' => $sheet->getName(), 'layout_context' => $context, 'source_rows' => $batch,
+                    ], JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR)];
+                    foreach ($this->extractContent($content, $currency) as $row) {
+                        $rows[] = $row;
+                    }
+                    $batch = [];
+                };
+
+                foreach ($sheet->getRowIterator() as $number => $line) {
+                    $values = array_map(fn ($value) => $value instanceof \DateTimeInterface
+                        ? $value->format('Y-m-d') : (string) ($value ?? ''), $line->toArray());
+                    if (!array_filter($values, fn ($value) => trim($value) !== '')) {
+                        continue;
+                    }
+                    $entry = ['row' => $number, 'cells' => $values];
+                    if (count($context) < 8) {
+                        $context[] = $entry;
+                    }
+                    $batch[] = $entry;
+                    if (count($batch) === self::SPREADSHEET_BATCH_ROWS) {
+                        $extractBatch();
+                    }
+                }
+
+                if ($batch !== []) {
+                    $extractBatch();
+                }
+            }
+        } finally {
+            $reader->close();
+        }
+
+        if ($rows === []) {
+            throw new InvalidArgumentException('The spreadsheet contains no supplier price rows.');
+        }
+
+        return $rows;
+    }
+
+    private function extractContent(array $content, string $defaultCurrency): array
+    {
         $payload = [
             'model' => config('openai.supplier_import_model'), 'store' => false,
             'max_output_tokens' => 12000,
@@ -64,9 +110,11 @@ class AiSupplierPriceExtractor
                 'Use supplier unit price, not a line total, selling price, quantity, tax, or invoice grand total. Do not calculate an unknown unit price.',
                 'Map unfamiliar column headings automatically. Prefer an explicitly labeled dealer or supplier cost over a retail price. If competing prices cannot be resolved, return null unit_price and explain in warning.',
                 'Extract available_quantity, minimum_order_quantity, and lead_time_days as whole-number strings, internal_sku only if explicitly labeled as the store internal SKU, and effective_date as YYYY-MM-DD. Return null for absent optional values. Supplier availability is not store inventory.',
+                'Extract manufacturer_part_number only if explicitly labeled as the manufacturer part number or MPN. Extract shop_received_quantity as a whole-number string only if explicitly labeled as units received by the shop. Do not infer either value from supplier SKU, supplier availability, or order quantity.',
                 'Never invent or complete a missing SKU, product name, or price: return null. Put ambiguity, illegibility, alternative prices, or uncertain column interpretation in warning.',
+                'If the source has no SKU column or a blank SKU cell, return null for supplier_sku. MotoSync generates a name-based SKU locally. Do not flag a blank or absent SKU by itself; still warn if a supplied SKU is illegible or if another value needs review.',
                 'Use '.$defaultCurrency.' only when the source does not specify currency; this fallback was chosen by the owner.',
-                'Return complete=true only if every item in the entire document was extracted. Maximum '.self::MAX_ROWS.' rows. For oversized, partially read, or truncated documents, return complete=false. Never claim a spreadsheet summary is the full list.',
+                'For spreadsheet batches, use layout_context only to interpret columns. Extract only source_rows, preserving their sheet and row references. Return complete=true only if every item in the supplied input was extracted; return complete=false for partial or truncated results.',
             ]),
             'input' => [['role' => 'user', 'content' => [$content, ['type' => 'input_text', 'text' => 'Extract the supplier product names, SKUs, and unit prices for owner review.']]]],
             'text' => ['format' => ['type' => 'json_schema', 'name' => 'supplier_price_rows', 'strict' => true, 'schema' => $this->schema()]],
@@ -90,23 +138,25 @@ class AiSupplierPriceExtractor
         $result = json_decode($text, true);
         if (!is_array($result)) throw new RuntimeException('The AI service returned an unreadable extraction.');
         $validator = Validator::make($result, [
-            'complete' => ['required', 'boolean'], 'rows' => ['required', 'array', 'min:1', 'max:'.self::MAX_ROWS],
+            'complete' => ['required', 'boolean'], 'rows' => ['present', 'array'],
             'rows.*.supplier_sku' => ['present', 'nullable', 'string', 'max:255'],
             'rows.*.product_name' => ['present', 'nullable', 'string', 'max:255'],
             'rows.*.unit_price' => ['present', 'nullable', 'string', 'max:40'],
             'rows.*.currency' => ['present', 'nullable', 'string', 'regex:/^[A-Z]{3}$/'],
             'rows.*.source_reference' => ['present', 'nullable', 'string', 'max:255'],
             'rows.*.warning' => ['present', 'nullable', 'string', 'max:1000'],
+            'rows.*.manufacturer_part_number' => ['nullable', 'string', 'max:150'],
+            'rows.*.shop_received_quantity' => ['nullable', 'integer', 'min:0', 'max:2147483647'],
         ]);
-        if ($validator->fails()) throw new InvalidArgumentException('The AI result was empty, oversized, or invalid. Try a clearer or smaller price list.');
-        if ($result['complete'] !== true) throw new InvalidArgumentException('AI could not confirm that the entire document was extracted. Split it into files of at most '.self::MAX_ROWS.' items. No prices were published.');
+        if ($validator->fails()) throw new InvalidArgumentException('The AI result was invalid. Try a clearer or smaller price list.');
+        if ($result['complete'] !== true) throw new InvalidArgumentException('AI could not confirm that the entire document was extracted. Try a smaller document. No prices were published.');
         return $result['rows'];
     }
 
     private function schema(): array
     {
         $properties = [];
-        foreach (['supplier_sku', 'product_name', 'unit_price', 'currency', 'source_reference', 'warning', 'internal_sku', 'available_quantity', 'minimum_order_quantity', 'lead_time_days', 'effective_date'] as $field) $properties[$field] = ['type' => ['string', 'null']];
+        foreach (['supplier_sku', 'product_name', 'unit_price', 'currency', 'source_reference', 'warning', 'internal_sku', 'available_quantity', 'minimum_order_quantity', 'lead_time_days', 'effective_date', 'manufacturer_part_number', 'shop_received_quantity'] as $field) $properties[$field] = ['type' => ['string', 'null']];
         return ['type' => 'object', 'additionalProperties' => false, 'required' => ['complete', 'rows'], 'properties' => [
             'complete' => ['type' => 'boolean'],
             'rows' => ['type' => 'array', 'items' => ['type' => 'object', 'additionalProperties' => false, 'required' => array_keys($properties), 'properties' => $properties]],

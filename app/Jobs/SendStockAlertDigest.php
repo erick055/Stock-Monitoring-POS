@@ -60,7 +60,12 @@ class SendStockAlertDigest implements ShouldQueue
                 return;
             }
             $delivery->update(['status' => 'failed', 'error' => $error?->getMessage()]);
-            StockAlertState::where('pending_delivery_id', $delivery->id)->update(['pending_delivery_id' => null]);
+            $released = ['pending_delivery_id' => null];
+            if ($delivery->alert_type === 'immediate') {
+                // Let the next check pick up products that are still critical after a failed email.
+                $released['severity'] = 'healthy';
+            }
+            StockAlertState::where('pending_delivery_id', $delivery->id)->update($released);
             if ($delivery->alert_type === 'daily_summary') {
                 StockAlertSetting::where('id', 1)->where('last_daily_summary_at', $delivery->created_at)->update(['last_daily_summary_at' => null]);
             }

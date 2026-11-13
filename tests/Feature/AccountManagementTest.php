@@ -89,6 +89,7 @@ class AccountManagementTest extends TestCase
         $owner = User::factory()->create(['role' => 'admin']);
         $this->actingAs($owner)->post(route('admin.accounts.store'), [
             'name' => 'New Worker', 'email' => 'WORKER@example.com ', 'role' => 'admin',
+            'current_password' => 'password',
             'password' => 'Secure!Password123', 'password_confirmation' => 'Secure!Password123',
         ])->assertRedirect(route('admin.accounts'))->assertSessionHas('success');
         $staff = User::where('email', 'worker@example.com')->firstOrFail();
@@ -98,6 +99,25 @@ class AccountManagementTest extends TestCase
         $this->assertNull($staff->email_verified_at);
         $this->assertTrue(Hash::check('Secure!Password123', $staff->password));
         Notification::assertSentTo($staff, VerifyEmail::class);
+    }
+
+    public function test_staff_creation_requires_the_signed_in_owners_password(): void
+    {
+        Notification::fake();
+        $owner = User::factory()->create(['role' => 'admin']);
+        $payload = [
+            'name' => 'New Worker', 'email' => 'worker@example.com',
+            'password' => 'Secure!Password123', 'password_confirmation' => 'Secure!Password123',
+        ];
+
+        $this->actingAs($owner)->post(route('admin.accounts.store'), $payload)
+            ->assertSessionHasErrors('current_password', null, 'createAccount');
+        $this->post(route('admin.accounts.store'), $payload + ['current_password' => 'wrong'])
+            ->assertSessionHasErrors('current_password', null, 'createAccount')
+            ->assertSessionMissing('_old_input.current_password');
+
+        $this->assertDatabaseMissing('users', ['email' => 'worker@example.com']);
+        Notification::assertNothingSent();
     }
 
     public function test_staff_cannot_create_or_edit_accounts_and_owners_cannot_edit_other_owners(): void
@@ -140,6 +160,7 @@ class AccountManagementTest extends TestCase
         $staff = User::factory()->create(['role' => 'staff']);
         $this->actingAs($owner)->post(route('admin.accounts.store'), [
             'name' => 'Worker', 'email' => $owner->email, 'password' => 'weak', 'password_confirmation' => 'weak',
+            'current_password' => 'password',
         ])->assertSessionHasErrors(['email', 'password'], null, 'createAccount');
         $this->patch(route('admin.accounts.update', $staff), [
             'name' => $staff->name, 'email' => 'new-worker@example.com',

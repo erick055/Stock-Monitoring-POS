@@ -41,6 +41,7 @@ if (posApp) {
     let activeHeldOrderId = null;
     let pendingCheckout = null;
     let checkoutLockedControls = [];
+    const draftKey = `motosync:cart:${posApp.dataset.cashierId}:${checkoutUrl}`;
     const savedCheckout = checkoutStorage({
         getItem: (key) => window.localStorage.getItem(key),
         setItem: (key, value) => window.localStorage.setItem(key, value),
@@ -62,6 +63,48 @@ if (posApp) {
         }
     } catch {
         recoveryBlocked = true;
+    }
+    if (!pendingCheckout && !recoveryBlocked) {
+        try {
+            const draft = JSON.parse(window.sessionStorage.getItem(draftKey));
+            if (draft && Array.isArray(draft.items)) {
+                const productById = new Map(products.map((product) => [product.id, product]));
+                cart = draft.items.flatMap(({ id, qty }) => {
+                    const product = productById.get(id);
+                    if (!product || product.stock < 1 || !Number.isInteger(qty) || qty < 1) return [];
+                    return [{ ...product, qty: Math.min(qty, product.stock) }];
+                });
+                laborInput.value = draft.labor || '';
+                activeHeldOrderId = heldOrders.some((hold) => hold.id === draft.heldOrderId)
+                    ? draft.heldOrderId : null;
+                if (draft.heldOrderId && !activeHeldOrderId) {
+                    cart = [];
+                    laborInput.value = '';
+                    showToast('This held order is no longer available.');
+                } else if (cart.length !== draft.items.length || cart.some((item, index) => item.qty !== draft.items[index].qty)) {
+                    showToast('Stock changed while you were away. Review the updated cart.');
+                }
+            }
+        } catch {
+            // Checkout can still run if browser draft storage is unavailable.
+        }
+    }
+
+    function saveCartDraft() {
+        if (pendingCheckout || recoveryBlocked) return;
+        try {
+            if (!cart.length && !laborInput.value && !activeHeldOrderId) {
+                window.sessionStorage.removeItem(draftKey);
+                return;
+            }
+            window.sessionStorage.setItem(draftKey, JSON.stringify({
+                items: cart.map(({ id, qty }) => ({ id, qty })),
+                labor: laborInput.value,
+                heldOrderId: activeHeldOrderId,
+            }));
+        } catch {
+            // Checkout can still run if browser draft storage is unavailable.
+        }
     }
 
     function lockPendingCheckout() {
@@ -374,6 +417,7 @@ if (posApp) {
 
     function renderCart() {
         if (!cartContainer) return;
+        saveCartDraft();
 
         if (!cart.length) {
             cartContainer.innerHTML = `<div class="empty-cart">${emptyCartMarkup}</div>`;
@@ -556,10 +600,14 @@ if (posApp) {
     }
 
     searchInput?.addEventListener('input', renderProducts);
-    laborInput?.addEventListener('input', () => updateTotals(currentSubtotal()));
+    laborInput?.addEventListener('input', () => {
+        updateTotals(currentSubtotal());
+        saveCartDraft();
+    });
     laborInput?.addEventListener('blur', () => {
         laborInput.value = laborAmount() > 0 ? laborAmount().toFixed(2) : '';
         updateTotals(currentSubtotal());
+        saveCartDraft();
     });
     posApp.querySelector('[data-clear-cart]')?.addEventListener('click', () => {
         cart = [];
@@ -683,6 +731,7 @@ if (posApp) {
                 if (canDiscardCheckout(response.status)) {
                     savedCheckout.clear(pendingCheckout);
                     pendingCheckout = null;
+                    saveCartDraft();
                 }
                 return;
             }

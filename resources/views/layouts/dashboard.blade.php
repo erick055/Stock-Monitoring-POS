@@ -50,7 +50,7 @@
                 <div class="section-heading"><div><span class="section-kicker">SALES SUMMARY</span><h2 id="sales-breakdown-title">Sales breakdown</h2></div><span class="period">{{ $dashboard['sales_period'] }}</span></div>
                 <dl class="dashboard-sales-metrics">
                     @foreach([['Gross sales', 'gross_sales'], ['Refunds', 'refunds'], ['Net sales', 'net_sales']] as [$label, $metric])
-                        <div aria-label="{{ $label }}: {{ \App\Support\Display::money($dashboard['sales_summary'][$metric]) }}"><dt>{{ $label }}</dt><dd>{{ \App\Support\Display::money($dashboard['sales_summary'][$metric]) }}</dd></div>
+                        <div aria-label="{{ $label }}: {{ \App\Support\Display::money($dashboard['sales_summary'][$metric]) }}"><dt>{{ $label }}</dt><dd @class(['sales-negative' => $dashboard['sales_summary'][$metric] < 0])>{{ \App\Support\Display::money($dashboard['sales_summary'][$metric]) }}</dd></div>
                     @endforeach
                 </dl>
             </section>

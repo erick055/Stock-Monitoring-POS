@@ -322,6 +322,51 @@ td small {
     grid-column: 1 / -1;
 }
 
+.movement-product-field > label {
+    margin-bottom: 5px;
+}
+
+.movement-product-picker summary,
+.movement-product-menu {
+    padding: 9px 10px;
+    border: 1px solid #393d50;
+    border-radius: 7px;
+}
+
+.movement-product-picker summary {
+    cursor: pointer;
+    overflow-wrap: anywhere;
+}
+
+.movement-product-menu {
+    margin-top: 4px;
+}
+
+.movement-product-results {
+    max-height: 13rem;
+    overflow-y: auto;
+    margin-top: 5px;
+}
+
+.movement-product-results button {
+    display: block;
+    width: 100%;
+    padding: 8px;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: inherit;
+    text-align: left;
+    overflow-wrap: anywhere;
+    cursor: pointer;
+}
+
+.movement-product-results button:hover,
+.movement-product-results button:focus-visible,
+.movement-product-results button[aria-pressed="true"] {
+    background: rgba(128, 104, 174, .25);
+}
+
 .movement-fields input,
 .movement-fields select,
 .movement-fields textarea {

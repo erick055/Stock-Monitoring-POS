@@ -21,7 +21,12 @@ class AccountManagementController extends Controller
             'name' => ['required', 'string', 'min:2', 'max:100'],
             'email' => ['required', 'email:rfc', 'max:255', Rule::unique('users')],
             'password' => ['required', 'confirmed', Password::min(12)->mixedCase()->numbers()->symbols()],
+            'current_password' => ['required', 'string', 'current_password:web'],
+        ], [
+            'current_password.required' => 'Enter your account password to create a staff account.',
+            'current_password.current_password' => 'Your account password is incorrect.',
         ]);
+        unset($validated['current_password']);
         $user = User::create($validated + [
             'role' => 'staff', 'account_status' => 'active',
             'must_change_password' => true,

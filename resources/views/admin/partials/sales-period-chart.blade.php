@@ -34,7 +34,7 @@
                 <div class="day-chart period-{{ $salesPeriod }}" data-day-chart role="group" aria-label="Interactive {{ strtolower($chartPeriodLabel) }} bar chart of paid sales less approved refunds" style="--chart-columns: {{ $weeklySales->count() }}">
                     @foreach($weeklySales as $index => $day)
                         <button
-                            class="day-column"
+                            class="day-column {{ $day['total'] < 0 ? 'sales-negative' : '' }}"
                             type="button"
                             data-day-bar
                             data-day="{{ $day['label'] }} · {{ $day['date'] }}"

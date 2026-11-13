@@ -44,7 +44,7 @@ class DashboardController extends Controller
                 ['TOTAL PRODUCTS', number_format($products->count()), $products->filter(fn (Product $product) => $product->created_at?->isCurrentMonth())->count().' added this month', 'purple'],
                 ['TOTAL STOCK', number_format($products->sum('current_stock')), $products->whereNotNull('category')->pluck('category')->map(fn ($category) => mb_strtolower(trim($category)))->unique()->count().' categories', 'violet'],
                 ['LOW STOCK ITEMS', number_format($lowStock->count()), $lowStock->where('current_stock', 0)->count().' currently out of stock', 'red'],
-                ['MONTH NET SALES', '₱'.number_format($monthSales, 2), $this->comparison($monthSales, $previousMonthSales), 'cyan'],
+                ['MONTH NET SALES', '₱'.number_format($monthSales, 2), $this->comparison($monthSales, $previousMonthSales), $monthSales < 0 ? 'red sales-negative' : 'cyan'],
             ],
             'modules_title' => 'System Modules',
             'modules' => [

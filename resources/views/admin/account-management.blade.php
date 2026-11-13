@@ -66,6 +66,7 @@ $navigation = [
                 <label><span>Password</span><x-password-input id="create-staff-password" minlength="12" autocomplete="new-password" required /></label>
                 <label><span>Confirm password</span><x-password-input id="create-staff-password-confirmation" name="password_confirmation" minlength="12" autocomplete="new-password" required /></label>
                 <p class="account-form-note">Use at least 12 characters with uppercase, lowercase, a number, and a symbol.</p>
+                <label><span>Your owner/admin password</span><x-password-input id="create-staff-current-password" name="current_password" autocomplete="current-password" required /></label>
                 <div class="account-dialog-footer"><button class="account-cancel-button" type="button" data-close-account-dialog>Cancel</button><button type="submit">Create staff account</button></div>
             </form>
         </dialog>

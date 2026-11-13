@@ -17,24 +17,23 @@ class SuppliersPageTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_supplier_popup_creates_shared_category_and_shelf_options(): void
+    public function test_supplier_review_creates_shared_category_and_shelf_options(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);
         $price = $this->createSupplierPrice('OPTION-001', 'Option Test Product', 100);
-        $payload = [
-            'supplier_price_ids' => [$price->supplier_price_id], 'markup_percent' => 30,
-            'category' => '__new__', 'new_category' => '  Workshop   Parts ',
-            'shelf_location' => '__new__', 'new_shelf_location' => ' Rack   D ', 'reorder_level' => 5,
-        ];
-        $this->actingAs($admin)->post(route('admin.suppliers.prices.bulk-create-products'), $payload)
+        $this->actingAs($admin);
+        $batch = $this->startBulkReview([$price->supplier_price_id]);
+        $this->saveBulkItem($batch, $price->supplier_price_id, [
+            'category' => '  Workshop   Parts ', 'shelf_location' => ' Rack   D ',
+        ])->assertSessionHasNoErrors();
+        $this->post(route('admin.suppliers.prices.bulk-create-products'), compact('batch'))
             ->assertSessionHasNoErrors();
         $this->assertDatabaseHas('products', [
             'sku' => 'OPTION-001', 'category' => 'Workshop Parts', 'shelf_location' => 'Rack D',
         ]);
         $this->get(route('admin.suppliers'))->assertOk()
             ->assertViewHas('categories', fn ($values) => $values->contains('Workshop Parts'))
-            ->assertViewHas('shelves', fn ($values) => $values->contains('Rack D'))
-            ->assertSee('+ Create category')->assertSee('+ Create shelf');
+            ->assertViewHas('shelves', fn ($values) => $values->contains('Rack D'));
     }
 
     public function test_new_supplier_catalog_options_require_names(): void
@@ -60,7 +59,7 @@ class SuppliersPageTest extends TestCase
         }
         $imports = SupplierImport::orderBy('supplier_import_id')->get();
         $first = $imports[0]->rows()->firstOrFail();
-        $this->assertStringStartsWith('AUTO-SPARK-PLUG-', $first->supplier_sku);
+        $this->assertStringStartsWith('SPAR-', $first->supplier_sku);
         $this->assertSame($first->supplier_sku, $imports[1]->rows()->firstOrFail()->supplier_sku);
         $this->assertSame(1, $imports[1]->valid_count);
 
@@ -242,6 +241,26 @@ class SuppliersPageTest extends TestCase
         $this->assertSame('200.00', $product->fresh()->unit_cost);
     }
 
+    public function test_rejecting_a_pending_import_removes_its_rows_and_allows_reupload(): void
+    {
+        $owner = User::factory()->create(['role' => 'admin']);
+        $upload = fn () => [
+            'supplier_name' => 'Review Supplier',
+            'supplier_code' => 'REVIEW',
+            'price_file' => UploadedFile::fake()->createWithContent('review.csv',
+                "supplier_sku,product_name,unit_price\nREV-1,Review Part,150.00"),
+        ];
+        $this->actingAs($owner)->post(route('admin.suppliers.imports.upload'), $upload())->assertSessionHasNoErrors();
+        $import = \App\Models\SupplierImport::firstOrFail();
+        $this->assertDatabaseCount('supplier_import_rows', 1);
+        $this->post(route('admin.suppliers.imports.reject', $import))->assertRedirect(route('admin.suppliers'));
+        $this->assertDatabaseCount('supplier_imports', 0);
+        $this->assertDatabaseCount('supplier_import_rows', 0);
+        $this->assertDatabaseCount('supplier_prices', 0);
+        $this->post(route('admin.suppliers.imports.upload'), $upload())->assertSessionHasNoErrors();
+        $this->assertDatabaseCount('supplier_imports', 1);
+    }
+
     public function test_the_same_supplier_file_cannot_be_imported_twice(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);
@@ -317,7 +336,7 @@ class SuppliersPageTest extends TestCase
             'unit_price' => 150.75,
         ]);
         $generated = \App\Models\SupplierImportRow::where('product_name', 'Excel Part Without SKU')->firstOrFail();
-        $this->assertStringStartsWith('AUTO-EXCEL-PART-WITHOUT-SKU-', $generated->supplier_sku);
+        $this->assertStringStartsWith('EXCE-', $generated->supplier_sku);
         $this->assertEmpty($generated->validation_errors);
     }
 
@@ -438,62 +457,81 @@ class SuppliersPageTest extends TestCase
         ]);
     }
 
-    public function test_bulk_opening_stock_is_validated_and_recorded_in_the_ledger(): void
+    public function test_bulk_review_preserves_per_item_details_and_records_opening_stock_once(): void
     {
-        $admin = User::factory()->create(['role' => 'admin']);
-        $price = $this->createSupplierPrice('OPENING-ONE', 'Opening Stock Product', 100, 50);
-        $payload = [
-            'supplier_price_ids' => [$price->supplier_price_id],
-            'markup_percent' => 25, 'reorder_level' => 4,
-            'initial_stocks' => [$price->supplier_price_id => -1],
-        ];
-        $this->actingAs($admin)->post(route('admin.suppliers.prices.bulk-create-products'), $payload)
-            ->assertSessionHasErrors('initial_stocks.'.$price->supplier_price_id);
-        $this->assertDatabaseMissing('products', ['sku' => 'OPENING-ONE']);
-        $payload['initial_stocks'][$price->supplier_price_id] = 7;
-        $this->actingAs($admin)->post(route('admin.suppliers.prices.bulk-create-products'), $payload)
-            ->assertSessionHasNoErrors()->assertRedirect();
-        $product = Product::where('sku', 'OPENING-ONE')->firstOrFail();
-        $this->assertSame(7, $product->current_stock);
-        $this->assertDatabaseHas('inventory_ledgers', [
-            'product_id' => $product->product_id, 'qty_in' => 7,
-            'qty_out' => 0, 'reason_code' => 'SUPPLIER_IMPORT',
-        ]);
+        $owner = User::factory()->create(['role' => 'admin']);
+        $this->actingAs($owner)->post(route('admin.suppliers.imports.upload'), [
+            'supplier_name' => 'Bulk Supplier', 'supplier_code' => 'BULK-TEST',
+            'price_file' => UploadedFile::fake()->createWithContent('bulk.csv',
+                "supplier_sku,product_name,unit_price,available_quantity,manufacturer_part_number,units_received_by_shop\n"
+                ."BULK-ONE,Bulk Product One,100,25,MPN-ONE,7\n"
+                ."BULK-TWO,Bulk Product Two,200,30,,"),
+        ])->assertSessionHasNoErrors();
+        $import = SupplierImport::firstOrFail();
+        $this->post(route('admin.suppliers.imports.approve', $import))->assertSessionHasNoErrors();
+        $this->assertDatabaseCount('products', 0);
+        $first = SupplierPrice::where('supplier_sku', 'BULK-ONE')->firstOrFail();
+        $second = SupplierPrice::where('supplier_sku', 'BULK-TWO')->firstOrFail();
+        $batch = $this->startBulkReview([$first->getKey(), $second->getKey()]);
+
+        $this->get(route('admin.suppliers.bulk.review', [$batch]))
+            ->assertOk()->assertSee('0 of 2 ready')->assertSee('Supplier availability 25')
+            ->assertViewHas('entries', fn ($entries) => $entries[$first->getKey()]['manufacturer_part_number'] === 'MPN-ONE'
+                && $entries[$first->getKey()]['initial_stock'] === 25
+                && $entries[$second->getKey()]['initial_stock'] === 30
+                && $entries[$second->getKey()]['manufacturer_part_number'] === null);
+        $this->post(route('admin.suppliers.prices.bulk-create-products'), compact('batch'))
+            ->assertSessionHasErrors('markup_percent');
+        $this->assertDatabaseCount('products', 0);
+        $this->saveBulkItem($batch, $first->getKey(), [
+            'manufacturer_part_number' => 'MPN-ONE', 'category' => 'Brakes', 'shelf_location' => 'Rack A',
+            'initial_stock' => 7, 'markup_percent' => 0,
+        ])->assertRedirect(route('admin.suppliers.bulk.review', ['batch' => $batch, 'item' => $second->getKey()]));
+        $this->saveBulkItem($batch, $second->getKey(), [
+            'manufacturer_part_number' => '', 'category' => 'Filters', 'shelf_location' => 'Rack B',
+            'initial_stock' => -1, 'markup_percent' => 25,
+        ])->assertSessionHasErrors(['manufacturer_part_number', 'initial_stock']);
+        $this->get(route('admin.suppliers.bulk.review', ['batch' => $batch, 'item' => $second->getKey()]))
+            ->assertOk()->assertSee('1 of 2 ready')->assertSee('value="Rack B"', false);
+        $this->saveBulkItem($batch, $second->getKey(), [
+            'manufacturer_part_number' => 'MPN-TWO', 'category' => 'Filters', 'shelf_location' => 'Rack B',
+            'initial_stock' => 3, 'markup_percent' => 25, 'reorder_level' => 2,
+        ])->assertSessionHasNoErrors();
+        $this->get(route('admin.suppliers.bulk.review', [$batch]))->assertOk()->assertSee('2 of 2 ready');
+        $this->post(route('admin.suppliers.prices.bulk-create-products'), compact('batch'))->assertSessionHasNoErrors();
+        $this->post(route('admin.suppliers.prices.bulk-create-products'), compact('batch'))->assertSessionHasNoErrors();
+        $this->assertDatabaseCount('products', 2);
+        $this->assertDatabaseCount('inventory_ledgers', 2);
+        $this->assertDatabaseHas('products', ['sku' => 'BULK-ONE', 'unit_price' => 100, 'manufacturer_part_number' => 'MPN-ONE',
+            'current_stock' => 7, 'category' => 'Brakes', 'shelf_location' => 'Rack A']);
+        $this->assertDatabaseHas('products', ['sku' => 'BULK-TWO', 'unit_price' => 250, 'manufacturer_part_number' => 'MPN-TWO',
+            'current_stock' => 3, 'category' => 'Filters', 'shelf_location' => 'Rack B', 'reorder_level' => 2]);
+
+        $this->post(route('admin.suppliers.imports.upload'), [
+            'supplier_name' => 'Bulk Supplier', 'supplier_code' => 'BULK-TEST',
+            'price_file' => UploadedFile::fake()->createWithContent('bulk-update.csv',
+                "supplier_sku,product_name,unit_price,available_quantity,units_received_by_shop\nBULK-ONE,Bulk Product One,120,50,10"),
+        ])->assertSessionHasNoErrors();
+        $this->post(route('admin.suppliers.imports.approve', SupplierImport::latest('supplier_import_id')->firstOrFail()))
+            ->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('products', ['sku' => 'BULK-ONE', 'current_stock' => 7]);
+        $this->assertDatabaseCount('inventory_ledgers', 2);
     }
 
-    public function test_owner_can_bulk_create_selected_supplier_items_as_zero_stock_products(): void
+    private function startBulkReview(array $ids): string
     {
-        $admin = User::factory()->create(['role' => 'admin']);
-        $first = $this->createSupplierPrice('BULK-ONE', 'Bulk Product One', 100, 25);
-        $second = $this->createSupplierPrice('BULK-TWO', 'Bulk Product Two', 200, 30);
+        $response = $this->post(route('admin.suppliers.bulk.start'), ['supplier_price_ids' => $ids])
+            ->assertSessionHasNoErrors()->assertRedirect();
 
-        $this->actingAs($admin)->get(route('admin.suppliers'))
-            ->assertOk()
-            ->assertSee('Bulk add selected')
-            ->assertSee('Select all eligible')
-            ->assertSee('data-bulk-select-all', false)
-            ->assertSee('data-bulk-product-checkbox', false);
+        return basename($response->headers->get('Location'));
+    }
 
-        $this->actingAs($admin)
-            ->post(route('admin.suppliers.prices.bulk-create-products'), [
-                'supplier_price_ids' => [$first->supplier_price_id, $second->supplier_price_id],
-                'markup_percent' => 25,
-                'category' => 'Bulk Parts',
-                'shelf_location' => 'Bulk Rack',
-                'reorder_level' => 4,
-            ])
-            ->assertRedirect()
-            ->assertSessionHas('success');
-
-        $one = Product::where('sku', 'BULK-ONE')->firstOrFail();
-        $two = Product::where('sku', 'BULK-TWO')->firstOrFail();
-        $this->assertSame('125.00', $one->unit_price);
-        $this->assertSame('250.00', $two->unit_price);
-        $this->assertSame(0, $one->current_stock);
-        $this->assertSame('BULK-ONE', $one->manufacturer_part_number);
-        $this->assertSame($one->product_id, $first->fresh()->product_id);
-        $this->assertSame($two->product_id, $second->fresh()->product_id);
-        $this->assertDatabaseCount('inventory_ledgers', 2);
+    private function saveBulkItem(string $batch, int $id, array $details)
+    {
+        return $this->post(route('admin.suppliers.bulk.save', [$batch, $id]), $details + [
+            'manufacturer_part_number' => 'MPN-'.$id, 'markup_percent' => 30,
+            'initial_stock' => 0, 'reorder_level' => 5,
+        ]);
     }
 
     public function test_owner_can_restore_a_deleted_sku_from_supplier_price(): void

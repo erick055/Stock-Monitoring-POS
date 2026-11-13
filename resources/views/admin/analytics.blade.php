@@ -64,10 +64,10 @@ $navigation = [
 <div class="analytics-tab-panel" id="analytics-overview" role="tabpanel" aria-labelledby="analytics-tab-overview" data-analytics-panel="overview" @if($analyticsTab !== 'overview') hidden @endif>
         <p class="sales-target-note">All-time sales summary · chart periods and monthly targets are shown separately below.</p>
         <section class="stat-grid analytics-stats" aria-label="Analytics summary">
-            <article class="stat-card purple"><div class="stat-head"><span>NET SALES</span><span class="trend-dot"></span></div><strong>{{ \App\Support\Display::money($summary['total_sales']) }}</strong><small>Gross sales: {{ \App\Support\Display::money($summary['gross_sales']) }}</small><small>Refunds: {{ \App\Support\Display::money($summary['refunds']) }}</small></article>
+            <article class="stat-card purple {{ $summary['total_sales'] < 0 ? 'sales-negative' : '' }}"><div class="stat-head"><span>NET SALES</span><span class="trend-dot"></span></div><strong>{{ \App\Support\Display::money($summary['total_sales']) }}</strong><small>Gross sales: {{ \App\Support\Display::money($summary['gross_sales']) }}</small><small>Refunds: {{ \App\Support\Display::money($summary['refunds']) }}</small></article>
             <article class="stat-card violet"><div class="stat-head"><span>TRANSACTIONS</span><span class="trend-dot"></span></div><strong>{{ number_format($summary['transactions']) }}</strong><small>Paid receipts recorded</small></article>
             <article class="stat-card red"><div class="stat-head"><span>AVG. ORDER VALUE</span><span class="trend-dot"></span></div><strong>{{ \App\Support\Display::money($summary['average_order_value']) }}</strong><small>Average POS checkout</small></article>
-            <article class="stat-card cyan"><div class="stat-head"><span>GROSS PROFIT</span><span class="trend-dot"></span></div><strong>{{ \App\Support\Display::money($summary['gross_profit']) }}</strong><small>Sale margins minus approved returned-unit margins</small></article>
+            <article class="stat-card cyan {{ $summary['gross_profit'] < 0 ? 'sales-negative' : '' }}"><div class="stat-head"><span>GROSS PROFIT</span><span class="trend-dot"></span></div><strong>{{ \App\Support\Display::money($summary['gross_profit']) }}</strong><small>Sale margins minus approved returned-unit margins</small></article>
         </section>
 
 @include('partials.sales-target-card')

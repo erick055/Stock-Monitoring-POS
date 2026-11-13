@@ -1,2778 +1,1235 @@
 /* Light appearance palette. Regenerate with node scripts/build-light-theme.mjs after changing screen styles. */
-html[data-theme="light"] .account-message.success {
-    border-color: hsl(166 38% 84% / 1);
-    background: hsl(163 32% 97% / 1);
-    color: hsl(161 62% 35% / 1)
+html[data-theme="light"] .account-message.success {border-color:hsl(166 38% 84% / 1);background:hsl(163 32% 97% / 1);color:hsl(161 62% 35% / 1)
 }
-
-html[data-theme="light"] .account-message.error {
-    border-color: hsl(349 38% 84% / 1);
-    background: hsl(342 32% 96% / 1);
-    color: hsl(351 80% 35% / 1)
+html[data-theme="light"] .account-message.error {border-color:hsl(349 38% 84% / 1);background:hsl(342 32% 96% / 1);color:hsl(351 80% 35% / 1)
 }
-
-html[data-theme="light"] .account-toolbar label {
-    color: #626b80
+html[data-theme="light"] .account-toolbar label {color:#626b80
 }
-
 html[data-theme="light"] .account-toolbar input,
-html[data-theme="light"] .account-toolbar select {
-    border: 1px solid hsl(229 17% 84% / 1);
-    background: hsl(227 29% 97% / 1);
-    color: hsl(223 40% 35% / 1)
+html[data-theme="light"] .account-toolbar select {border:1px solid hsl(229 17% 84% / 1);background:hsl(227 29% 97% / 1);color:hsl(223 40% 35% / 1)
 }
-
 html[data-theme="light"] .account-toolbar button,
-html[data-theme="light"] .account-toolbar a {
-    border: 1px solid hsl(264 38% 84% / 1);
-    background: hsl(264 32% 95% / 1);
-    color: #202338
+html[data-theme="light"] .account-toolbar a {border:1px solid hsl(264 38% 84% / 1);background:hsl(264 32% 95% / 1);color:#202338
 }
-
-html[data-theme="light"] .account-card {
-    border: 1px solid hsl(227 17% 84% / 1);
-    background: hsl(229 26% 97% / 1)
+html[data-theme="light"] .account-card {border:1px solid hsl(227 17% 84% / 1);background:hsl(229 26% 97% / 1)
 }
-
-html[data-theme="light"] .account-card.pending {
-    border-left-color: hsl(28 38% 84% / 1)
+html[data-theme="light"] .account-card.pending {border-left-color:hsl(28 38% 84% / 1)
 }
-
-html[data-theme="light"] .account-card.active {
-    border-left-color: hsl(188 38% 84% / 1)
+html[data-theme="light"] .account-card.active {border-left-color:hsl(188 38% 84% / 1)
 }
-
-html[data-theme="light"] .account-card.disabled {
-    border-left-color: hsl(354 38% 84% / 1)
+html[data-theme="light"] .account-card.disabled {border-left-color:hsl(354 38% 84% / 1)
 }
-
-html[data-theme="light"] .account-avatar {
-    background: hsl(263 32% 96% / 1);
-    color: hsl(264 80% 35% / 1)
+html[data-theme="light"] .account-avatar {background:hsl(263 32% 96% / 1);color:hsl(264 80% 35% / 1)
 }
-
-html[data-theme="light"] .account-identity strong {
-    color: hsl(228 40% 35% / 1)
+html[data-theme="light"] .account-identity strong {color:hsl(228 40% 35% / 1)
 }
-
-html[data-theme="light"] .account-identity span {
-    color: #626b80
+html[data-theme="light"] .account-identity span {color:#626b80
 }
-
 html[data-theme="light"] .account-identity small,
-html[data-theme="light"] .account-state small {
-    color: #626b80
+html[data-theme="light"] .account-state small {color:#626b80
 }
-
-html[data-theme="light"] .status-pill.pending {
-    background: rgba(255, 158, 74, .13);
-    color: hsl(28 80% 35% / 1)
+html[data-theme="light"] .status-pill.pending {background:rgba(255,158,74,.13);color:hsl(28 80% 35% / 1)
 }
-
-html[data-theme="light"] .status-pill.active {
-    background: rgba(66, 189, 208, .13);
-    color: hsl(188 70% 35% / 1)
+html[data-theme="light"] .status-pill.active {background:rgba(66,189,208,.13);color:hsl(188 70% 35% / 1)
 }
-
-html[data-theme="light"] .status-pill.disabled {
-    background: rgba(255, 102, 118, .13);
-    color: hsl(353 80% 35% / 1)
+html[data-theme="light"] .status-pill.disabled {background:rgba(255,102,118,.13);color:hsl(353 80% 35% / 1)
 }
-
-html[data-theme="light"] .account-state p {
-    color: #626b80
+html[data-theme="light"] .account-state p {color:#626b80
 }
-
-html[data-theme="light"] .disable-form input {
-    border: 1px solid hsl(227 14% 84% / 1);
-    background: hsl(227 32% 97% / 1);
-    color: hsl(223 40% 35% / 1)
+html[data-theme="light"] .disable-form input {border:1px solid hsl(227 14% 84% / 1);background:hsl(227 32% 97% / 1);color:hsl(223 40% 35% / 1)
 }
-
-html[data-theme="light"] .account-actions button {
-    color: #202338
+html[data-theme="light"] .account-actions button {color:#202338
 }
-
 html[data-theme="light"] .approve-button,
-html[data-theme="light"] .reactivate-button {
-    border: 1px solid hsl(164 38% 84% / 1);
-    background: hsl(165 32% 95% / 1)
+html[data-theme="light"] .reactivate-button {border:1px solid hsl(164 38% 84% / 1);background:hsl(165 32% 95% / 1)
 }
-
-html[data-theme="light"] .disable-button {
-    border: 1px solid hsl(350 38% 84% / 1);
-    background: hsl(348 32% 94% / 1)
+html[data-theme="light"] .disable-button {border:1px solid hsl(350 38% 84% / 1);background:hsl(348 32% 94% / 1)
 }
-
-html[data-theme="light"] .empty-accounts {
-    border: 1px dashed hsl(229 16% 84% / 1);
-    color: #626b80
+html[data-theme="light"] .empty-accounts {border:1px dashed hsl(229 16% 84% / 1);color:#626b80
 }
-
-html[data-theme="light"] .empty-accounts strong {
-    color: #202338
+html[data-theme="light"] .empty-accounts strong {color:#202338
 }
-
-html[data-theme="light"] .account-avatar {
-    border: 1px solid hsl(262 24% 84% / 1);
-    background: linear-gradient(145deg, hsl(265 31% 94% / 1), hsl(258 29% 96% / 1))
+html[data-theme="light"] .account-avatar {border:1px solid hsl(262 24% 84% / 1);background:linear-gradient(145deg,hsl(265 31% 94% / 1),hsl(258 29% 96% / 1))
 }
-
-html[data-theme="light"] .account-avatar .bi {
-    color: hsl(264 56% 35% / 1)
+html[data-theme="light"] .account-avatar .bi {color:hsl(264 56% 35% / 1)
 }
-
-html[data-theme="light"] .staff-account-form label {
-    color: #626b80
+html[data-theme="light"] .staff-account-form label {color:#626b80
 }
-
-html[data-theme="light"] .staff-account-form input {
-    border: 1px solid hsl(264 32% 84% / 1);
-    background: hsl(227 29% 97% / 1);
-    color: hsl(223 40% 35% / 1)
+html[data-theme="light"] .staff-account-form input {border:1px solid hsl(264 32% 84% / 1);background:hsl(227 29% 97% / 1);color:hsl(223 40% 35% / 1)
 }
-
-html[data-theme="light"] .staff-account-form button {
-    border: 1px solid hsl(265 38% 84% / 1);
-    background: #6d35b5;
-    color: #fff
+html[data-theme="light"] .staff-account-form button {border:1px solid hsl(265 38% 84% / 1);background:#6d35b5;color:#fff
 }
-
-html[data-theme="light"] .staff-account-form button:hover {
-    background: #8043cb
+html[data-theme="light"] .staff-account-form button:hover {background:#8043cb
 }
-
-html[data-theme="light"] .account-form-note {
-    color: #626b80
+html[data-theme="light"] .account-form-note {color:#626b80
 }
-
 html[data-theme="light"] .staff-account-form input:focus-visible,
-html[data-theme="light"] .staff-account-form button:focus-visible {
-    outline: 2px solid hsl(263 38% 84% / 1)
+html[data-theme="light"] .staff-account-form button:focus-visible {outline:2px solid hsl(263 38% 84% / 1)
 }
-
-html[data-theme="light"] .account-dialog-actions {
-    border-top: 1px solid hsl(227 17% 84% / 1)
+html[data-theme="light"] .account-dialog-actions {border-top:1px solid hsl(227 17% 84% / 1)
 }
-
-html[data-theme="light"] .edit-staff-button {
-    border: 1px solid hsl(263 38% 84% / 1);
-    background: #6435a2;
-    color: #fff
+html[data-theme="light"] .edit-staff-button {border:1px solid hsl(263 38% 84% / 1);background:#6435a2;color:#fff
 }
-
-html[data-theme="light"] .delete-staff-button {
-    border: 1px solid hsl(350 38% 84% / 1);
-    background: hsl(348 32% 94% / 1);
-    color: #202338
+html[data-theme="light"] .delete-staff-button {border:1px solid hsl(350 38% 84% / 1);background:hsl(348 32% 94% / 1);color:#202338
 }
-
-html[data-theme="light"] .delete-staff-button:hover {
-    background: hsl(348 32% 93% / 1)
+html[data-theme="light"] .delete-staff-button:hover {background:hsl(348 32% 93% / 1)
 }
-
-html[data-theme="light"] .account-dialog {
-    border: 1px solid hsl(265 38% 84% / 1);
-    background: hsl(228 29% 97% / 1);
-    color: hsl(228 40% 35% / 1)
+html[data-theme="light"] .account-dialog {border:1px solid hsl(265 38% 84% / 1);background:hsl(228 29% 97% / 1);color:hsl(228 40% 35% / 1)
 }
-
-html[data-theme="light"] .account-dialog::backdrop {
-    background: hsl(0 0% 98% / 0.65)
+html[data-theme="light"] .account-dialog::backdrop {background:hsl(0 0% 98% / 0.65)
 }
-
-html[data-theme="light"] .account-dialog-header p {
-    color: #626b80
+html[data-theme="light"] .account-dialog-header p {color:#626b80
 }
-
-html[data-theme="light"] .account-dialog-header>button {
-    border: 1px solid hsl(229 17% 84% / 1);
-    background: hsl(227 28% 96% / 1);
-    color: hsl(228 40% 35% / 1)
+html[data-theme="light"] .account-dialog-header>button {border:1px solid hsl(229 17% 84% / 1);background:hsl(227 28% 96% / 1);color:hsl(228 40% 35% / 1)
 }
-
-html[data-theme="light"] .account-dialog-footer button {
-    border: 1px solid hsl(265 38% 84% / 1);
-    color: #202338
+html[data-theme="light"] .account-dialog-footer button {border:1px solid hsl(265 38% 84% / 1);color:#202338
 }
-
-html[data-theme="light"] .account-dialog-footer .account-cancel-button {
-    border: 1px solid hsl(229 17% 84% / 1);
-    background: hsl(227 28% 96% / 1);
-    color: hsl(231 40% 35% / 1)
+html[data-theme="light"] .account-dialog-footer .account-cancel-button {border:1px solid hsl(229 17% 84% / 1);background:hsl(227 28% 96% / 1);color:hsl(231 40% 35% / 1)
 }
-
-html[data-theme="light"] .account-delete-dialog p {
-    color: hsl(224 40% 35% / 1)
+html[data-theme="light"] .account-delete-dialog p {color:hsl(224 40% 35% / 1)
 }
-
-html[data-theme="light"] .account-delete-confirm input {
-    accent-color: hsl(350 66% 35% / 1)
+html[data-theme="light"] .account-delete-confirm input {accent-color:hsl(350 66% 35% / 1)
 }
-
-html[data-theme="light"] .account-dialog-footer .disable-button {
-    border-color: hsl(350 38% 84% / 1);
-    background: hsl(348 32% 94% / 1)
+html[data-theme="light"] .account-dialog-footer .disable-button {border-color:hsl(350 38% 84% / 1);background:hsl(348 32% 94% / 1)
 }
-
-html[data-theme="light"] .account-dialog button:focus-visible {
-    outline: 2px solid hsl(263 38% 84% / 1)
+html[data-theme="light"] .account-dialog button:focus-visible {outline:2px solid hsl(263 38% 84% / 1)
 }
-
-html[data-theme="light"] .period-select {
-    background: hsl(228 29% 97% / 1);
-    color: #202338
+html[data-theme="light"] .period-select {background:hsl(228 29% 97% / 1);color:#202338
 }
-
-html[data-theme="light"] .more-button {
-    background: hsl(226 32% 97% / 1);
-    color: #626b80
+html[data-theme="light"] .more-button {background:hsl(226 32% 97% / 1);color:#626b80
 }
-
 html[data-theme="light"] .more-button:hover,
-html[data-theme="light"] .more-button[aria-expanded=true] {
-    border-color: hsl(264 38% 84% / 1);
-    background: hsl(260 32% 96% / 1);
-    color: hsl(263 80% 35% / 1)
+html[data-theme="light"] .more-button[aria-expanded=true] {border-color:hsl(264 38% 84% / 1);background:hsl(260 32% 96% / 1);color:hsl(263 80% 35% / 1)
 }
-
-html[data-theme="light"] .export-options {
-    border: 1px solid hsl(251 17% 84% / 1);
-    background: hsl(229 26% 97% / 1);
-    box-shadow: 0 18px 50px rgb(31 39 65 / 0.09)
+html[data-theme="light"] .export-options {border:1px solid hsl(251 17% 84% / 1);background:hsl(229 26% 97% / 1);box-shadow:0 18px 50px rgb(31 39 65 / 0.09)
 }
-
-html[data-theme="light"] .export-options-heading {
-    border-bottom: 1px solid hsl(230 17% 84% / 1)
+html[data-theme="light"] .export-options-heading {border-bottom:1px solid hsl(230 17% 84% / 1)
 }
-
-html[data-theme="light"] .export-options-heading span {
-    color: hsl(264 76% 35% / 1)
+html[data-theme="light"] .export-options-heading span {color:hsl(264 76% 35% / 1)
 }
-
-html[data-theme="light"] .export-options-heading small {
-    color: #626b80
+html[data-theme="light"] .export-options-heading small {color:#626b80
 }
-
-html[data-theme="light"] .export-options a {
-    color: #202338
+html[data-theme="light"] .export-options a {color:#202338
 }
-
 html[data-theme="light"] .export-options a:hover,
-html[data-theme="light"] .export-options a:focus-visible {
-    background: hsl(261 32% 96% / 1)
+html[data-theme="light"] .export-options a:focus-visible {background:hsl(261 32% 96% / 1)
 }
-
-html[data-theme="light"] .export-options a small {
-    color: #626b80
+html[data-theme="light"] .export-options a small {color:#626b80
 }
-
-html[data-theme="light"] .export-icon.pdf {
-    background: rgba(255, 87, 105, .13);
-    color: hsl(352 80% 35% / 1)
+html[data-theme="light"] .export-icon.pdf {background:rgba(255,87,105,.13);color:hsl(352 80% 35% / 1)
 }
-
-html[data-theme="light"] .export-icon.excel {
-    background: rgba(55, 199, 137, .13);
-    color: hsl(154 65% 35% / 1)
+html[data-theme="light"] .export-icon.excel {background:rgba(55,199,137,.13);color:hsl(154 65% 35% / 1)
 }
-
-html[data-theme="light"] .export-icon.csv {
-    background: rgba(72, 143, 255, .13);
-    color: hsl(218 80% 35% / 1)
+html[data-theme="light"] .export-icon.csv {background:rgba(72,143,255,.13);color:hsl(218 80% 35% / 1)
 }
-
-html[data-theme="light"] .analytics-message.success {
-    border-color: hsl(157 38% 84% / 1);
-    background: hsl(159 32% 97% / 1);
-    color: hsl(155 65% 35% / 1)
+html[data-theme="light"] .analytics-message.success {border-color:hsl(157 38% 84% / 1);background:hsl(159 32% 97% / 1);color:hsl(155 65% 35% / 1)
 }
-
-html[data-theme="light"] .analytics-message.error {
-    border-color: hsl(351 38% 84% / 1);
-    background: hsl(349 32% 96% / 1);
-    color: hsl(352 80% 35% / 1)
+html[data-theme="light"] .analytics-message.error {border-color:hsl(351 38% 84% / 1);background:hsl(349 32% 96% / 1);color:hsl(352 80% 35% / 1)
 }
-
-html[data-theme="light"] .chart-period-toggle {
-    background: hsl(225 27% 97% / 1);
-    color: #626b80
+html[data-theme="light"] .chart-period-toggle {background:hsl(225 27% 97% / 1);color:#626b80
 }
-
 html[data-theme="light"] .chart-period-toggle:hover,
-html[data-theme="light"] .chart-period-toggle[aria-expanded=true] {
-    border-color: hsl(264 38% 84% / 1);
-    background: hsl(260 32% 96% / 1);
-    color: hsl(263 80% 35% / 1)
+html[data-theme="light"] .chart-period-toggle[aria-expanded=true] {border-color:hsl(264 38% 84% / 1);background:hsl(260 32% 96% / 1);color:hsl(263 80% 35% / 1)
 }
-
-html[data-theme="light"] .chart-period-options {
-    border: 1px solid hsl(251 17% 84% / 1);
-    background: hsl(229 26% 97% / 1);
-    box-shadow: 0 16px 45px rgb(31 39 65 / 0.09)
+html[data-theme="light"] .chart-period-options {border:1px solid hsl(251 17% 84% / 1);background:hsl(229 26% 97% / 1);box-shadow:0 16px 45px rgb(31 39 65 / 0.09)
 }
-
-html[data-theme="light"] .chart-period-options a {
-    color: #202338
+html[data-theme="light"] .chart-period-options a {color:#202338
 }
-
 html[data-theme="light"] .chart-period-options a:hover,
-html[data-theme="light"] .chart-period-options a:focus-visible {
-    background: hsl(258 32% 96% / 1)
+html[data-theme="light"] .chart-period-options a:focus-visible {background:hsl(258 32% 96% / 1)
 }
-
-html[data-theme="light"] .chart-period-options a.is-active {
-    background: hsl(265 32% 96% / 1);
-    color: hsl(264 80% 35% / 1)
+html[data-theme="light"] .chart-period-options a.is-active {background:hsl(265 32% 96% / 1);color:hsl(264 80% 35% / 1)
 }
-
-html[data-theme="light"] .chart-period-options small {
-    color: #626b80
+html[data-theme="light"] .chart-period-options small {color:#626b80
 }
-
-html[data-theme="light"] .chart-range-filter {
-    border: 1px solid hsl(231 16% 84% / 1);
-    background: hsl(224 30% 97% / 1)
+html[data-theme="light"] .chart-range-filter {border:1px solid hsl(231 16% 84% / 1);background:hsl(224 30% 97% / 1)
 }
-
-html[data-theme="light"] .chart-range-filter label {
-    color: #626b80
+html[data-theme="light"] .chart-range-filter label {color:#626b80
 }
-
-html[data-theme="light"] .chart-range-filter select {
-    border: 1px solid hsl(263 37% 84% / 1);
-    background: hsl(229 31% 97% / 1);
-    color: hsl(225 40% 35% / 1)
+html[data-theme="light"] .chart-range-filter select {border:1px solid hsl(263 37% 84% / 1);background:hsl(229 31% 97% / 1);color:hsl(225 40% 35% / 1)
 }
-
-html[data-theme="light"] .chart-range-filter button {
-    border: 1px solid hsl(264 38% 84% / 1);
-    background: hsl(264 32% 95% / 1);
-    color: hsl(263 80% 35% / 1)
+html[data-theme="light"] .chart-range-filter button {border:1px solid hsl(264 38% 84% / 1);background:hsl(264 32% 95% / 1);color:hsl(263 80% 35% / 1)
 }
-
-html[data-theme="light"] .sales-item {
-    background: hsl(229 24% 97% / 1)
+html[data-theme="light"] .sales-item {background:hsl(229 24% 97% / 1)
 }
-
-html[data-theme="light"] .sales-item span {
-    color: hsl(230 40% 35% / 1)
+html[data-theme="light"] .sales-item span {color:hsl(230 40% 35% / 1)
 }
-
-html[data-theme="light"] .empty-analytics {
-    border: 1px dashed hsl(231 17% 84% / 1);
-    color: #626b80;
-    background: hsl(229 30% 97% / 1)
+html[data-theme="light"] .empty-analytics {border:1px dashed hsl(231 17% 84% / 1);color:#626b80;background:hsl(229 30% 97% / 1)
 }
-
-html[data-theme="light"] .ai-only-badge {
-    border: 1px solid hsl(262 38% 84% / 1);
-    background: hsl(262 32% 96% / 1);
-    color: hsl(263 80% 35% / 1)
+html[data-theme="light"] .ai-only-badge {border:1px solid hsl(262 38% 84% / 1);background:hsl(262 32% 96% / 1);color:hsl(263 80% 35% / 1)
 }
-
-html[data-theme="light"] .ai-demand-panel {
-    border-color: hsl(263 37% 84% / 1);
-    background: linear-gradient(145deg, hsl(259 32% 97% / 1), hsl(229 26% 97% / 1) 65%)
+html[data-theme="light"] .ai-demand-panel {border-color:hsl(263 37% 84% / 1);background:linear-gradient(145deg,hsl(259 32% 97% / 1),hsl(229 26% 97% / 1) 65%)
 }
-
-html[data-theme="light"] .ai-forecast-action {
-    border: 1px solid hsl(260 20% 84% / 1);
-    background: hsl(234 24% 97% / 1)
+html[data-theme="light"] .ai-forecast-action {border:1px solid hsl(260 20% 84% / 1);background:hsl(234 24% 97% / 1)
 }
-
-html[data-theme="light"] .ai-forecast-action p {
-    color: #626b80
+html[data-theme="light"] .ai-forecast-action p {color:#626b80
 }
-
-html[data-theme="light"] .ai-forecast-action button {
-    border: 1px solid hsl(264 38% 84% / 1);
-    background: hsl(264 32% 95% / 1);
-    color: hsl(263 80% 35% / 1)
+html[data-theme="light"] .ai-forecast-action button {border:1px solid hsl(264 38% 84% / 1);background:hsl(264 32% 95% / 1);color:hsl(263 80% 35% / 1)
 }
-
-html[data-theme="light"] .ai-forecast-summary {
-    color: #202338
+html[data-theme="light"] .ai-forecast-summary {color:#202338
 }
-
-html[data-theme="light"] .ai-forecast-item {
-    border: 1px solid hsl(260 20% 84% / 1);
-    background: hsl(234 23% 97% / 1)
+html[data-theme="light"] .ai-forecast-item {border:1px solid hsl(260 20% 84% / 1);background:hsl(234 23% 97% / 1)
 }
-
-html[data-theme="light"] .ai-forecast-item div small {
-    color: #626b80
+html[data-theme="light"] .ai-forecast-item div small {color:#626b80
 }
-
-html[data-theme="light"] .ai-forecast-item>span {
-    color: hsl(261 57% 35% / 1)
+html[data-theme="light"] .ai-forecast-item>span {color:hsl(261 57% 35% / 1)
 }
-
-html[data-theme="light"] .ai-forecast-item>span strong {
-    color: hsl(260 80% 35% / 1)
+html[data-theme="light"] .ai-forecast-item>span strong {color:hsl(260 80% 35% / 1)
 }
-
-html[data-theme="light"] .ai-forecast-item p {
-    color: #626b80
+html[data-theme="light"] .ai-forecast-item p {color:#626b80
 }
-
-html[data-theme="light"] .ai-forecast-meta {
-    color: #626b80
+html[data-theme="light"] .ai-forecast-meta {color:#626b80
 }
-
-html[data-theme="light"] .velocity-heading small {
-    color: #626b80
+html[data-theme="light"] .velocity-heading small {color:#626b80
 }
-
-html[data-theme="light"] .velocity-table th {
-    color: #626b80
+html[data-theme="light"] .velocity-table th {color:#626b80
 }
-
-html[data-theme="light"] .velocity-table td {
-    background: hsl(229 24% 97% / 1);
-    color: hsl(223 40% 35% / 1)
+html[data-theme="light"] .velocity-table td {background:hsl(229 24% 97% / 1);color:hsl(223 40% 35% / 1)
 }
-
-html[data-theme="light"] .velocity-table td>small {
-    color: #626b80
+html[data-theme="light"] .velocity-table td>small {color:#626b80
 }
-
-html[data-theme="light"] .rank-badge {
-    background: hsl(231 22% 96% / 1);
-    color: hsl(225 40% 35% / 1)
+html[data-theme="light"] .rank-badge {background:hsl(231 22% 96% / 1);color:hsl(225 40% 35% / 1)
 }
-
-html[data-theme="light"] .rank-1 {
-    background: rgba(255, 190, 61, .14);
-    color: hsl(41 80% 35% / 1)
+html[data-theme="light"] .rank-1 {background:rgba(255,190,61,.14);color:hsl(41 80% 35% / 1)
 }
-
-html[data-theme="light"] .rank-2 {
-    background: hsl(221 32% 88% / 0.13);
-    color: hsl(219 42% 35% / 1)
+html[data-theme="light"] .rank-2 {background:hsl(221 32% 88% / 0.13);color:hsl(219 42% 35% / 1)
 }
-
-html[data-theme="light"] .rank-3 {
-    background: rgba(194, 116, 67, .15);
-    color: hsl(23 62% 35% / 1)
+html[data-theme="light"] .rank-3 {background:rgba(194,116,67,.15);color:hsl(23 62% 35% / 1)
 }
-
-html[data-theme="light"] .chart-insight {
-    border: 1px solid hsl(229 17% 84% / 1);
-    background: hsl(225 32% 97% / 1)
+html[data-theme="light"] .chart-insight {border:1px solid hsl(229 17% 84% / 1);background:hsl(225 32% 97% / 1)
 }
-
-html[data-theme="light"] .chart-insight span {
-    color: #626b80
+html[data-theme="light"] .chart-insight span {color:#626b80
 }
-
-html[data-theme="light"] .chart-insight strong {
-    color: hsl(230 40% 35% / 1)
+html[data-theme="light"] .chart-insight strong {color:hsl(230 40% 35% / 1)
 }
-
-html[data-theme="light"] .day-chart-scroll:focus-visible {
-    outline: 2px solid hsl(263 38% 84% / 1)
+html[data-theme="light"] .day-chart-scroll:focus-visible {outline:2px solid hsl(263 38% 84% / 1)
 }
-
-html[data-theme="light"] .day-chart {
-    border-bottom: 1px solid hsl(227 17% 84% / 1);
-    background: linear-gradient(to top, rgba(126, 85, 196, .05) 1px, transparent 1px)
+html[data-theme="light"] .day-chart {border-bottom:1px solid hsl(227 17% 84% / 1);background:linear-gradient(to top,rgba(126,85,196,.05) 1px,transparent 1px)
 }
-
-html[data-theme="light"] .day-value {
-    color: hsl(225 40% 35% / 1)
+html[data-theme="light"] .day-value {color:hsl(225 40% 35% / 1)
 }
-
-html[data-theme="light"] .day-bar-track {
-    background: rgba(255, 255, 255, .035)
+html[data-theme="light"] .day-bar-track {background:rgba(255,255,255,.035)
 }
-
-html[data-theme="light"] .day-label {
-    color: #202338
+html[data-theme="light"] .day-label {color:#202338
 }
-
-html[data-theme="light"] .day-column small {
-    color: #626b80
+html[data-theme="light"] .day-column small {color:#626b80
 }
-
 html[data-theme="light"] .day-column:hover .day-value,
 html[data-theme="light"] .day-column:focus-visible .day-value,
-html[data-theme="light"] .day-column.is-selected .day-value {
-    color: hsl(264 80% 35% / 1)
+html[data-theme="light"] .day-column.is-selected .day-value {color:hsl(264 80% 35% / 1)
 }
-
-html[data-theme="light"] .day-column:focus-visible {
-    box-shadow: 0 0 0 2px rgb(31 39 65 / 0.09)
+html[data-theme="light"] .day-column:focus-visible {box-shadow:0 0 0 2px rgb(31 39 65 / 0.09)
 }
-
-html[data-theme="light"] .flow-card {
-    background: hsl(229 26% 97% / 1)
+html[data-theme="light"] .flow-card {background:hsl(229 26% 97% / 1)
 }
-
-html[data-theme="light"] .flow-card small {
-    color: #626b80
+html[data-theme="light"] .flow-card small {color:#626b80
 }
-
-html[data-theme="light"] .flow-card.green {
-    border-color: hsl(155 38% 84% / 1)
+html[data-theme="light"] .flow-card.green {border-color:hsl(155 38% 84% / 1)
 }
-
-html[data-theme="light"] .flow-card.green strong {
-    color: hsl(156 72% 35% / 1)
+html[data-theme="light"] .flow-card.green strong {color:hsl(156 72% 35% / 1)
 }
-
-html[data-theme="light"] .flow-card.blue {
-    border-color: hsl(218 38% 84% / 1)
+html[data-theme="light"] .flow-card.blue {border-color:hsl(218 38% 84% / 1)
 }
-
-html[data-theme="light"] .flow-card.blue strong {
-    color: hsl(212 80% 35% / 1)
+html[data-theme="light"] .flow-card.blue strong {color:hsl(212 80% 35% / 1)
 }
-
-html[data-theme="light"] .flow-card.orange {
-    border-color: hsl(28 38% 84% / 1)
+html[data-theme="light"] .flow-card.orange {border-color:hsl(28 38% 84% / 1)
 }
-
-html[data-theme="light"] .flow-card.orange strong {
-    color: hsl(28 80% 35% / 1)
+html[data-theme="light"] .flow-card.orange strong {color:hsl(28 80% 35% / 1)
 }
-
-html[data-theme="light"] .flow-card.red {
-    border-color: hsl(353 38% 84% / 1)
+html[data-theme="light"] .flow-card.red {border-color:hsl(353 38% 84% / 1)
 }
-
-html[data-theme="light"] .flow-card.red strong {
-    color: hsl(354 80% 35% / 1)
+html[data-theme="light"] .flow-card.red strong {color:hsl(354 80% 35% / 1)
 }
-
-html[data-theme="light"] .flow-card.violet {
-    border-color: hsl(259 38% 84% / 1)
+html[data-theme="light"] .flow-card.violet {border-color:hsl(259 38% 84% / 1)
 }
-
-html[data-theme="light"] .flow-card.violet strong {
-    color: hsl(253 80% 35% / 1)
+html[data-theme="light"] .flow-card.violet strong {color:hsl(253 80% 35% / 1)
 }
-
 html[data-theme="light"] .slow-products-panel th,
-html[data-theme="light"] .slow-products-panel td {
-    border-bottom: 1px solid hsl(227 19% 84% / 1)
+html[data-theme="light"] .slow-products-panel td {border-bottom:1px solid hsl(227 19% 84% / 1)
 }
-
-html[data-theme="light"] .slow-products-panel th {
-    color: #626b80
+html[data-theme="light"] .slow-products-panel th {color:#626b80
 }
-
-html[data-theme="light"] .slow-products-panel td:first-child small {
-    color: #626b80
+html[data-theme="light"] .slow-products-panel td:first-child small {color:#626b80
 }
-
-html[data-theme="light"] .slow-products-panel .section-heading small {
-    color: #626b80
+html[data-theme="light"] .slow-products-panel .section-heading small {color:#626b80
 }
-
-html[data-theme="light"] .slow-products-panel td:last-child {
-    color: #202338
+html[data-theme="light"] .slow-products-panel td:last-child {color:#202338
 }
-
-html[data-theme="light"] .ai-demand-panel {
-    border-color: hsl(221 21% 84% / 1);
-    background: hsl(222 25% 97% / 1)
+html[data-theme="light"] .ai-demand-panel {border-color:hsl(221 21% 84% / 1);background:hsl(222 25% 97% / 1)
 }
-
-html[data-theme="light"] .future-outlook-icon {
-    border: 1px solid hsl(236 28% 84% / 1);
-    background: radial-gradient(circle at 30% 25%, hsl(244 32% 93% / 1), hsl(232 32% 96% / 1) 62%, hsl(226 32% 96% / 1));
-    color: hsl(244 80% 35% / 1);
-    box-shadow: inset 0 1px 0 rgb(31 39 65 / 0.09)
+html[data-theme="light"] .future-outlook-icon {border:1px solid hsl(236 28% 84% / 1);background:radial-gradient(circle at 30% 25%,hsl(244 32% 93% / 1),hsl(232 32% 96% / 1) 62%,hsl(226 32% 96% / 1));color:hsl(244 80% 35% / 1);box-shadow:inset 0 1px 0 rgb(31 39 65 / 0.09)
 }
-
-html[data-theme="light"] .future-outlook-icon::after {
-    background: #8ce1c9
+html[data-theme="light"] .future-outlook-icon::after {background:#8ce1c9
 }
-
-html[data-theme="light"] .future-outlook-heading h2 {
-    color: hsl(225 40% 35% / 1)
+html[data-theme="light"] .future-outlook-heading h2 {color:hsl(225 40% 35% / 1)
 }
-
-html[data-theme="light"] .future-outlook-copy>p {
-    color: #626b80
+html[data-theme="light"] .future-outlook-copy>p {color:#626b80
 }
-
-html[data-theme="light"] .future-outlook-copy .future-priority {
-    color: hsl(256 40% 35% / 1)
+html[data-theme="light"] .future-outlook-copy .future-priority {color:hsl(256 40% 35% / 1)
 }
-
-html[data-theme="light"] .future-priority strong {
-    color: hsl(261 52% 35% / 1)
+html[data-theme="light"] .future-priority strong {color:hsl(261 52% 35% / 1)
 }
-
-html[data-theme="light"] .future-model-status.ready {
-    border-color: hsl(165 31% 84% / 1);
-    background: hsl(166 32% 96% / 1);
-    color: hsl(163 51% 35% / 1)
+html[data-theme="light"] .future-model-status.ready {border-color:hsl(165 31% 84% / 1);background:hsl(166 32% 96% / 1);color:hsl(163 51% 35% / 1)
 }
-
-html[data-theme="light"] .future-model-status.waiting {
-    border-color: hsl(41 36% 84% / 1);
-    background: hsl(40 32% 96% / 1);
-    color: hsl(43 70% 35% / 1)
+html[data-theme="light"] .future-model-status.waiting {border-color:hsl(41 36% 84% / 1);background:hsl(40 32% 96% / 1);color:hsl(43 70% 35% / 1)
 }
-
-html[data-theme="light"] .future-model-details {
-    color: #626b80
+html[data-theme="light"] .future-model-details {color:#626b80
 }
-
-html[data-theme="light"] .future-model-details summary {
-    color: hsl(258 40% 35% / 1)
+html[data-theme="light"] .future-model-details summary {color:hsl(258 40% 35% / 1)
 }
-
-html[data-theme="light"] .future-outlook-table:focus-visible {
-    outline: 2px solid hsl(260 34% 84% / 1)
+html[data-theme="light"] .future-outlook-table:focus-visible {outline:2px solid hsl(260 34% 84% / 1)
 }
-
 html[data-theme="light"] .future-outlook-table th,
-html[data-theme="light"] .future-outlook-table td {
-    border-bottom: 1px solid hsl(226 20% 84% / 1)
+html[data-theme="light"] .future-outlook-table td {border-bottom:1px solid hsl(226 20% 84% / 1)
 }
-
-html[data-theme="light"] .future-outlook-table th {
-    background: hsl(221 24% 96% / 1);
-    color: #626b80
+html[data-theme="light"] .future-outlook-table th {background:hsl(221 24% 96% / 1);color:#626b80
 }
-
-html[data-theme="light"] .future-outlook-table td {
-    color: hsl(221 40% 35% / 1)
+html[data-theme="light"] .future-outlook-table td {color:hsl(221 40% 35% / 1)
 }
-
-html[data-theme="light"] .future-outlook-table td:nth-child(5) {
-    color: #626b80
+html[data-theme="light"] .future-outlook-table td:nth-child(5) {color:#626b80
 }
-
-html[data-theme="light"] .future-outlook-table td small {
-    color: #626b80
+html[data-theme="light"] .future-outlook-table td small {color:#626b80
 }
-
-html[data-theme="light"] .future-outlook-table tbody tr:hover {
-    background: hsl(221 24% 96% / 1)
+html[data-theme="light"] .future-outlook-table tbody tr:hover {background:hsl(221 24% 96% / 1)
 }
-
-html[data-theme="light"] .future-pending {
-    color: hsl(44 54% 35% / 1)
+html[data-theme="light"] .future-pending {color:hsl(44 54% 35% / 1)
 }
-
-html[data-theme="light"] .future-muted {
-    color: #626b80
+html[data-theme="light"] .future-muted {color:#626b80
 }
-
-html[data-theme="light"] .future-priority-badge {
-    border: 1px solid hsl(244 20% 84% / 1);
-    background: hsl(243 22% 96% / 1);
-    color: hsl(260 45% 35% / 1)
+html[data-theme="light"] .future-priority-badge {border:1px solid hsl(244 20% 84% / 1);background:hsl(243 22% 96% / 1);color:hsl(260 45% 35% / 1)
 }
-
-html[data-theme="light"] .daily-transaction-summary {
-    color: hsl(224 40% 35% / 1)
+html[data-theme="light"] .daily-transaction-summary {color:hsl(224 40% 35% / 1)
 }
-
-html[data-theme="light"] .daily-transaction-summary strong {
-    color: hsl(260 65% 35% / 1)
+html[data-theme="light"] .daily-transaction-summary strong {color:hsl(260 65% 35% / 1)
 }
-
 html[data-theme="light"] .daily-transactions-table th,
-html[data-theme="light"] .daily-transactions-table td {
-    border-bottom: 1px solid hsl(230 19% 84% / 1)
+html[data-theme="light"] .daily-transactions-table td {border-bottom:1px solid hsl(230 19% 84% / 1)
 }
-
-html[data-theme="light"] .daily-transactions-table th {
-    color: hsl(224 40% 35% / 1)
+html[data-theme="light"] .daily-transactions-table th {color:hsl(224 40% 35% / 1)
 }
-
-html[data-theme="light"] .calendar-receipt-link {
-    color: hsl(266 73% 35% / 1)
+html[data-theme="light"] .calendar-receipt-link {color:hsl(266 73% 35% / 1)
 }
-
 html[data-theme="light"] .daily-transactions-pagination nav a,
-html[data-theme="light"] .daily-transactions-pagination nav span {
-    border: 1px solid hsl(267 26% 84% / 1);
-    background: hsl(255 26% 96% / 1);
-    color: hsl(268 57% 35% / 1)
+html[data-theme="light"] .daily-transactions-pagination nav span {border:1px solid hsl(267 26% 84% / 1);background:hsl(255 26% 96% / 1);color:hsl(268 57% 35% / 1)
 }
-
-html[data-theme="light"] .daily-transactions-pagination .page-current {
-    background: #6e3aa8;
-    color: #fff;
-    border-color: hsl(263 38% 84% / 1)
+html[data-theme="light"] .daily-transactions-pagination .page-current {background:#6e3aa8;color:#fff;border-color:hsl(263 38% 84% / 1)
 }
-
-html[data-theme="light"] .specific-date-view .section-heading p {
-    color: #626b80
+html[data-theme="light"] .specific-date-view .section-heading p {color:#626b80
 }
-
-html[data-theme="light"] .specific-date-picker label {
-    color: hsl(224 40% 35% / 1)
+html[data-theme="light"] .specific-date-picker label {color:hsl(224 40% 35% / 1)
 }
-
-html[data-theme="light"] .specific-date-picker input {
-    border: 1px solid hsl(262 31% 84% / 1);
-    background: hsl(228 29% 97% / 1);
-    color: hsl(228 40% 35% / 1)
+html[data-theme="light"] .specific-date-picker input {border:1px solid hsl(262 31% 84% / 1);background:hsl(228 29% 97% / 1);color:hsl(228 40% 35% / 1)
 }
-
-html[data-theme="light"] .daily-refunds {
-    border-top: 1px solid hsl(230 19% 84% / 1)
+html[data-theme="light"] .daily-refunds {border-top:1px solid hsl(230 19% 84% / 1)
 }
-
-html[data-theme="light"] .specific-date-picker .apply-button {
-    border: 1px solid hsl(263 38% 84% / 1)
+html[data-theme="light"] .specific-date-picker .apply-button {border:1px solid hsl(263 38% 84% / 1)
 }
-
-html[data-theme="light"] .daily-transaction-summary>span {
-    border: 1px solid hsl(230 19% 84% / 1);
-    background: hsl(229 26% 97% / 1)
+html[data-theme="light"] .daily-transaction-summary>span {border:1px solid hsl(230 19% 84% / 1);background:hsl(229 26% 97% / 1)
 }
-
-html[data-theme="light"] .analytics-panel .chart-period-menu .chart-period-toggle {
-    border: 1px solid hsl(265 38% 84% / 1);
-    background: hsl(265 32% 95% / 1);
-    color: hsl(266 80% 35% / 1);
-    box-shadow: 0 0 0 2px rgb(31 39 65 / 0.09)
+html[data-theme="light"] .analytics-panel .chart-period-menu .chart-period-toggle {border:1px solid hsl(265 38% 84% / 1);background:hsl(265 32% 95% / 1);color:hsl(266 80% 35% / 1);box-shadow:0 0 0 2px rgb(31 39 65 / 0.09)
 }
-
 html[data-theme="light"] .analytics-panel .chart-period-menu .chart-period-toggle:hover,
-html[data-theme="light"] .analytics-panel .chart-period-menu .chart-period-toggle[aria-expanded=true] {
-    background: hsl(269 32% 94% / 1);
-    border-color: hsl(265 38% 84% / 1);
-    color: #202338
+html[data-theme="light"] .analytics-panel .chart-period-menu .chart-period-toggle[aria-expanded=true] {background:hsl(269 32% 94% / 1);border-color:hsl(265 38% 84% / 1);color:#202338
 }
-
-html[data-theme="light"] .analytics-panel .chart-period-menu .chart-period-toggle:focus-visible {
-    outline: 2px solid hsl(265 38% 84% / 1)
+html[data-theme="light"] .analytics-panel .chart-period-menu .chart-period-toggle:focus-visible {outline:2px solid hsl(265 38% 84% / 1)
 }
-
-html[data-theme="light"] html[data-theme="light"] .analytics-panel .chart-period-menu .chart-period-toggle {
-    background: #efe4ff;
-    border-color: hsl(269 38% 84% / 1);
-    color: #602c91
+html[data-theme="light"] html[data-theme="light"] .analytics-panel .chart-period-menu .chart-period-toggle {background:#efe4ff;border-color:hsl(269 38% 84% / 1);color:#602c91
 }
-
 html[data-theme="light"] html[data-theme="light"] .analytics-panel .chart-period-menu .chart-period-toggle:hover,
-html[data-theme="light"] html[data-theme="light"] .analytics-panel .chart-period-menu .chart-period-toggle[aria-expanded=true] {
-    background: #e2cdf9;
-    border-color: hsl(269 38% 84% / 1);
-    color: #49206f
+html[data-theme="light"] html[data-theme="light"] .analytics-panel .chart-period-menu .chart-period-toggle[aria-expanded=true] {background:#e2cdf9;border-color:hsl(269 38% 84% / 1);color:#49206f
 }
-
-html[data-theme="light"] .section-kicker {
-    color: hsl(261 67% 35% / 1)
+html[data-theme="light"] .section-kicker {color:hsl(261 67% 35% / 1)
 }
-
-html[data-theme="light"] .evidence-pill {
-    border: 1px solid hsl(262 25% 84% / 1);
-    color: hsl(262 46% 35% / 1)
+html[data-theme="light"] .evidence-pill {border:1px solid hsl(262 25% 84% / 1);color:hsl(262 46% 35% / 1)
 }
-
 html[data-theme="light"] .checker-form label,
-html[data-theme="light"] .admin-tool label {
-    color: #202338
+html[data-theme="light"] .admin-tool label {color:#202338
 }
-
 html[data-theme="light"] .checker-form input,
 html[data-theme="light"] .checker-form select,
 html[data-theme="light"] .admin-tool input,
 html[data-theme="light"] .admin-tool select,
-html[data-theme="light"] .admin-tool textarea {
-    border: 1px solid hsl(262 38% 84% / 1);
-    background: hsl(229 26% 97% / 1);
-    color: hsl(228 40% 35% / 1)
+html[data-theme="light"] .admin-tool textarea {border:1px solid hsl(262 38% 84% / 1);background:hsl(229 26% 97% / 1);color:hsl(228 40% 35% / 1)
 }
-
 html[data-theme="light"] .search-action,
-html[data-theme="light"] .admin-save {
-    border: 1px solid hsl(217 38% 84% / 1);
-    background: linear-gradient(180deg, #2e7eff, #1f63d8);
-    color: #202338
+html[data-theme="light"] .admin-save {border:1px solid hsl(217 38% 84% / 1);background:linear-gradient(180deg,#2e7eff,#1f63d8);color:#202338
 }
-
 html[data-theme="light"] .form-hint,
-html[data-theme="light"] .admin-intro {
-    color: #626b80
+html[data-theme="light"] .admin-intro {color:#626b80
 }
-
 html[data-theme="light"] .vehicle-strip article,
-html[data-theme="light"] .result-summary article {
-    border: 1px solid hsl(252 19% 84% / 1);
-    background: hsl(228 28% 97% / 1)
+html[data-theme="light"] .result-summary article {border:1px solid hsl(252 19% 84% / 1);background:hsl(228 28% 97% / 1)
 }
-
 html[data-theme="light"] .vehicle-strip span,
-html[data-theme="light"] .result-summary span {
-    color: #626b80
+html[data-theme="light"] .result-summary span {color:#626b80
 }
-
-html[data-theme="light"] .summary-recommended {
-    border-color: hsl(217 38% 84% / 1) !important
+html[data-theme="light"] .summary-recommended {border-color:hsl(217 38% 84% / 1)!important
 }
-
-html[data-theme="light"] .summary-confirmed {
-    border-color: hsl(160 38% 84% / 1) !important
+html[data-theme="light"] .summary-confirmed {border-color:hsl(160 38% 84% / 1)!important
 }
-
-html[data-theme="light"] .summary-possible {
-    border-color: hsl(34 38% 84% / 1) !important
+html[data-theme="light"] .summary-possible {border-color:hsl(34 38% 84% / 1)!important
 }
-
-html[data-theme="light"] .summary-unverified {
-    border-color: hsl(231 10% 84% / 1) !important
+html[data-theme="light"] .summary-unverified {border-color:hsl(231 10% 84% / 1)!important
 }
-
-html[data-theme="light"] .summary-incompatible {
-    border-color: hsl(353 38% 84% / 1) !important
+html[data-theme="light"] .summary-incompatible {border-color:hsl(353 38% 84% / 1)!important
 }
-
-html[data-theme="light"] .filter-button {
-    border: 1px solid hsl(260 25% 84% / 1);
-    background: hsl(229 24% 97% / 1);
-    color: #626b80
+html[data-theme="light"] .filter-button {border:1px solid hsl(260 25% 84% / 1);background:hsl(229 24% 97% / 1);color:#626b80
 }
-
-html[data-theme="light"] .filter-button.active {
-    border-color: hsl(262 38% 84% / 1);
-    background: hsl(266 32% 94% / 1);
-    color: #202338
+html[data-theme="light"] .filter-button.active {border-color:hsl(262 38% 84% / 1);background:hsl(266 32% 94% / 1);color:#202338
 }
-
-html[data-theme="light"] .result-card {
-    border: 1px solid hsl(231 13% 84% / 1);
-    background: hsl(228 26% 97% / 1)
+html[data-theme="light"] .result-card {border:1px solid hsl(231 13% 84% / 1);background:hsl(228 26% 97% / 1)
 }
-
-html[data-theme="light"] .status-confirmed {
-    border-left-color: hsl(158 38% 84% / 1)
+html[data-theme="light"] .status-confirmed {border-left-color:hsl(158 38% 84% / 1)
 }
-
-html[data-theme="light"] .status-possible {
-    border-left-color: hsl(34 38% 84% / 1)
+html[data-theme="light"] .status-possible {border-left-color:hsl(34 38% 84% / 1)
 }
-
-html[data-theme="light"] .status-unverified {
-    border-left-color: hsl(229 9% 84% / 1)
+html[data-theme="light"] .status-unverified {border-left-color:hsl(229 9% 84% / 1)
 }
-
-html[data-theme="light"] .status-incompatible {
-    border-left-color: hsl(353 38% 84% / 1)
+html[data-theme="light"] .status-incompatible {border-left-color:hsl(353 38% 84% / 1)
 }
-
-html[data-theme="light"] .result-category {
-    color: #626b80
+html[data-theme="light"] .result-category {color:#626b80
 }
-
-html[data-theme="light"] .status-confirmed .result-badge {
-    background: hsl(163 32% 96% / 1);
-    color: hsl(160 67% 35% / 1)
+html[data-theme="light"] .status-confirmed .result-badge {background:hsl(163 32% 96% / 1);color:hsl(160 67% 35% / 1)
 }
-
-html[data-theme="light"] .status-possible .result-badge {
-    background: hsl(35 32% 96% / 1);
-    color: hsl(36 80% 35% / 1)
+html[data-theme="light"] .status-possible .result-badge {background:hsl(35 32% 96% / 1);color:hsl(36 80% 35% / 1)
 }
-
-html[data-theme="light"] .status-unverified .result-badge {
-    background: hsl(230 13% 96% / 1);
-    color: #202338
+html[data-theme="light"] .status-unverified .result-badge {background:hsl(230 13% 96% / 1);color:#202338
 }
-
-html[data-theme="light"] .status-incompatible .result-badge {
-    background: hsl(347 32% 96% / 1);
-    color: hsl(354 80% 35% / 1)
+html[data-theme="light"] .status-incompatible .result-badge {background:hsl(347 32% 96% / 1);color:hsl(354 80% 35% / 1)
 }
-
-html[data-theme="light"] .evidence-meter {
-    background: hsl(227 15% 96% / 1)
+html[data-theme="light"] .evidence-meter {background:hsl(227 15% 96% / 1)
 }
-
-html[data-theme="light"] .evidence-meter span {
-    background: #7750bd
+html[data-theme="light"] .evidence-meter span {background:#7750bd
 }
-
-html[data-theme="light"] .result-evidence h4 {
-    color: hsl(262 40% 35% / 1)
+html[data-theme="light"] .result-evidence h4 {color:hsl(262 40% 35% / 1)
 }
-
-html[data-theme="light"] .result-evidence li {
-    color: #626b80
+html[data-theme="light"] .result-evidence li {color:#626b80
 }
-
-html[data-theme="light"] .result-card footer {
-    border-top: 1px solid hsl(228 15% 84% / 1);
-    color: #626b80
+html[data-theme="light"] .result-card footer {border-top:1px solid hsl(228 15% 84% / 1);color:#626b80
 }
-
 html[data-theme="light"] .checker-empty p,
-html[data-theme="light"] .empty-state {
-    color: #626b80
+html[data-theme="light"] .empty-state {color:#626b80
 }
-
-html[data-theme="light"] .checker-icon {
-    border: 1px solid hsl(263 38% 84% / 1);
-    background: hsl(261 32% 96% / 1);
-    color: hsl(262 80% 35% / 1)
+html[data-theme="light"] .checker-icon {border:1px solid hsl(263 38% 84% / 1);background:hsl(261 32% 96% / 1);color:hsl(262 80% 35% / 1)
 }
-
-html[data-theme="light"] .admin-tool {
-    border: 1px solid hsl(258 20% 84% / 1);
-    background: hsl(228 28% 97% / 1)
+html[data-theme="light"] .admin-tool {border:1px solid hsl(258 20% 84% / 1);background:hsl(228 28% 97% / 1)
 }
-
-html[data-theme="light"] .admin-tool summary {
-    color: hsl(261 40% 35% / 1)
+html[data-theme="light"] .admin-tool summary {color:hsl(261 40% 35% / 1)
 }
-
-html[data-theme="light"] .admin-tool small {
-    color: #626b80
+html[data-theme="light"] .admin-tool small {color:#626b80
 }
-
-html[data-theme="light"] .compatibility-message.success {
-    border-color: hsl(158 38% 84% / 1);
-    background: hsl(162 32% 97% / 1);
-    color: hsl(159 60% 35% / 1)
+html[data-theme="light"] .compatibility-message.success {border-color:hsl(158 38% 84% / 1);background:hsl(162 32% 97% / 1);color:hsl(159 60% 35% / 1)
 }
-
-html[data-theme="light"] .compatibility-message.error {
-    border-color: hsl(349 38% 84% / 1);
-    background: hsl(344 32% 96% / 1);
-    color: hsl(353 80% 35% / 1)
+html[data-theme="light"] .compatibility-message.error {border-color:hsl(349 38% 84% / 1);background:hsl(344 32% 96% / 1);color:hsl(353 80% 35% / 1)
 }
-
-html[data-theme="light"] .safety-note {
-    border: 1px solid hsl(34 38% 84% / 1);
-    background: hsl(34 30% 97% / 1);
-    color: hsl(39 40% 35% / 1)
+html[data-theme="light"] .safety-note {border:1px solid hsl(34 38% 84% / 1);background:hsl(34 30% 97% / 1);color:hsl(39 40% 35% / 1)
 }
-
-html[data-theme="light"] .safety-note strong {
-    color: hsl(38 80% 35% / 1)
+html[data-theme="light"] .safety-note strong {color:hsl(38 80% 35% / 1)
 }
-
-html[data-theme="light"] .compatibility-ai-icon {
-    border: 1px solid hsl(236 28% 84% / 1);
-    background: radial-gradient(circle at 30% 25%, hsl(244 32% 93% / 1), hsl(232 32% 96% / 1) 62%, hsl(226 32% 96% / 1));
-    color: hsl(244 80% 35% / 1);
-    box-shadow: inset 0 1px 0 rgb(31 39 65 / 0.09)
+html[data-theme="light"] .compatibility-ai-icon {border:1px solid hsl(236 28% 84% / 1);background:radial-gradient(circle at 30% 25%,hsl(244 32% 93% / 1),hsl(232 32% 96% / 1) 62%,hsl(226 32% 96% / 1));color:hsl(244 80% 35% / 1);box-shadow:inset 0 1px 0 rgb(31 39 65 / 0.09)
 }
-
-html[data-theme="light"] .catalog-message.matched {
-    border-color: hsl(158 38% 84% / 1);
-    background: hsl(162 32% 97% / 1);
-    color: hsl(159 60% 35% / 1)
+html[data-theme="light"] .catalog-message.matched {border-color:hsl(158 38% 84% / 1);background:hsl(162 32% 97% / 1);color:hsl(159 60% 35% / 1)
 }
-
-html[data-theme="light"] .catalog-message.unmatched {
-    border-color: hsl(34 38% 84% / 1);
-    background: hsl(34 32% 97% / 1);
-    color: hsl(37 70% 35% / 1)
+html[data-theme="light"] .catalog-message.unmatched {border-color:hsl(34 38% 84% / 1);background:hsl(34 32% 97% / 1);color:hsl(37 70% 35% / 1)
 }
-
-html[data-theme="light"] .summary-recommended strong {
-    color: hsl(217 80% 35% / 1)
+html[data-theme="light"] .summary-recommended strong {color:hsl(217 80% 35% / 1)
 }
-
-html[data-theme="light"] .status-compatible {
-    border-left-color: hsl(158 38% 84% / 1)
+html[data-theme="light"] .status-compatible {border-left-color:hsl(158 38% 84% / 1)
 }
-
-html[data-theme="light"] .status-compatible .result-badge {
-    background: hsl(163 32% 96% / 1);
-    color: hsl(160 67% 35% / 1)
+html[data-theme="light"] .status-compatible .result-badge {background:hsl(163 32% 96% / 1);color:hsl(160 67% 35% / 1)
 }
-
-html[data-theme="light"] .compatibility-main {
-    --fit-green: hsl(160 67% 35% / 1);
-    --fit-amber: hsl(36 80% 35% / 1);
-    --fit-gray: #202338;
-    --fit-red: hsl(354 80% 35% / 1)
+html[data-theme="light"] .compatibility-main {--fit-green:hsl(160 67% 35% / 1);--fit-amber:hsl(36 80% 35% / 1);--fit-gray:#202338;--fit-red:hsl(354 80% 35% / 1)
 }
-
-html[data-theme="light"] .checker-form input {
-    border-color: hsl(257 12% 84% / 1)
+html[data-theme="light"] .checker-form input {border-color:hsl(257 12% 84% / 1)
 }
-
-html[data-theme="light"] .checker-form input:focus {
-    outline: 2px solid hsl(261 38% 84% / 1)
+html[data-theme="light"] .checker-form input:focus {outline:2px solid hsl(261 38% 84% / 1)
 }
-
 html[data-theme="light"] .form-hint,
-html[data-theme="light"] .search-progress {
-    color: #626b80
+html[data-theme="light"] .search-progress {color:#626b80
 }
-
-html[data-theme="light"] .search-progress {
-    color: hsl(261 73% 35% / 1)
+html[data-theme="light"] .search-progress {color:hsl(261 73% 35% / 1)
 }
-
-html[data-theme="light"] .legend-note {
-    color: #626b80
+html[data-theme="light"] .legend-note {color:#626b80
 }
-
-html[data-theme="light"] .legend-item p {
-    color: #626b80
+html[data-theme="light"] .legend-item p {color:#626b80
 }
-
-html[data-theme="light"] .status-compatible {
-    --status-bg: hsl(163 54% 35% / 1)
+html[data-theme="light"] .status-compatible {--status-bg:hsl(163 54% 35% / 1)
 }
-
-html[data-theme="light"] .status-possible {
-    --status-bg: hsl(35 47% 35% / 1)
+html[data-theme="light"] .status-possible {--status-bg:hsl(35 47% 35% / 1)
 }
-
-html[data-theme="light"] .status-unknown {
-    --status-bg: #202338;
-    border-left-color: hsl(226 11% 84% / 1)
+html[data-theme="light"] .status-unknown {--status-bg:#202338;border-left-color:hsl(226 11% 84% / 1)
 }
-
-html[data-theme="light"] .status-incompatible {
-    --status-bg: hsl(347 40% 35% / 1)
+html[data-theme="light"] .status-incompatible {--status-bg:hsl(347 40% 35% / 1)
 }
-
-html[data-theme="light"] .catalog-message.matched {
-    background: hsl(227 28% 96% / 1);
-    border-color: hsl(251 17% 84% / 1);
-    color: hsl(226 40% 35% / 1)
+html[data-theme="light"] .catalog-message.matched {background:hsl(227 28% 96% / 1);border-color:hsl(251 17% 84% / 1);color:hsl(226 40% 35% / 1)
 }
-
-html[data-theme="light"] .research-meta {
-    color: #626b80
+html[data-theme="light"] .research-meta {color:#626b80
 }
-
 html[data-theme="light"] .filter-button:focus-visible,
 html[data-theme="light"] .search-action:focus-visible,
-html[data-theme="light"] .ai-product-advice a:focus-visible {
-    outline: 2px solid hsl(263 38% 84% / 1)
+html[data-theme="light"] .ai-product-advice a:focus-visible {outline:2px solid hsl(263 38% 84% / 1)
 }
-
 html[data-theme="light"] .result-category,
-html[data-theme="light"] .part-identity {
-    color: #626b80
+html[data-theme="light"] .part-identity {color:#626b80
 }
-
-html[data-theme="light"] .part-identity {
-    border-bottom: 1px solid hsl(228 15% 84% / 1)
+html[data-theme="light"] .part-identity {border-bottom:1px solid hsl(228 15% 84% / 1)
 }
-
 html[data-theme="light"] .result-evidence h4,
-html[data-theme="light"] .ai-product-advice h4 {
-    color: hsl(264 40% 35% / 1)
+html[data-theme="light"] .ai-product-advice h4 {color:hsl(264 40% 35% / 1)
 }
-
 html[data-theme="light"] .result-evidence p,
-html[data-theme="light"] .result-evidence li {
-    color: hsl(225 40% 35% / 1)
+html[data-theme="light"] .result-evidence li {color:hsl(225 40% 35% / 1)
 }
-
-html[data-theme="light"] .ai-product-advice {
-    background: hsl(228 25% 96% / 1);
-    border: 1px solid hsl(226 22% 84% / 1)
+html[data-theme="light"] .ai-product-advice {background:hsl(228 25% 96% / 1);border:1px solid hsl(226 22% 84% / 1)
 }
-
-html[data-theme="light"] .ai-product-advice a {
-    color: hsl(216 80% 35% / 1)
+html[data-theme="light"] .ai-product-advice a {color:hsl(216 80% 35% / 1)
 }
-
-html[data-theme="light"] .source-note {
-    color: #626b80
+html[data-theme="light"] .source-note {color:#626b80
 }
-
-html[data-theme="light"] .result-card footer {
-    color: #626b80
+html[data-theme="light"] .result-card footer {color:#626b80
 }
-
-html[data-theme="light"] [data-dashboard] .dashboard-sales-metrics>div:last-child {
-    border-color: hsl(268 37% 84% / 1)
+html[data-theme="light"] [data-dashboard] .dashboard-sales-metrics>div:last-child {border-color:hsl(268 37% 84% / 1)
 }
-
 html[data-theme="light"] [data-dashboard] .module-card:focus-visible,
-html[data-theme="light"] [data-dashboard] .activity-item:focus-visible {
-    outline: 2px solid hsl(263 38% 84% / 1)
+html[data-theme="light"] [data-dashboard] .activity-item:focus-visible {outline:2px solid hsl(263 38% 84% / 1)
 }
-
-html[data-theme="light"] [data-dashboard] .bar-column.negative .bar-track span {
-    background: linear-gradient(180deg, #ef7486, #a42e45)
+html[data-theme="light"] [data-dashboard] .bar-column.negative .bar-track span {background:linear-gradient(180deg,#ef7486,#a42e45)
 }
-
-html[data-theme="light"] [data-dashboard] .bar-column.negative .bar-value {
-    color: hsl(351 79% 35% / 1)
+html[data-theme="light"] [data-dashboard] .bar-column.negative .bar-value {color:hsl(351 79% 35% / 1)
 }
-
-:root[data-theme="light"] {
-    --bg: hsl(230 30% 97% / 1);
-    --surface: hsl(228 29% 97% / 1);
-    --surface-2: hsl(229 32% 97% / 1);
-    --line: hsl(229 23% 96% / 1);
-    --purple: hsl(262 75% 35% / 1);
-    --purple-soft: hsl(266 80% 35% / 1);
-    --cyan: hsl(187 69% 35% / 1);
-    --red: hsl(353 80% 35% / 1);
-    --orange: hsl(25 80% 35% / 1);
-    --text: hsl(240 40% 35% / 1);
-    --muted: #626b80
+:root[data-theme="light"] {--bg:hsl(230 30% 97% / 1);--surface:hsl(228 29% 97% / 1);--surface-2:hsl(229 32% 97% / 1);--line:hsl(229 23% 96% / 1);--purple:hsl(262 75% 35% / 1);--purple-soft:hsl(266 80% 35% / 1);--cyan:hsl(187 69% 35% / 1);--red:hsl(353 80% 35% / 1);--orange:hsl(25 80% 35% / 1);--text:hsl(240 40% 35% / 1);--muted:#626b80
 }
-
-html[data-theme="light"] .sidebar {
-    background: linear-gradient(180deg, hsl(249 32% 97% / 1), hsl(227 32% 97% / 1))
+html[data-theme="light"] .sidebar {background:linear-gradient(180deg,hsl(249 32% 97% / 1),hsl(227 32% 97% / 1))
 }
-
-html[data-theme="light"] .logo-mark {
-    background: linear-gradient(135deg, #ff7300, #8a43e8);
-    color: hsl(230 40% 35% / 1)
+html[data-theme="light"] .logo-mark {background:linear-gradient(135deg,#ff7300,#8a43e8);color:hsl(230 40% 35% / 1)
 }
-
-html[data-theme="light"] .sidebar-brand small {
-    color: #626b80
+html[data-theme="light"] .sidebar-brand small {color:#626b80
 }
-
-html[data-theme="light"] .nav-link {
-    color: #626b80
+html[data-theme="light"] .nav-link {color:#626b80
 }
-
-html[data-theme="light"] .nav-link>span:first-child {
-    color: #626b80
+html[data-theme="light"] .nav-link>span:first-child {color:#626b80
 }
-
-html[data-theme="light"] .nav-link:hover {
-    color: #202338;
-    background: hsl(231 32% 96% / 1)
+html[data-theme="light"] .nav-link:hover {color:#202338;background:hsl(231 32% 96% / 1)
 }
-
-html[data-theme="light"] .nav-link.active {
-    border-color: hsl(262 38% 84% / 1);
-    background: linear-gradient(90deg, hsl(265 32% 96% / 1), hsl(249 32% 97% / 1));
-    color: #202338
+html[data-theme="light"] .nav-link.active {border-color:hsl(262 38% 84% / 1);background:linear-gradient(90deg,hsl(265 32% 96% / 1),hsl(249 32% 97% / 1));color:#202338
 }
-
-html[data-theme="light"] .avatar {
-    background: #6530ae
+html[data-theme="light"] .avatar {background:#6530ae
 }
-
-html[data-theme="light"] .sidebar-user>a {
-    color: #626b80
+html[data-theme="light"] .sidebar-user>a {color:#626b80
 }
-
-html[data-theme="light"] .top-actions button {
-    color: #626b80
+html[data-theme="light"] .top-actions button {color:#626b80
 }
-
-html[data-theme="light"] .stat-card {
-    border-top-color: hsl(265 38% 84% / 1);
-    background: linear-gradient(145deg, hsl(230 26% 97% / 1), hsl(227 27% 97% / 1))
+html[data-theme="light"] .stat-card {border-top-color:hsl(265 38% 84% / 1);background:linear-gradient(145deg,hsl(230 26% 97% / 1),hsl(227 27% 97% / 1))
 }
-
-html[data-theme="light"] .stat-card.violet {
-    --accent: hsl(268 80% 35% / 1)
+html[data-theme="light"] .stat-card.violet {--accent:hsl(268 80% 35% / 1)
 }
-
-html[data-theme="light"] .stat-card.red {
-    border-color: hsl(349 38% 84% / 1)
+html[data-theme="light"] .stat-card.red {border-color:hsl(349 38% 84% / 1)
 }
-
-html[data-theme="light"] .stat-head {
-    color: #626b80
+html[data-theme="light"] .stat-head {color:#626b80
 }
-
-html[data-theme="light"] .panel {
-    border: 1px solid hsl(264 38% 84% / 1);
-    background: linear-gradient(145deg, hsl(228 29% 97% / 1), hsl(233 31% 97% / 1))
+html[data-theme="light"] .panel {border:1px solid hsl(264 38% 84% / 1);background:linear-gradient(145deg,hsl(228 29% 97% / 1),hsl(233 31% 97% / 1))
 }
-
-html[data-theme="light"] .section-kicker {
-    color: #626b80
+html[data-theme="light"] .section-kicker {color:#626b80
 }
-
-html[data-theme="light"] .section-heading button {
-    color: #626b80
+html[data-theme="light"] .section-heading button {color:#626b80
 }
-
-html[data-theme="light"] .module-card {
-    background: hsl(229 26% 97% / 1)
+html[data-theme="light"] .module-card {background:hsl(229 26% 97% / 1)
 }
-
-html[data-theme="light"] .module-card:hover {
-    border-color: hsl(265 38% 84% / 1);
-    background: hsl(247 32% 97% / 1)
+html[data-theme="light"] .module-card:hover {border-color:hsl(265 38% 84% / 1);background:hsl(247 32% 97% / 1)
 }
-
-html[data-theme="light"] .module-icon {
-    background: hsl(259 32% 96% / 1)
+html[data-theme="light"] .module-icon {background:hsl(259 32% 96% / 1)
 }
-
-html[data-theme="light"] .arrow {
-    color: #626b80
+html[data-theme="light"] .arrow {color:#626b80
 }
-
-html[data-theme="light"] .bar-track {
-    background: hsl(226 32% 97% / 1)
+html[data-theme="light"] .bar-track {background:hsl(226 32% 97% / 1)
 }
-
-html[data-theme="light"] .bar-track span {
-    background: linear-gradient(180deg, #9855f5, hsl(268 32% 94% / 1))
+html[data-theme="light"] .bar-track span {background:linear-gradient(180deg,#9855f5,hsl(268 32% 94% / 1))
 }
-
-html[data-theme="light"] .bar-column small {
-    color: #626b80
+html[data-theme="light"] .bar-column small {color:#626b80
 }
-
-html[data-theme="light"] .activity-icon {
-    background: hsl(228 25% 96% / 1)
+html[data-theme="light"] .activity-icon {background:hsl(228 25% 96% / 1)
 }
-
 @media (max-width:760px) {
-    html[data-theme="light"] .sidebar.open {
-        box-shadow: 20px 0 60px rgb(31 39 65 / 0.09)
-    }
+html[data-theme="light"] .sidebar.open {box-shadow:20px 0 60px rgb(31 39 65 / 0.09)
 }
-
+}
 @media (max-width:760px) {
-    html[data-theme="light"] .menu-button {
-        color: #202338
-    }
+html[data-theme="light"] .menu-button {color:#202338
 }
-
-html[data-theme="light"] .logout-button {
-    color: #626b80
 }
-
+html[data-theme="light"] .logout-button {color:#626b80
+}
 html[data-theme="light"] .top-actions button,
-html[data-theme="light"] .notification-button {
-    color: #626b80
+html[data-theme="light"] .notification-button {color:#626b80
 }
-
-html[data-theme="light"] .notification-button b {
-    color: #202338
+html[data-theme="light"] .notification-button b {color:#202338
 }
-
-html[data-theme="light"] .live-status {
-    color: hsl(163 61% 35% / 1)
+html[data-theme="light"] .live-status {color:hsl(163 61% 35% / 1)
 }
-
-html[data-theme="light"] .live-status i {
-    background: #40d5ad;
-    box-shadow: 0 0 10px rgb(31 39 65 / 0.09)
+html[data-theme="light"] .live-status i {background:#40d5ad;box-shadow:0 0 10px rgb(31 39 65 / 0.09)
 }
-
-html[data-theme="light"] .bar-value {
-    color: #626b80
+html[data-theme="light"] .bar-value {color:#626b80
 }
-
-html[data-theme="light"] .activity-item:hover {
-    background: rgba(130, 71, 229, .06)
+html[data-theme="light"] .activity-item:hover {background:rgba(130,71,229,.06)
 }
-
-html[data-theme="light"] .activity-empty strong {
-    color: #202338
+html[data-theme="light"] .activity-empty strong {color:#202338
 }
-
-html[data-theme="light"] .demand-outlook-panel {
-    border-color: hsl(221 21% 84% / 1);
-    background: hsl(222 25% 97% / 1)
+html[data-theme="light"] .demand-outlook-panel {border-color:hsl(221 21% 84% / 1);background:hsl(222 25% 97% / 1)
 }
-
-html[data-theme="light"] .outlook-table td:first-child small {
-    color: #626b80
+html[data-theme="light"] .outlook-table td:first-child small {color:#626b80
 }
-
-html[data-theme="light"] .outlook-table td:nth-child(5) {
-    color: #626b80
+html[data-theme="light"] .outlook-table td:nth-child(5) {color:#626b80
 }
-
-html[data-theme="light"] .outlook-pending {
-    color: hsl(44 54% 35% / 1)
+html[data-theme="light"] .outlook-pending {color:hsl(44 54% 35% / 1)
 }
-
-html[data-theme="light"] .outlook-table .healthy {
-    border-color: hsl(165 31% 84% / 1);
-    background: hsl(166 32% 96% / 1);
-    color: hsl(163 51% 35% / 1)
+html[data-theme="light"] .outlook-table .healthy {border-color:hsl(165 31% 84% / 1);background:hsl(166 32% 96% / 1);color:hsl(163 51% 35% / 1)
 }
-
-html[data-theme="light"] .section-heading small {
-    color: #626b80
+html[data-theme="light"] .section-heading small {color:#626b80
 }
-
-html[data-theme="light"] .data-toolbar label {
-    color: #626b80
+html[data-theme="light"] .data-toolbar label {color:#626b80
 }
-
 html[data-theme="light"] .data-toolbar input,
-html[data-theme="light"] .data-toolbar select {
-    background: hsl(226 29% 97% / 1);
-    color: #202338
+html[data-theme="light"] .data-toolbar select {background:hsl(226 29% 97% / 1);color:#202338
 }
-
 html[data-theme="light"] .data-toolbar button,
-html[data-theme="light"] .data-toolbar a {
-    border: 1px solid hsl(264 38% 84% / 1);
-    background: hsl(264 32% 95% / 1);
-    color: #202338
+html[data-theme="light"] .data-toolbar a {border:1px solid hsl(264 38% 84% / 1);background:hsl(264 32% 95% / 1);color:#202338
 }
-
-html[data-theme="light"] .data-toolbar a {
-    border-color: hsl(226 17% 84% / 1);
-    background: hsl(226 24% 97% / 1);
-    color: #626b80
+html[data-theme="light"] .data-toolbar a {border-color:hsl(226 17% 84% / 1);background:hsl(226 24% 97% / 1);color:#626b80
 }
-
 html[data-theme="light"] .risk-table th,
-html[data-theme="light"] .risk-table td {
-    border-bottom: 1px solid hsl(225 21% 84% / 1)
+html[data-theme="light"] .risk-table td {border-bottom:1px solid hsl(225 21% 84% / 1)
 }
-
-html[data-theme="light"] .risk-table th {
-    color: #626b80
+html[data-theme="light"] .risk-table th {color:#626b80
 }
-
-html[data-theme="light"] .risk-table td:first-child small {
-    color: #626b80
+html[data-theme="light"] .risk-table td:first-child small {color:#626b80
 }
-
-html[data-theme="light"] .risk-details summary {
-    color: hsl(262 80% 35% / 1)
+html[data-theme="light"] .risk-details summary {color:hsl(262 80% 35% / 1)
 }
-
-html[data-theme="light"] .risk-details ul {
-    color: #202338
+html[data-theme="light"] .risk-details ul {color:#202338
 }
-
-html[data-theme="light"] .risk-details p {
-    border: 1px solid hsl(259 38% 84% / 1);
-    background: hsl(245 29% 97% / 1);
-    color: hsl(254 80% 35% / 1)
+html[data-theme="light"] .risk-details p {border:1px solid hsl(259 38% 84% / 1);background:hsl(245 29% 97% / 1);color:hsl(254 80% 35% / 1)
 }
-
-html[data-theme="light"] .empty-table {
-    color: #626b80
+html[data-theme="light"] .empty-table {color:#626b80
 }
-
 html[data-theme="light"] .compact-pagination a,
-html[data-theme="light"] .compact-pagination span {
-    border: 1px solid hsl(226 17% 84% / 1);
-    color: #202338
+html[data-theme="light"] .compact-pagination span {border:1px solid hsl(226 17% 84% / 1);color:#202338
 }
-
-html[data-theme="light"] .compact-pagination strong {
-    color: #626b80
+html[data-theme="light"] .compact-pagination strong {color:#626b80
 }
-
-html[data-theme="light"] .detail-card {
-    background: hsl(229 26% 97% / 1)
+html[data-theme="light"] .detail-card {background:hsl(229 26% 97% / 1)
 }
-
-html[data-theme="light"] .detail-card small {
-    color: #626b80
+html[data-theme="light"] .detail-card small {color:#626b80
 }
-
-html[data-theme="light"] .detail-metric span {
-    color: #626b80
+html[data-theme="light"] .detail-metric span {color:#626b80
 }
-
-html[data-theme="light"] .ai-score>div:first-child {
-    color: #626b80
+html[data-theme="light"] .ai-score>div:first-child {color:#626b80
 }
-
-html[data-theme="light"] .ai-score>div:first-child strong {
-    color: hsl(240 40% 35% / 1)
+html[data-theme="light"] .ai-score>div:first-child strong {color:hsl(240 40% 35% / 1)
 }
-
-html[data-theme="light"] .score-track {
-    background: hsl(231 20% 96% / 1)
+html[data-theme="light"] .score-track {background:hsl(231 20% 96% / 1)
 }
-
-html[data-theme="light"] .score-track i.dead-stock {
-    background: linear-gradient(90deg, #ff465c, #ff8a34)
+html[data-theme="light"] .score-track i.dead-stock {background:linear-gradient(90deg,#ff465c,#ff8a34)
 }
-
-html[data-theme="light"] .score-track i.slow-moving {
-    background: linear-gradient(90deg, #ff8a34, #8247e5)
+html[data-theme="light"] .score-track i.slow-moving {background:linear-gradient(90deg,#ff8a34,#8247e5)
 }
-
-html[data-theme="light"] .score-track i.healthy {
-    background: linear-gradient(90deg, #28c2d7, #4ee2a6)
+html[data-theme="light"] .score-track i.healthy {background:linear-gradient(90deg,#28c2d7,#4ee2a6)
 }
-
-html[data-theme="light"] .ai-badge.dead-stock {
-    background: rgba(255, 70, 92, .12);
-    color: hsl(354 80% 35% / 1)
+html[data-theme="light"] .ai-badge.dead-stock {background:rgba(255,70,92,.12);color:hsl(354 80% 35% / 1)
 }
-
-html[data-theme="light"] .ai-badge.slow-moving {
-    background: rgba(255, 138, 52, .12);
-    color: hsl(28 80% 35% / 1)
+html[data-theme="light"] .ai-badge.slow-moving {background:rgba(255,138,52,.12);color:hsl(28 80% 35% / 1)
 }
-
-html[data-theme="light"] .ai-badge.healthy {
-    background: rgba(78, 226, 166, .12);
-    color: hsl(156 72% 35% / 1)
+html[data-theme="light"] .ai-badge.healthy {background:rgba(78,226,166,.12);color:hsl(156 72% 35% / 1)
 }
-
-html[data-theme="light"] .reason-list {
-    color: #202338
+html[data-theme="light"] .reason-list {color:#202338
 }
-
-html[data-theme="light"] .ai-recommendation {
-    border: 1px solid hsl(259 38% 84% / 1);
-    background: hsl(245 29% 97% / 1);
-    color: hsl(254 80% 35% / 1)
+html[data-theme="light"] .ai-recommendation {border:1px solid hsl(259 38% 84% / 1);background:hsl(245 29% 97% / 1);color:hsl(254 80% 35% / 1)
 }
-
 html[data-theme="light"] .mini-action,
-html[data-theme="light"] .apply-button {
-    border: 1px solid hsl(263 38% 84% / 1);
-    background: #5c2a99;
-    color: #fff
+html[data-theme="light"] .apply-button {border:1px solid hsl(263 38% 84% / 1);background:#5c2a99;color:#fff
 }
-
-html[data-theme="light"] .mini-action.muted {
-    border-color: hsl(263 38% 84% / 1);
-    background: hsl(263 32% 95% / 1);
-    color: hsl(256 63% 35% / 1)
+html[data-theme="light"] .mini-action.muted {border-color:hsl(263 38% 84% / 1);background:hsl(263 32% 95% / 1);color:hsl(256 63% 35% / 1)
 }
-
-html[data-theme="light"] .empty-dead-stock {
-    border: 1px dashed hsl(232 16% 84% / 1);
-    background: hsl(229 26% 97% / 1);
-    color: #626b80
+html[data-theme="light"] .empty-dead-stock {border:1px dashed hsl(232 16% 84% / 1);background:hsl(229 26% 97% / 1);color:#626b80
 }
-
-html[data-theme="light"] .ai-summary-panel {
-    border: 1px solid hsl(266 37% 84% / 1);
-    background: linear-gradient(135deg, hsl(266 32% 96% / 1), hsl(240 24% 97% / 1) 75%);
-    box-shadow: 0 0 22px rgb(31 39 65 / 0.09)
+html[data-theme="light"] .ai-summary-panel {border:1px solid hsl(266 37% 84% / 1);background:linear-gradient(135deg,hsl(266 32% 96% / 1),hsl(240 24% 97% / 1) 75%);box-shadow:0 0 22px rgb(31 39 65 / 0.09)
 }
-
-html[data-theme="light"] .ai-summary-panel .section-kicker {
-    color: hsl(263 80% 35% / 1)
+html[data-theme="light"] .ai-summary-panel .section-kicker {color:hsl(263 80% 35% / 1)
 }
-
-html[data-theme="light"] .ai-summary-panel h2 {
-    color: hsl(264 80% 35% / 1)
+html[data-theme="light"] .ai-summary-panel h2 {color:hsl(264 80% 35% / 1)
 }
-
-html[data-theme="light"] .ai-summary-description {
-    color: hsl(264 40% 35% / 1)
+html[data-theme="light"] .ai-summary-description {color:hsl(264 40% 35% / 1)
 }
-
-html[data-theme="light"] .ai-summary-panel .apply-button {
-    border-color: hsl(265 38% 84% / 1);
-    background: #763bbd;
-    color: #fff
+html[data-theme="light"] .ai-summary-panel .apply-button {border-color:hsl(265 38% 84% / 1);background:#763bbd;color:#fff
 }
-
-html[data-theme="light"] .ai-summary-panel .apply-button:hover {
-    background: #8b4dd4
+html[data-theme="light"] .ai-summary-panel .apply-button:hover {background:#8b4dd4
 }
-
-html[data-theme="light"] .ai-summary-panel .apply-button:focus-visible {
-    outline: 2px solid hsl(265 38% 84% / 1)
+html[data-theme="light"] .ai-summary-panel .apply-button:focus-visible {outline:2px solid hsl(265 38% 84% / 1)
 }
-
-html[data-theme="light"] .ai-summary-panel .recommendation-list p {
-    border-color: hsl(274 27% 84% / 1);
-    background: hsl(261 30% 97% / 1)
+html[data-theme="light"] .ai-summary-panel .recommendation-list p {border-color:hsl(274 27% 84% / 1);background:hsl(261 30% 97% / 1)
 }
-
-html[data-theme="light"] .recommendation-list p {
-    background: hsl(229 26% 97% / 1);
-    color: #202338
+html[data-theme="light"] .recommendation-list p {background:hsl(229 26% 97% / 1);color:#202338
 }
-
-html[data-theme="light"] .dead-stock-toast {
-    border: 1px solid hsl(164 38% 84% / 1);
-    background: hsl(163 32% 97% / 1);
-    color: hsl(162 64% 35% / 1);
-    box-shadow: 0 15px 40px rgb(31 39 65 / 0.09)
+html[data-theme="light"] .dead-stock-toast {border:1px solid hsl(164 38% 84% / 1);background:hsl(163 32% 97% / 1);color:hsl(162 64% 35% / 1);box-shadow:0 15px 40px rgb(31 39 65 / 0.09)
 }
-
-html[data-theme="light"] .promotion-message.success {
-    border-color: hsl(164 38% 84% / 1);
-    background: hsl(164 32% 97% / 1);
-    color: hsl(162 64% 35% / 1)
+html[data-theme="light"] .promotion-message.success {border-color:hsl(164 38% 84% / 1);background:hsl(164 32% 97% / 1);color:hsl(162 64% 35% / 1)
 }
-
-html[data-theme="light"] .promotion-message.error {
-    border-color: hsl(349 38% 84% / 1);
-    background: hsl(345 32% 97% / 1);
-    color: hsl(354 80% 35% / 1)
+html[data-theme="light"] .promotion-message.error {border-color:hsl(349 38% 84% / 1);background:hsl(345 32% 97% / 1);color:hsl(354 80% 35% / 1)
 }
-
-html[data-theme="light"] .promotion-details summary {
-    color: hsl(165 59% 35% / 1)
+html[data-theme="light"] .promotion-details summary {color:hsl(165 59% 35% / 1)
 }
-
-html[data-theme="light"] .promotion-details[open] {
-    border: 1px solid hsl(220 20% 84% / 1);
-    background: hsl(224 30% 97% / 1)
+html[data-theme="light"] .promotion-details[open] {border:1px solid hsl(220 20% 84% / 1);background:hsl(224 30% 97% / 1)
 }
-
-html[data-theme="light"] .active-promotion {
-    border: 1px solid hsl(166 38% 84% / 1);
-    background: hsl(164 32% 97% / 1)
+html[data-theme="light"] .active-promotion {border:1px solid hsl(166 38% 84% / 1);background:hsl(164 32% 97% / 1)
 }
-
-html[data-theme="light"] .active-promotion strong {
-    color: hsl(162 64% 35% / 1)
+html[data-theme="light"] .active-promotion strong {color:hsl(162 64% 35% / 1)
 }
-
 html[data-theme="light"] .active-promotion span,
-html[data-theme="light"] .active-promotion small {
-    color: #202338
+html[data-theme="light"] .active-promotion small {color:#202338
 }
-
-html[data-theme="light"] .promotion-actions button {
-    border: 1px solid hsl(224 17% 84% / 1);
-    background: hsl(224 25% 96% / 1);
-    color: #626b80
+html[data-theme="light"] .promotion-actions button {border:1px solid hsl(224 17% 84% / 1);background:hsl(224 25% 96% / 1);color:#626b80
 }
-
-html[data-theme="light"] .promotion-actions button.selected {
-    border-color: hsl(262 38% 84% / 1);
-    background: hsl(263 32% 95% / 1);
-    color: #202338
+html[data-theme="light"] .promotion-actions button.selected {border-color:hsl(262 38% 84% / 1);background:hsl(263 32% 95% / 1);color:#202338
 }
-
-html[data-theme="light"] .promotion-form label {
-    color: #626b80
+html[data-theme="light"] .promotion-form label {color:#626b80
 }
-
-html[data-theme="light"] .promotion-form input {
-    border: 1px solid hsl(225 18% 84% / 1);
-    background: hsl(224 31% 97% / 1);
-    color: #202338
+html[data-theme="light"] .promotion-form input {border:1px solid hsl(225 18% 84% / 1);background:hsl(224 31% 97% / 1);color:#202338
 }
-
-html[data-theme="light"] .discount-input b {
-    border: 1px solid hsl(225 18% 84% / 1);
-    background: hsl(225 23% 96% / 1)
+html[data-theme="light"] .discount-input b {border:1px solid hsl(225 18% 84% / 1);background:hsl(225 23% 96% / 1)
 }
-
-html[data-theme="light"] .price-preview {
-    color: hsl(255 80% 35% / 1)
+html[data-theme="light"] .price-preview {color:hsl(255 80% 35% / 1)
 }
-
 html[data-theme="light"] .approve-promotion,
-html[data-theme="light"] .end-promotion {
-    border: 1px solid hsl(265 38% 84% / 1);
-    background: hsl(268 32% 93% / 1);
-    color: #202338
+html[data-theme="light"] .end-promotion {border:1px solid hsl(265 38% 84% / 1);background:hsl(268 32% 93% / 1);color:#202338
 }
-
-html[data-theme="light"] .end-promotion {
-    border-color: hsl(349 38% 84% / 1);
-    background: hsl(346 32% 96% / 1);
-    color: hsl(354 80% 35% / 1)
+html[data-theme="light"] .end-promotion {border-color:hsl(349 38% 84% / 1);background:hsl(346 32% 96% / 1);color:hsl(354 80% 35% / 1)
 }
-
-html[data-theme="light"] .promotion-form>small {
-    color: #626b80
+html[data-theme="light"] .promotion-form>small {color:#626b80
 }
-
-html[data-theme="light"] .archive-tabs a {
-    border: 1px solid hsl(226 17% 84% / 1);
-    color: #626b80
+html[data-theme="light"] .archive-tabs a {border:1px solid hsl(226 17% 84% / 1);color:#626b80
 }
-
-html[data-theme="light"] .archive-tabs a.active {
-    border-color: hsl(265 38% 84% / 1);
-    background: hsl(264 32% 95% / 1);
-    color: #202338
+html[data-theme="light"] .archive-tabs a.active {border-color:hsl(265 38% 84% / 1);background:hsl(264 32% 95% / 1);color:#202338
 }
-
-html[data-theme="light"] .archive-tabs span {
-    background: hsl(226 21% 96% / 1);
-    color: #202338
+html[data-theme="light"] .archive-tabs span {background:hsl(226 21% 96% / 1);color:#202338
 }
-
-html[data-theme="light"] .archive-details summary {
-    color: #626b80
+html[data-theme="light"] .archive-details summary {color:#626b80
 }
-
-html[data-theme="light"] .archive-details[open] {
-    border: 1px solid hsl(285 18% 84% / 1);
-    background: hsl(270 16% 97% / 1)
+html[data-theme="light"] .archive-details[open] {border:1px solid hsl(285 18% 84% / 1);background:hsl(270 16% 97% / 1)
 }
-
-html[data-theme="light"] .archive-details label {
-    color: #626b80
+html[data-theme="light"] .archive-details label {color:#626b80
 }
-
-html[data-theme="light"] .archive-details textarea {
-    border: 1px solid hsl(287 11% 84% / 1);
-    background: hsl(270 17% 97% / 1);
-    color: #202338
+html[data-theme="light"] .archive-details textarea {border:1px solid hsl(287 11% 84% / 1);background:hsl(270 17% 97% / 1);color:#202338
 }
-
-html[data-theme="light"] .archive-details form>small {
-    color: #626b80
+html[data-theme="light"] .archive-details form>small {color:#626b80
 }
-
 html[data-theme="light"] .archive-details button,
-html[data-theme="light"] .archive-record button {
-    border: 1px solid hsl(285 15% 84% / 1);
-    background: hsl(283 15% 96% / 1);
-    color: hsl(288 40% 35% / 1)
+html[data-theme="light"] .archive-record button {border:1px solid hsl(285 15% 84% / 1);background:hsl(283 15% 96% / 1);color:hsl(288 40% 35% / 1)
 }
-
-html[data-theme="light"] .archive-record {
-    border: 1px solid hsl(219 16% 84% / 1);
-    background: hsl(222 24% 97% / 1)
+html[data-theme="light"] .archive-record {border:1px solid hsl(219 16% 84% / 1);background:hsl(222 24% 97% / 1)
 }
-
-html[data-theme="light"] .archive-record strong {
-    color: #202338
+html[data-theme="light"] .archive-record strong {color:#202338
 }
-
-html[data-theme="light"] .archive-record small {
-    color: #626b80
+html[data-theme="light"] .archive-record small {color:#626b80
 }
-
-html[data-theme="light"] .archive-record p {
-    background: hsl(222 22% 96% / 1);
-    color: #202338
+html[data-theme="light"] .archive-record p {background:hsl(222 22% 96% / 1);color:#202338
 }
-
-html[data-theme="light"] .archive-record button {
-    border-color: hsl(167 22% 84% / 1);
-    background: hsl(166 32% 96% / 1);
-    color: hsl(164 59% 35% / 1)
+html[data-theme="light"] .archive-record button {border-color:hsl(167 22% 84% / 1);background:hsl(166 32% 96% / 1);color:hsl(164 59% 35% / 1)
 }
-
-html[data-theme="light"] .demand-insight-card {
-    border-color: hsl(221 21% 84% / 1);
-    background: linear-gradient(135deg, hsl(223 22% 96% / 1), hsl(224 23% 97% / 1));
-    box-shadow: 0 10px 30px rgb(31 39 65 / 0.09)
+html[data-theme="light"] .demand-insight-card {border-color:hsl(221 21% 84% / 1);background:linear-gradient(135deg,hsl(223 22% 96% / 1),hsl(224 23% 97% / 1));box-shadow:0 10px 30px rgb(31 39 65 / 0.09)
 }
-
-html[data-theme="light"] .demand-insight-icon {
-    border: 1px solid hsl(236 28% 84% / 1);
-    background: radial-gradient(circle at 30% 25%, hsl(244 32% 93% / 1), hsl(232 32% 96% / 1) 62%, hsl(226 32% 96% / 1));
-    color: hsl(244 80% 35% / 1);
-    box-shadow: inset 0 1px 0 rgb(31 39 65 / 0.09), 0 8px 20px rgb(31 39 65 / 0.09)
+html[data-theme="light"] .demand-insight-icon {border:1px solid hsl(236 28% 84% / 1);background:radial-gradient(circle at 30% 25%,hsl(244 32% 93% / 1),hsl(232 32% 96% / 1) 62%,hsl(226 32% 96% / 1));color:hsl(244 80% 35% / 1);box-shadow:inset 0 1px 0 rgb(31 39 65 / 0.09),0 8px 20px rgb(31 39 65 / 0.09)
 }
-
-html[data-theme="light"] .demand-insight-icon::before {
-    border: 1px solid hsl(243 38% 84% / 0.2)
+html[data-theme="light"] .demand-insight-icon::before {border:1px solid hsl(243 38% 84% / 0.2)
 }
-
-html[data-theme="light"] .demand-insight-icon::after {
-    background: #8ce1c9;
-    box-shadow: 0 0 8px rgb(31 39 65 / 0.09)
+html[data-theme="light"] .demand-insight-icon::after {background:#8ce1c9;box-shadow:0 0 8px rgb(31 39 65 / 0.09)
 }
-
-html[data-theme="light"] .demand-insight-heading h2 {
-    color: hsl(225 40% 35% / 1)
+html[data-theme="light"] .demand-insight-heading h2 {color:hsl(225 40% 35% / 1)
 }
-
-html[data-theme="light"] .demand-insight-summary {
-    color: #626b80
+html[data-theme="light"] .demand-insight-summary {color:#626b80
 }
-
-html[data-theme="light"] .model-status.ready {
-    border-color: hsl(165 31% 84% / 1);
-    background: hsl(166 32% 96% / 1);
-    color: hsl(163 51% 35% / 1)
+html[data-theme="light"] .model-status.ready {border-color:hsl(165 31% 84% / 1);background:hsl(166 32% 96% / 1);color:hsl(163 51% 35% / 1)
 }
-
-html[data-theme="light"] .model-status.waiting {
-    border-color: hsl(41 36% 84% / 1);
-    background: hsl(40 32% 96% / 1);
-    color: hsl(43 70% 35% / 1)
+html[data-theme="light"] .model-status.waiting {border-color:hsl(41 36% 84% / 1);background:hsl(40 32% 96% / 1);color:hsl(43 70% 35% / 1)
 }
-
-html[data-theme="light"] .model-details {
-    color: #626b80
+html[data-theme="light"] .model-details {color:#626b80
 }
-
-html[data-theme="light"] .model-details summary {
-    color: hsl(164 40% 35% / 1)
+html[data-theme="light"] .model-details summary {color:hsl(164 40% 35% / 1)
 }
-
-html[data-theme="light"] .demand-insight-action small {
-    color: #626b80
+html[data-theme="light"] .demand-insight-action small {color:#626b80
 }
-
-html[data-theme="light"] .demand-result {
-    border-left: 3px solid hsl(256 38% 84% / 1);
-    background: hsl(256 25% 96% / 1)
+html[data-theme="light"] .demand-result {border-left:3px solid hsl(256 38% 84% / 1);background:hsl(256 25% 96% / 1)
 }
-
 html[data-theme="light"] .demand-result span,
-html[data-theme="light"] .analysis-label {
-    color: #626b80
+html[data-theme="light"] .analysis-label {color:#626b80
 }
-
-html[data-theme="light"] .demand-result strong {
-    color: hsl(256 80% 35% / 1)
+html[data-theme="light"] .demand-result strong {color:hsl(256 80% 35% / 1)
 }
-
-html[data-theme="light"] .demand-result p {
-    color: hsl(256 40% 35% / 1)
+html[data-theme="light"] .demand-result p {color:hsl(256 40% 35% / 1)
 }
-
-html[data-theme="light"] .demand-waiting {
-    background: hsl(224 17% 96% / 1);
-    color: #626b80
+html[data-theme="light"] .demand-waiting {background:hsl(224 17% 96% / 1);color:#626b80
 }
-
-html[data-theme="light"] .demand-waiting strong {
-    color: #202338
+html[data-theme="light"] .demand-waiting strong {color:#202338
 }
-
 html[data-theme="light"] .outlook-table th,
-html[data-theme="light"] .outlook-table td {
-    border-bottom: 1px solid hsl(226 20% 84% / 1)
+html[data-theme="light"] .outlook-table td {border-bottom:1px solid hsl(226 20% 84% / 1)
 }
-
-html[data-theme="light"] .outlook-table th {
-    background: hsl(221 24% 96% / 1);
-    color: #626b80
+html[data-theme="light"] .outlook-table th {background:hsl(221 24% 96% / 1);color:#626b80
 }
-
-html[data-theme="light"] .outlook-table tbody tr:hover {
-    background: hsl(221 24% 96% / 1)
+html[data-theme="light"] .outlook-table tbody tr:hover {background:hsl(221 24% 96% / 1)
 }
-
-html[data-theme="light"] .deadstock-row-button {
-    border: 1px solid hsl(265 38% 84% / 1);
-    background: #5c2a99;
-    color: #fff
+html[data-theme="light"] .deadstock-row-button {border:1px solid hsl(265 38% 84% / 1);background:#5c2a99;color:#fff
 }
-
-html[data-theme="light"] .deadstock-row-button:hover {
-    background: #733ab3
+html[data-theme="light"] .deadstock-row-button:hover {background:#733ab3
 }
-
-html[data-theme="light"] .deadstock-row-button.muted {
-    border-color: hsl(285 15% 84% / 1);
-    background: hsl(283 15% 96% / 1);
-    color: hsl(288 40% 35% / 1)
+html[data-theme="light"] .deadstock-row-button.muted {border-color:hsl(285 15% 84% / 1);background:hsl(283 15% 96% / 1);color:hsl(288 40% 35% / 1)
 }
-
-html[data-theme="light"] .deadstock-row-button:focus-visible {
-    outline: 2px solid hsl(263 38% 84% / 1)
+html[data-theme="light"] .deadstock-row-button:focus-visible {outline:2px solid hsl(263 38% 84% / 1)
 }
-
-html[data-theme="light"] .deadstock-dialog[open] {
-    border: 1px solid hsl(265 33% 84% / 1);
-    background: hsl(230 26% 97% / 1);
-    color: hsl(224 40% 35% / 1);
-    box-shadow: 0 28px 90px rgb(31 39 65 / 0.09)
+html[data-theme="light"] .deadstock-dialog[open] {border:1px solid hsl(265 33% 84% / 1);background:hsl(230 26% 97% / 1);color:hsl(224 40% 35% / 1);box-shadow:0 28px 90px rgb(31 39 65 / 0.09)
 }
-
-html[data-theme="light"] .deadstock-dialog::backdrop {
-    background: hsl(230 32% 98% / 0.78)
+html[data-theme="light"] .deadstock-dialog::backdrop {background:hsl(230 32% 98% / 0.78)
 }
-
-html[data-theme="light"] .deadstock-dialog .deadstock-dialog-header button {
-    border: 1px solid hsl(229 14% 84% / 1);
-    background: hsl(226 21% 96% / 1);
-    color: #202338
+html[data-theme="light"] .deadstock-dialog .deadstock-dialog-header button {border:1px solid hsl(229 14% 84% / 1);background:hsl(226 21% 96% / 1);color:#202338
 }
-
-html[data-theme="light"] .deadstock-dialog-footer {
-    border-top: 1px solid hsl(229 18% 84% / 1)
+html[data-theme="light"] .deadstock-dialog-footer {border-top:1px solid hsl(229 18% 84% / 1)
 }
-
-html[data-theme="light"] .login-stock-alert {
-    border: 1px solid hsl(349 38% 84% / 1);
-    background: hsl(230 26% 97% / 1);
-    color: hsl(225 40% 35% / 1);
-    box-shadow: 0 24px 80px rgb(31 39 65 / 0.09)
+html[data-theme="light"] .login-stock-alert {border:1px solid hsl(349 38% 84% / 1);background:hsl(230 26% 97% / 1);color:hsl(225 40% 35% / 1);box-shadow:0 24px 80px rgb(31 39 65 / 0.09)
 }
-
-html[data-theme="light"] .login-stock-alert::backdrop {
-    background: hsl(230 32% 97% / 0.788235294117647)
+html[data-theme="light"] .login-stock-alert::backdrop {background:hsl(230 32% 97% / 0.788235294117647)
 }
-
-html[data-theme="light"] .login-stock-alert h2 {
-    color: hsl(350 80% 35% / 1)
+html[data-theme="light"] .login-stock-alert h2 {color:hsl(350 80% 35% / 1)
 }
-
-html[data-theme="light"] .login-stock-alert>p {
-    color: #202338
+html[data-theme="light"] .login-stock-alert>p {color:#202338
 }
-
-html[data-theme="light"] .login-stock-alert-table {
-    border: 1px solid hsl(229 17% 84% / 1)
+html[data-theme="light"] .login-stock-alert-table {border:1px solid hsl(229 17% 84% / 1)
 }
-
 html[data-theme="light"] .login-stock-alert th,
-html[data-theme="light"] .login-stock-alert td {
-    border-bottom: 1px solid hsl(229 17% 84% / 1)
+html[data-theme="light"] .login-stock-alert td {border-bottom:1px solid hsl(229 17% 84% / 1)
 }
-
-html[data-theme="light"] .login-stock-alert th {
-    background: hsl(229 23% 96% / 1);
-    color: #202338
+html[data-theme="light"] .login-stock-alert th {background:hsl(229 23% 96% / 1);color:#202338
 }
-
-html[data-theme="light"] .login-stock-alert td small {
-    color: #626b80
+html[data-theme="light"] .login-stock-alert td small {color:#626b80
 }
-
-html[data-theme="light"] .login-stock-alert td .login-stock-empty {
-    color: hsl(350 80% 35% / 1)
+html[data-theme="light"] .login-stock-alert td .login-stock-empty {color:hsl(350 80% 35% / 1)
 }
-
 html[data-theme="light"] .login-stock-alert footer button,
-html[data-theme="light"] .login-stock-alert footer a {
-    border: 1px solid hsl(266 24% 84% / 1);
-    color: #202338;
-    background: hsl(267 32% 95% / 1)
+html[data-theme="light"] .login-stock-alert footer a {border:1px solid hsl(266 24% 84% / 1);color:#202338;background:hsl(267 32% 95% / 1)
 }
-
-html[data-theme="light"] .login-stock-alert footer button {
-    background: hsl(229 19% 96% / 1);
-    border-color: hsl(230 15% 84% / 1)
+html[data-theme="light"] .login-stock-alert footer button {background:hsl(229 19% 96% / 1);border-color:hsl(230 15% 84% / 1)
 }
-
-html[data-theme="light"] .login-stock-alert :focus-visible {
-    outline: 2px solid hsl(265 38% 84% / 1)
+html[data-theme="light"] .login-stock-alert :focus-visible {outline:2px solid hsl(265 38% 84% / 1)
 }
-
-html[data-theme="light"] .alert-card {
-    background: hsl(229 26% 97% / 1)
+html[data-theme="light"] .alert-card {background:hsl(229 26% 97% / 1)
 }
-
-html[data-theme="light"] .alert-card.critical {
-    border-color: hsl(350 38% 84% / 1)
+html[data-theme="light"] .alert-card.critical {border-color:hsl(350 38% 84% / 1)
 }
-
-html[data-theme="light"] .alert-card.warning {
-    border-color: hsl(29 38% 84% / 1)
+html[data-theme="light"] .alert-card.warning {border-color:hsl(29 38% 84% / 1)
 }
-
 html[data-theme="light"] .alert-meta small,
 html[data-theme="light"] .fast-card small,
-html[data-theme="light"] .setting-card small {
-    color: #626b80
+html[data-theme="light"] .setting-card small {color:#626b80
 }
-
-html[data-theme="light"] .alert-badge.critical {
-    background: rgba(255, 70, 92, .12);
-    color: hsl(354 80% 35% / 1)
+html[data-theme="light"] .alert-badge.critical {background:rgba(255,70,92,.12);color:hsl(354 80% 35% / 1)
 }
-
-html[data-theme="light"] .alert-badge.warning {
-    background: rgba(255, 138, 52, .12);
-    color: hsl(28 80% 35% / 1)
+html[data-theme="light"] .alert-badge.warning {background:rgba(255,138,52,.12);color:hsl(28 80% 35% / 1)
 }
-
-html[data-theme="light"] .alert-bar {
-    background: #dadbe0
+html[data-theme="light"] .alert-bar {background:#dadbe0
 }
-
-html[data-theme="light"] .alert-card.critical .alert-bar i {
-    background: linear-gradient(90deg, #ff364e, #c41831)
+html[data-theme="light"] .alert-card.critical .alert-bar i {background:linear-gradient(90deg,#ff364e,#c41831)
 }
-
-html[data-theme="light"] .alert-card.warning .alert-bar i {
-    background: linear-gradient(90deg, #ff8a34, #f0a300)
+html[data-theme="light"] .alert-card.warning .alert-bar i {background:linear-gradient(90deg,#ff8a34,#f0a300)
 }
-
-html[data-theme="light"] .alert-actions span {
-    background: hsl(229 29% 96% / 1);
-    color: #626b80
+html[data-theme="light"] .alert-actions span {background:hsl(229 29% 96% / 1);color:#626b80
 }
-
-html[data-theme="light"] .section-heading small {
-    color: #626b80
+html[data-theme="light"] .section-heading small {color:#626b80
 }
-
-html[data-theme="light"] .data-toolbar label {
-    color: #626b80
+html[data-theme="light"] .data-toolbar label {color:#626b80
 }
-
 html[data-theme="light"] .data-toolbar input,
-html[data-theme="light"] .data-toolbar select {
-    background: hsl(226 29% 97% / 1);
-    color: #202338
+html[data-theme="light"] .data-toolbar select {background:hsl(226 29% 97% / 1);color:#202338
 }
-
 html[data-theme="light"] .data-toolbar button,
-html[data-theme="light"] .data-toolbar a {
-    border: 1px solid hsl(264 38% 84% / 1);
-    background: hsl(264 32% 95% / 1);
-    color: #202338
+html[data-theme="light"] .data-toolbar a {border:1px solid hsl(264 38% 84% / 1);background:hsl(264 32% 95% / 1);color:#202338
 }
-
-html[data-theme="light"] .data-toolbar a {
-    border-color: hsl(226 17% 84% / 1);
-    background: hsl(226 24% 97% / 1);
-    color: #626b80
+html[data-theme="light"] .data-toolbar a {border-color:hsl(226 17% 84% / 1);background:hsl(226 24% 97% / 1);color:#626b80
 }
-
 html[data-theme="light"] .compact-alert-table th,
-html[data-theme="light"] .compact-alert-table td {
-    border-bottom: 1px solid hsl(225 21% 84% / 1)
+html[data-theme="light"] .compact-alert-table td {border-bottom:1px solid hsl(225 21% 84% / 1)
 }
-
-html[data-theme="light"] .compact-alert-table th {
-    color: #626b80
+html[data-theme="light"] .compact-alert-table th {color:#626b80
 }
-
-html[data-theme="light"] .compact-alert-table td:first-child small {
-    color: #626b80
+html[data-theme="light"] .compact-alert-table td:first-child small {color:#626b80
 }
-
-html[data-theme="light"] .compact-level {
-    background: hsl(227 19% 95% / 1)
+html[data-theme="light"] .compact-level {background:hsl(227 19% 95% / 1)
 }
-
-html[data-theme="light"] .compact-level i.critical {
-    background: #ff465c
+html[data-theme="light"] .compact-level i.critical {background:#ff465c
 }
-
-html[data-theme="light"] .compact-level i.warning {
-    background: #ff8a34
+html[data-theme="light"] .compact-level i.warning {background:#ff8a34
 }
-
-html[data-theme="light"] .empty-table {
-    color: #626b80
+html[data-theme="light"] .empty-table {color:#626b80
 }
-
 html[data-theme="light"] .compact-pagination a,
-html[data-theme="light"] .compact-pagination span {
-    border: 1px solid hsl(226 17% 84% / 1);
-    color: #202338
+html[data-theme="light"] .compact-pagination span {border:1px solid hsl(226 17% 84% / 1);color:#202338
 }
-
-html[data-theme="light"] .compact-pagination strong {
-    color: #626b80
+html[data-theme="light"] .compact-pagination strong {color:#626b80
 }
-
-html[data-theme="light"] .empty-alert {
-    border: 1px dashed hsl(232 16% 84% / 1);
-    background: hsl(229 26% 97% / 1);
-    color: #626b80
+html[data-theme="light"] .empty-alert {border:1px dashed hsl(232 16% 84% / 1);background:hsl(229 26% 97% / 1);color:#626b80
 }
-
-html[data-theme="light"] .fast-card {
-    background: hsl(229 26% 97% / 1)
+html[data-theme="light"] .fast-card {background:hsl(229 26% 97% / 1)
 }
-
-html[data-theme="light"] .fast-card span {
-    color: #626b80
+html[data-theme="light"] .fast-card span {color:#626b80
 }
-
-html[data-theme="light"] .fast-badge {
-    background: rgba(78, 226, 166, .12);
-    color: hsl(156 72% 35% / 1)
+html[data-theme="light"] .fast-badge {background:rgba(78,226,166,.12);color:hsl(156 72% 35% / 1)
 }
-
-html[data-theme="light"] .apply-button {
-    border: 1px solid hsl(263 38% 84% / 1);
-    background: hsl(265 32% 94% / 1);
-    color: #202338
+html[data-theme="light"] .apply-button {border:1px solid hsl(263 38% 84% / 1);background:hsl(265 32% 94% / 1);color:#202338
 }
-
-html[data-theme="light"] .check-button {
-    border: 1px solid hsl(29 38% 84% / 1);
-    background: linear-gradient(135deg, #ff6500, #d9480f);
-    color: #202338;
-    box-shadow: 0 0 0 3px rgb(31 39 65 / 0.09), 0 8px 24px rgb(31 39 65 / 0.09)
+html[data-theme="light"] .check-button {border:1px solid hsl(29 38% 84% / 1);background:linear-gradient(135deg,#ff6500,#d9480f);color:#202338;box-shadow:0 0 0 3px rgb(31 39 65 / 0.09),0 8px 24px rgb(31 39 65 / 0.09)
 }
-
-html[data-theme="light"] .check-button:hover {
-    box-shadow: 0 0 0 4px rgb(31 39 65 / 0.09), 0 10px 28px rgb(31 39 65 / 0.09)
+html[data-theme="light"] .check-button:hover {box-shadow:0 0 0 4px rgb(31 39 65 / 0.09),0 10px 28px rgb(31 39 65 / 0.09)
 }
-
-html[data-theme="light"] .check-button:focus-visible {
-    outline: 2px solid hsl(29 38% 84% / 1)
+html[data-theme="light"] .check-button:focus-visible {outline:2px solid hsl(29 38% 84% / 1)
 }
-
-html[data-theme="light"] .setting-card {
-    background: hsl(229 26% 97% / 1);
-    color: #202338
+html[data-theme="light"] .setting-card {background:hsl(229 26% 97% / 1);color:#202338
 }
-
-html[data-theme="light"] .setting-card input {
-    accent-color: hsl(263 68% 35% / 1)
+html[data-theme="light"] .setting-card input {accent-color:hsl(263 68% 35% / 1)
 }
-
-html[data-theme="light"] .notification-destinations label {
-    color: #626b80
+html[data-theme="light"] .notification-destinations label {color:#626b80
 }
-
-html[data-theme="light"] .notification-destinations input {
-    background: hsl(225 29% 97% / 1);
-    color: #202338
+html[data-theme="light"] .notification-destinations input {background:hsl(225 29% 97% / 1);color:#202338
 }
-
-html[data-theme="light"] .notification-destinations input:focus {
-    border-color: hsl(264 38% 84% / 1)
+html[data-theme="light"] .notification-destinations input:focus {border-color:hsl(264 38% 84% / 1)
 }
-
-html[data-theme="light"] .settings-error {
-    border: 1px solid hsl(350 38% 84% / 1);
-    background: hsl(345 32% 96% / 1);
-    color: hsl(354 80% 35% / 1)
+html[data-theme="light"] .settings-error {border:1px solid hsl(350 38% 84% / 1);background:hsl(345 32% 96% / 1);color:hsl(354 80% 35% / 1)
 }
-
 html[data-theme="light"] .delivery-table th,
-html[data-theme="light"] .delivery-table td {
-    border-bottom: 1px solid hsl(226 21% 84% / 1)
+html[data-theme="light"] .delivery-table td {border-bottom:1px solid hsl(226 21% 84% / 1)
 }
-
-html[data-theme="light"] .delivery-table th {
-    color: #626b80
+html[data-theme="light"] .delivery-table th {color:#626b80
 }
-
-html[data-theme="light"] .delivery-status.sent {
-    background: hsl(163 32% 97% / 1);
-    color: hsl(162 64% 35% / 1)
+html[data-theme="light"] .delivery-status.sent {background:hsl(163 32% 97% / 1);color:hsl(162 64% 35% / 1)
 }
-
-html[data-theme="light"] .delivery-status.failed {
-    background: hsl(345 32% 96% / 1);
-    color: hsl(354 80% 35% / 1)
+html[data-theme="light"] .delivery-status.failed {background:hsl(345 32% 96% / 1);color:hsl(354 80% 35% / 1)
 }
-
-html[data-theme="light"] .empty-deliveries {
-    color: #626b80
+html[data-theme="light"] .empty-deliveries {color:#626b80
 }
-
-html[data-theme="light"] .alerts-toast {
-    border: 1px solid hsl(164 38% 84% / 1);
-    background: hsl(163 32% 97% / 1);
-    color: hsl(162 64% 35% / 1);
-    box-shadow: 0 15px 40px rgb(31 39 65 / 0.09)
+html[data-theme="light"] .alerts-toast {border:1px solid hsl(164 38% 84% / 1);background:hsl(163 32% 97% / 1);color:hsl(162 64% 35% / 1);box-shadow:0 15px 40px rgb(31 39 65 / 0.09)
 }
-
-html[data-theme="light"] .fast-badge.normal {
-    background: rgba(255, 190, 85, .12);
-    color: hsl(37 80% 35% / 1)
+html[data-theme="light"] .fast-badge.normal {background:rgba(255,190,85,.12);color:hsl(37 80% 35% / 1)
 }
-
-html[data-theme="light"] .fast-badge.slow {
-    background: hsl(218 25% 89% / 0.15);
-    color: hsl(216 40% 35% / 1)
+html[data-theme="light"] .fast-badge.slow {background:hsl(218 25% 89% / 0.15);color:hsl(216 40% 35% / 1)
 }
-
-html[data-theme="light"] .fast-badge.fast {
-    background: rgba(78, 226, 166, .12);
-    color: hsl(156 72% 35% / 1)
+html[data-theme="light"] .fast-badge.fast {background:rgba(78,226,166,.12);color:hsl(156 72% 35% / 1)
 }
-
 html[data-theme="light"] .password-field .password-toggle {
     border: 1px solid hsl(224 13% 84% / 1);
     background: hsl(221 23% 96% / 1);
     color: hsl(228 40% 35% / 1)
 }
-
-html[data-theme="light"] .password-field .password-toggle:hover {
-    background: hsl(220 22% 95% / 1)
+html[data-theme="light"] .password-field .password-toggle:hover { background: hsl(220 22% 95% / 1)
 }
-
-html[data-theme="light"] .password-field .password-toggle:focus-visible {
-    outline: 2px solid hsl(188 38% 84% / 1)
+html[data-theme="light"] .password-field .password-toggle:focus-visible { outline: 2px solid hsl(188 38% 84% / 1)
 }
-
-html[data-theme="light"] .pos-search {
-    background: hsl(226 30% 97% / 1);
-    color: #626b80
+html[data-theme="light"] .pos-search {background:hsl(226 30% 97% / 1);color:#626b80
 }
-
-html[data-theme="light"] .pos-search input {
-    color: hsl(240 40% 35% / 1)
+html[data-theme="light"] .pos-search input {color:hsl(240 40% 35% / 1)
 }
-
-html[data-theme="light"] .cat-btn {
-    background: hsl(227 32% 97% / 1);
-    color: #626b80
+html[data-theme="light"] .cat-btn {background:hsl(227 32% 97% / 1);color:#626b80
 }
-
 html[data-theme="light"] .cat-btn.active,
-html[data-theme="light"] .cat-btn:hover {
-    border-color: hsl(263 38% 84% / 1);
-    background: hsl(262 32% 95% / 1);
-    color: #202338
+html[data-theme="light"] .cat-btn:hover {border-color:hsl(263 38% 84% / 1);background:hsl(262 32% 95% / 1);color:#202338
 }
-
-html[data-theme="light"] .category-column {
-    background: hsl(224 30% 97% / 1)
+html[data-theme="light"] .category-column {background:hsl(224 30% 97% / 1)
 }
-
-html[data-theme="light"] .category-column-head {
-    border-bottom: 1px solid hsl(226 22% 84% / 1)
+html[data-theme="light"] .category-column-head {border-bottom:1px solid hsl(226 22% 84% / 1)
 }
-
-html[data-theme="light"] .category-column-head h3 {
-    color: hsl(254 80% 35% / 1)
+html[data-theme="light"] .category-column-head h3 {color:hsl(254 80% 35% / 1)
 }
-
-html[data-theme="light"] .category-column-head span {
-    color: #626b80
+html[data-theme="light"] .category-column-head span {color:#626b80
 }
-
-html[data-theme="light"] .empty-products {
-    border: 1px dashed hsl(227 18% 84% / 1);
-    color: #626b80
+html[data-theme="light"] .empty-products {border:1px dashed hsl(227 18% 84% / 1);color:#626b80
 }
-
-html[data-theme="light"] .product-card {
-    background: linear-gradient(145deg, hsl(229 31% 97% / 1), hsl(228 26% 97% / 1))
+html[data-theme="light"] .product-card {background:linear-gradient(145deg,hsl(229 31% 97% / 1),hsl(228 26% 97% / 1))
 }
-
-html[data-theme="light"] .product-card:hover {
-    border-color: hsl(263 38% 84% / 1)
+html[data-theme="light"] .product-card:hover {border-color:hsl(263 38% 84% / 1)
 }
-
-html[data-theme="light"] .product-card:focus-visible {
-    outline: 2px solid hsl(261 38% 84% / 1)
+html[data-theme="light"] .product-card:focus-visible {outline:2px solid hsl(261 38% 84% / 1)
 }
-
-html[data-theme="light"] .product-meta small {
-    color: #626b80
+html[data-theme="light"] .product-meta small {color:#626b80
 }
-
-html[data-theme="light"] .product-price {
-    color: hsl(211 80% 35% / 1)
+html[data-theme="light"] .product-price {color:hsl(211 80% 35% / 1)
 }
-
-html[data-theme="light"] .product-price .regular-price {
-    color: #626b80
+html[data-theme="light"] .product-price .regular-price {color:#626b80
 }
-
-html[data-theme="light"] .product-price span {
-    color: hsl(162 64% 35% / 1)
+html[data-theme="light"] .product-price span {color:hsl(162 64% 35% / 1)
 }
-
-html[data-theme="light"] .product-price em {
-    color: hsl(261 80% 35% / 1)
+html[data-theme="light"] .product-price em {color:hsl(261 80% 35% / 1)
 }
-
-html[data-theme="light"] .cashier-badge {
-    border: 1px solid hsl(263 38% 84% / 1);
-    background: hsl(251 32% 97% / 1);
-    color: hsl(259 65% 35% / 1)
+html[data-theme="light"] .cashier-badge {border:1px solid hsl(263 38% 84% / 1);background:hsl(251 32% 97% / 1);color:hsl(259 65% 35% / 1)
 }
-
-html[data-theme="light"] .active-hold-badge {
-    border: 1px solid hsl(38 38% 84% / 1);
-    background: hsl(38 32% 96% / 1);
-    color: hsl(40 80% 35% / 1)
+html[data-theme="light"] .active-hold-badge {border:1px solid hsl(38 38% 84% / 1);background:hsl(38 32% 96% / 1);color:hsl(40 80% 35% / 1)
 }
-
-html[data-theme="light"] .empty-cart {
-    color: #626b80
+html[data-theme="light"] .empty-cart {color:#626b80
 }
-
-html[data-theme="light"] .cart-item {
-    border-bottom: 1px dashed hsl(227 21% 84% / 1)
+html[data-theme="light"] .cart-item {border-bottom:1px dashed hsl(227 21% 84% / 1)
 }
-
-html[data-theme="light"] .item-details p {
-    color: #626b80
+html[data-theme="light"] .item-details p {color:#626b80
 }
-
-html[data-theme="light"] .qty-btn {
-    background: hsl(226 27% 96% / 1);
-    color: #202338
+html[data-theme="light"] .qty-btn {background:hsl(226 27% 96% / 1);color:#202338
 }
-
-html[data-theme="light"] .qty-btn:hover {
-    background: hsl(226 25% 96% / 1)
+html[data-theme="light"] .qty-btn:hover {background:hsl(226 25% 96% / 1)
 }
-
-html[data-theme="light"] .item-total {
-    color: hsl(240 40% 35% / 1)
+html[data-theme="light"] .item-total {color:hsl(240 40% 35% / 1)
 }
-
-html[data-theme="light"] .labor-field {
-    color: hsl(227 40% 35% / 1)
+html[data-theme="light"] .labor-field {color:hsl(227 40% 35% / 1)
 }
-
-html[data-theme="light"] .labor-field small {
-    color: #626b80
+html[data-theme="light"] .labor-field small {color:#626b80
 }
-
-html[data-theme="light"] .labor-field>span small {
-    border: 1px solid hsl(226 15% 84% / 1);
-    color: #626b80
+html[data-theme="light"] .labor-field>span small {border:1px solid hsl(226 15% 84% / 1);color:#626b80
 }
-
-html[data-theme="light"] .labor-input-wrap {
-    border: 1px solid hsl(226 17% 84% / 1);
-    background: hsl(224 27% 97% / 1)
+html[data-theme="light"] .labor-input-wrap {border:1px solid hsl(226 17% 84% / 1);background:hsl(224 27% 97% / 1)
 }
-
-html[data-theme="light"] .labor-input-wrap:focus-within {
-    border-color: hsl(263 38% 84% / 1);
-    box-shadow: 0 0 0 3px rgb(31 39 65 / 0.09)
+html[data-theme="light"] .labor-input-wrap:focus-within {border-color:hsl(263 38% 84% / 1);box-shadow:0 0 0 3px rgb(31 39 65 / 0.09)
 }
-
-html[data-theme="light"] .labor-input-wrap>span {
-    color: #626b80
+html[data-theme="light"] .labor-input-wrap>span {color:#626b80
 }
-
-html[data-theme="light"] .labor-input-wrap input {
-    color: #202338
+html[data-theme="light"] .labor-input-wrap input {color:#202338
 }
-
-html[data-theme="light"] .summary-row {
-    color: #626b80
+html[data-theme="light"] .summary-row {color:#626b80
 }
-
-html[data-theme="light"] .summary-row.total {
-    border-top: 1px solid hsl(226 21% 84% / 1);
-    color: #202338
+html[data-theme="light"] .summary-row.total {border-top:1px solid hsl(226 21% 84% / 1);color:#202338
 }
-
-html[data-theme="light"] .btn-clear {
-    background: hsl(350 32% 96% / 1);
-    color: hsl(354 80% 35% / 1);
-    border: 1px solid hsl(350 38% 84% / 1)
+html[data-theme="light"] .btn-clear {background:hsl(350 32% 96% / 1);color:hsl(354 80% 35% / 1);border:1px solid hsl(350 38% 84% / 1)
 }
-
-html[data-theme="light"] .btn-hold {
-    background: hsl(225 24% 96% / 1);
-    color: hsl(227 40% 35% / 1);
-    border: 1px solid hsl(227 21% 84% / 1)
+html[data-theme="light"] .btn-hold {background:hsl(225 24% 96% / 1);color:hsl(227 40% 35% / 1);border:1px solid hsl(227 21% 84% / 1)
 }
-
-html[data-theme="light"] .btn-pay {
-    background: linear-gradient(135deg, #7a42d5, hsl(263 32% 93% / 1));
-    color: #202338;
-    border: 1px solid hsl(263 38% 84% / 1)
+html[data-theme="light"] .btn-pay {background:linear-gradient(135deg,#7a42d5,hsl(263 32% 93% / 1));color:#202338;border:1px solid hsl(263 38% 84% / 1)
 }
-
-html[data-theme="light"] .pos-toast {
-    border: 1px solid hsl(164 38% 84% / 1);
-    background: hsl(163 32% 97% / 1);
-    color: hsl(162 64% 35% / 1);
-    box-shadow: 0 15px 40px rgb(31 39 65 / 0.09)
+html[data-theme="light"] .pos-toast {border:1px solid hsl(164 38% 84% / 1);background:hsl(163 32% 97% / 1);color:hsl(162 64% 35% / 1);box-shadow:0 15px 40px rgb(31 39 65 / 0.09)
 }
-
-html[data-theme="light"] .checkout-log-head p {
-    color: #626b80
+html[data-theme="light"] .checkout-log-head p {color:#626b80
 }
-
-html[data-theme="light"] .log-count {
-    border: 1px solid hsl(227 21% 84% / 1);
-    color: #626b80
+html[data-theme="light"] .log-count {border:1px solid hsl(227 21% 84% / 1);color:#626b80
 }
-
 html[data-theme="light"] .checkout-log-table th,
-html[data-theme="light"] .checkout-log-table td {
-    border-bottom: 1px solid hsl(226 21% 84% / 1)
+html[data-theme="light"] .checkout-log-table td {border-bottom:1px solid hsl(226 21% 84% / 1)
 }
-
-html[data-theme="light"] .checkout-log-table th {
-    color: #626b80
+html[data-theme="light"] .checkout-log-table th {color:#626b80
 }
-
-html[data-theme="light"] .payment-pill {
-    border: 1px solid hsl(165 27% 84% / 1);
-    background: hsl(163 32% 97% / 1);
-    color: hsl(164 56% 35% / 1)
+html[data-theme="light"] .payment-pill {border:1px solid hsl(165 27% 84% / 1);background:hsl(163 32% 97% / 1);color:hsl(164 56% 35% / 1)
 }
-
-html[data-theme="light"] .receipt-link {
-    color: hsl(212 80% 35% / 1)
+html[data-theme="light"] .receipt-link {color:hsl(212 80% 35% / 1)
 }
-
-html[data-theme="light"] .empty-log {
-    color: #626b80
+html[data-theme="light"] .empty-log {color:#626b80
 }
-
-html[data-theme="light"] .held-order-card {
-    border: 1px solid hsl(226 21% 84% / 1);
-    background: hsl(226 29% 97% / 1)
+html[data-theme="light"] .held-order-card {border:1px solid hsl(226 21% 84% / 1);background:hsl(226 29% 97% / 1)
 }
-
-html[data-theme="light"] .held-order-card.active {
-    border-color: hsl(264 38% 84% / 1);
-    box-shadow: inset 0 0 0 1px rgb(31 39 65 / 0.09)
+html[data-theme="light"] .held-order-card.active {border-color:hsl(264 38% 84% / 1);box-shadow:inset 0 0 0 1px rgb(31 39 65 / 0.09)
 }
-
-html[data-theme="light"] .held-order-head {
-    color: hsl(254 80% 35% / 1)
+html[data-theme="light"] .held-order-head {color:hsl(254 80% 35% / 1)
 }
-
-html[data-theme="light"] .held-order-card p {
-    color: #626b80
+html[data-theme="light"] .held-order-card p {color:#626b80
 }
-
-html[data-theme="light"] .held-order-card small {
-    color: #202338
+html[data-theme="light"] .held-order-card small {color:#202338
 }
-
-html[data-theme="light"] .resume-hold {
-    border: 1px solid hsl(264 38% 84% / 1);
-    background: hsl(261 32% 96% / 1);
-    color: hsl(261 80% 35% / 1)
+html[data-theme="light"] .resume-hold {border:1px solid hsl(264 38% 84% / 1);background:hsl(261 32% 96% / 1);color:hsl(261 80% 35% / 1)
 }
-
-html[data-theme="light"] .cancel-hold {
-    border: 1px solid hsl(350 36% 84% / 1);
-    background: hsl(345 32% 96% / 1);
-    color: hsl(354 80% 35% / 1)
+html[data-theme="light"] .cancel-hold {border:1px solid hsl(350 36% 84% / 1);background:hsl(345 32% 96% / 1);color:hsl(354 80% 35% / 1)
 }
-
-html[data-theme="light"] .empty-holds {
-    border: 1px dashed hsl(227 18% 84% / 1);
-    color: #626b80
+html[data-theme="light"] .empty-holds {border:1px dashed hsl(227 18% 84% / 1);color:#626b80
 }
-
-html[data-theme="light"] .receipt-modal {
-    background: hsl(230 32% 98% / 0.82)
+html[data-theme="light"] .receipt-modal {background:hsl(230 32% 98% / 0.82)
 }
-
-html[data-theme="light"] .receipt-modal-card {
-    border: 1px solid hsl(228 17% 84% / 1);
-    background: hsl(226 29% 97% / 1);
-    box-shadow: 0 28px 90px rgb(31 39 65 / 0.09)
+html[data-theme="light"] .receipt-modal-card {border:1px solid hsl(228 17% 84% / 1);background:hsl(226 29% 97% / 1);box-shadow:0 28px 90px rgb(31 39 65 / 0.09)
 }
-
-html[data-theme="light"] .receipt-close {
-    border: 1px solid hsl(226 19% 84% / 1);
-    background: hsl(226 26% 96% / 1);
-    color: #202338
+html[data-theme="light"] .receipt-close {border:1px solid hsl(226 19% 84% / 1);background:hsl(226 26% 96% / 1);color:#202338
 }
-
-html[data-theme="light"] .receipt-preview {
-    border: 1px dashed hsl(226 16% 84% / 1);
-    background: #f8f7f2;
-    color: #202338
+html[data-theme="light"] .receipt-preview {border:1px dashed hsl(226 16% 84% / 1);background:#f8f7f2;color:#202338
 }
-
-html[data-theme="light"] .receipt-preview-meta {
-    border-bottom: 1px dashed hsl(0 0% 84% / 1)
+html[data-theme="light"] .receipt-preview-meta {border-bottom:1px dashed hsl(0 0% 84% / 1)
 }
-
-html[data-theme="light"] .receipt-preview-item small {
-    color: #626b80
+html[data-theme="light"] .receipt-preview-item small {color:#626b80
 }
-
-html[data-theme="light"] .receipt-preview-totals {
-    border-top: 1px dashed hsl(0 0% 84% / 1)
+html[data-theme="light"] .receipt-preview-totals {border-top:1px dashed hsl(0 0% 84% / 1)
 }
-
-html[data-theme="light"] .receipt-preview-total {
-    border-top: 1px solid hsl(0 0% 84% / 1)
+html[data-theme="light"] .receipt-preview-total {border-top:1px solid hsl(0 0% 84% / 1)
 }
-
-html[data-theme="light"] .charge-action-note {
-    color: hsl(263 40% 35% / 1)
+html[data-theme="light"] .charge-action-note {color:hsl(263 40% 35% / 1)
 }
-
-html[data-theme="light"] .payment-dialog {
-    border: 1px solid hsl(226 16% 84% / 1);
-    background: hsl(226 29% 97% / 1);
-    color: hsl(260 40% 35% / 1);
-    box-shadow: 0 28px 90px rgb(31 39 65 / 0.09)
+html[data-theme="light"] .payment-dialog {border:1px solid hsl(226 16% 84% / 1);background:hsl(226 29% 97% / 1);color:hsl(260 40% 35% / 1);box-shadow:0 28px 90px rgb(31 39 65 / 0.09)
 }
-
-html[data-theme="light"] .payment-dialog::backdrop {
-    background: hsl(230 32% 98% / 0.82)
+html[data-theme="light"] .payment-dialog::backdrop {background:hsl(230 32% 98% / 0.82)
 }
-
 html[data-theme="light"] .payment-dialog input,
-html[data-theme="light"] .payment-dialog select {
-    border: 1px solid hsl(227 14% 84% / 1);
-    background: hsl(226 26% 96% / 1)
+html[data-theme="light"] .payment-dialog select {border:1px solid hsl(227 14% 84% / 1);background:hsl(226 26% 96% / 1)
 }
-
-html[data-theme="light"] .payment-dialog [data-payment-hint] {
-    color: hsl(258 40% 35% / 1)
+html[data-theme="light"] .payment-dialog [data-payment-hint] {color:hsl(258 40% 35% / 1)
 }
-
-html[data-theme="light"] .read-only-badge {
-    border: 1px solid hsl(228 22% 84% / 1);
-    background: hsl(228 26% 97% / 1);
-    color: #626b80
+html[data-theme="light"] .read-only-badge {border:1px solid hsl(228 22% 84% / 1);background:hsl(228 26% 97% / 1);color:#626b80
 }
-
-html[data-theme="light"] .product-search {
-    background: hsl(227 29% 97% / 1)
+html[data-theme="light"] .product-search {background:hsl(227 29% 97% / 1)
 }
-
-html[data-theme="light"] .toolbar-controls select {
-    background: hsl(227 29% 97% / 1);
-    color: #626b80
+html[data-theme="light"] .toolbar-controls select {background:hsl(227 29% 97% / 1);color:#626b80
 }
-
-html[data-theme="light"] .filter-button {
-    border: 1px solid hsl(264 38% 84% / 1);
-    background: hsl(264 32% 93% / 1);
-    color: #202338
+html[data-theme="light"] .filter-button {border:1px solid hsl(264 38% 84% / 1);background:hsl(264 32% 93% / 1);color:#202338
 }
-
-html[data-theme="light"] .clear-filter {
-    border: 1px solid hsl(229 17% 84% / 1);
-    background: hsl(225 25% 97% / 1);
-    color: #626b80
+html[data-theme="light"] .clear-filter {border:1px solid hsl(229 17% 84% / 1);background:hsl(225 25% 97% / 1);color:#626b80
 }
-
-html[data-theme="light"] th {
-    color: #626b80
+html[data-theme="light"] th {color:#626b80
 }
-
-html[data-theme="light"] td {
-    border-bottom: 1px solid hsl(228 22% 84% / 1);
-    color: #626b80
+html[data-theme="light"] td {border-bottom:1px solid hsl(228 22% 84% / 1);color:#626b80
 }
-
-html[data-theme="light"] tbody tr:hover {
-    background: rgba(130, 71, 229, .035)
+html[data-theme="light"] tbody tr:hover {background:rgba(130,71,229,.035)
 }
-
-html[data-theme="light"] .product-thumb {
-    background: hsl(259 32% 96% / 1)
+html[data-theme="light"] .product-thumb {background:hsl(259 32% 96% / 1)
 }
-
-html[data-theme="light"] .product-cell strong {
-    color: hsl(228 40% 35% / 1)
+html[data-theme="light"] .product-cell strong {color:hsl(228 40% 35% / 1)
 }
-
-html[data-theme="light"] .product-cell small {
-    color: #626b80
+html[data-theme="light"] .product-cell small {color:#626b80
 }
-
-html[data-theme="light"] .product-status.active {
-    background: rgba(40, 194, 215, .12)
+html[data-theme="light"] .product-status.active {background:rgba(40,194,215,.12)
 }
-
-html[data-theme="light"] .product-status.low {
-    background: rgba(255, 70, 92, .12)
+html[data-theme="light"] .product-status.low {background:rgba(255,70,92,.12)
 }
-
-html[data-theme="light"] .view-product {
-    border: 1px solid hsl(265 38% 84% / 1);
-    background: hsl(262 32% 96% / 1);
-    color: hsl(263 80% 35% / 1)
+html[data-theme="light"] .view-product {border:1px solid hsl(265 38% 84% / 1);background:hsl(262 32% 96% / 1);color:hsl(263 80% 35% / 1)
 }
-
-html[data-theme="light"] .empty-products strong {
-    color: #202338
+html[data-theme="light"] .empty-products strong {color:#202338
 }
-
 html[data-theme="light"] .pagination a,
-html[data-theme="light"] .pagination span {
-    background: hsl(226 29% 97% / 1);
-    color: #626b80
+html[data-theme="light"] .pagination span {background:hsl(226 29% 97% / 1);color:#626b80
 }
-
-html[data-theme="light"] .pagination .page-current {
-    border-color: hsl(265 38% 84% / 1);
-    background: hsl(265 32% 96% / 1);
-    color: #202338
+html[data-theme="light"] .pagination .page-current {border-color:hsl(265 38% 84% / 1);background:hsl(265 32% 96% / 1);color:#202338
 }
-
-html[data-theme="light"] .product-details[popover] {
-    border: 1px solid hsl(265 38% 84% / 1);
-    background: hsl(228 28% 97% / 1);
-    box-shadow: 0 30px 90px rgb(31 39 65 / 0.09)
+html[data-theme="light"] .product-details[popover] {border:1px solid hsl(265 38% 84% / 1);background:hsl(228 28% 97% / 1);box-shadow:0 30px 90px rgb(31 39 65 / 0.09)
 }
-
-html[data-theme="light"] .product-details[popover]::backdrop {
-    background: hsl(228 32% 98% / 0.8)
+html[data-theme="light"] .product-details[popover]::backdrop {background:hsl(228 32% 98% / 0.8)
 }
-
-html[data-theme="light"] .no-popover-support .product-details[popover][data-fallback-open]::before {
-    background: hsl(228 32% 98% / 0.8)
+html[data-theme="light"] .no-popover-support .product-details[popover][data-fallback-open]::before {background:hsl(228 32% 98% / 0.8)
 }
-
-html[data-theme="light"] .product-details header button {
-    color: #626b80
+html[data-theme="light"] .product-details header button {color:#626b80
 }
-
-html[data-theme="light"] .details-section {
-    border-bottom: 1px solid hsl(267 27% 84% / 1);
-    color: hsl(264 80% 35% / 1)
+html[data-theme="light"] .details-section {border-bottom:1px solid hsl(267 27% 84% / 1);color:hsl(264 80% 35% / 1)
 }
-
-html[data-theme="light"] .details-grid>div {
-    border: 1px solid hsl(227 19% 84% / 1);
-    background: hsl(227 32% 97% / 1)
+html[data-theme="light"] .details-grid>div {border:1px solid hsl(227 19% 84% / 1);background:hsl(227 32% 97% / 1)
 }
-
-html[data-theme="light"] .details-grid small {
-    color: #626b80
+html[data-theme="light"] .details-grid small {color:#626b80
 }
-
-html[data-theme="light"] .details-grid strong {
-    color: #202338
+html[data-theme="light"] .details-grid strong {color:#202338
 }
-
-html[data-theme="light"] .product-details footer {
-    color: #626b80
+html[data-theme="light"] .product-details footer {color:#626b80
 }
-
-html[data-theme="light"] .product-details footer button {
-    border: 1px solid hsl(265 38% 84% / 1);
-    background: hsl(266 32% 94% / 1);
-    color: #202338
+html[data-theme="light"] .product-details footer button {border:1px solid hsl(265 38% 84% / 1);background:hsl(266 32% 94% / 1);color:#202338
 }
-
-html[data-theme="light"] .required-field-marker {
-    color: hsl(353 80% 35% / 1);
-    text-shadow: 0 0 8px rgb(31 39 65 / 0.09)
+html[data-theme="light"] .required-field-marker {color:hsl(353 80% 35% / 1);text-shadow:0 0 8px rgb(31 39 65 / 0.09)
 }
-
 @media (max-width:900px) {
-    html[data-theme="light"] .sidebar.open {
-        box-shadow: 20px 0 70px rgb(31 39 65 / 0.09)
-    }
+html[data-theme="light"] .sidebar.open {box-shadow:20px 0 70px rgb(31 39 65 / 0.09)
 }
-
+}
 @media (max-width:900px) {
-    html[data-theme="light"] .sidebar-backdrop {
-        background: hsl(230 32% 98% / 0.72)
-    }
+html[data-theme="light"] .sidebar-backdrop {background:hsl(230 32% 98% / 0.72)
 }
-
+}
 @media (max-width:900px) {
-    html[data-theme="light"] .menu-button {
-        color: #202338
-    }
+html[data-theme="light"] .menu-button {color:#202338
 }
-
-html[data-theme="light"] .inventory-update-notice {
-    border: 1px solid hsl(266 30% 84% / 1);
-    background: hsl(261 32% 96% / 1);
-    color: hsl(265 56% 35% / 1)
 }
-
-html[data-theme="light"] .session-idle-warning {
-    border: 1px solid hsl(39 38% 84% / 1);
-    background: hsl(256 18% 96% / 1);
-    color: #202338;
-    box-shadow: 0 12px 45px rgb(31 39 65 / 0.09)
+html[data-theme="light"] .inventory-update-notice {border:1px solid hsl(266 30% 84% / 1);background:hsl(261 32% 96% / 1);color:hsl(265 56% 35% / 1)
 }
-
-html[data-theme="light"] .session-idle-warning button {
-    background: #7440c9;
-    color: #fff
+html[data-theme="light"] .session-idle-warning {border:1px solid hsl(39 38% 84% / 1);background:hsl(256 18% 96% / 1);color:#202338;box-shadow:0 12px 45px rgb(31 39 65 / 0.09)
 }
-
-html[data-theme="light"] .table-can-scroll:focus-visible {
-    outline: 2px solid hsl(263 38% 84% / 1)
+html[data-theme="light"] .session-idle-warning button {background:#7440c9;color:#fff
 }
-
-html[data-theme="light"] .returns-dialog {
-    border: 1px solid hsl(264 38% 84% / 1);
-    background: hsl(228 29% 97% / 1);
-    color: hsl(240 40% 35% / 1);
-    box-shadow: 0 24px 80px rgb(31 39 65 / 0.09)
+html[data-theme="light"] .table-can-scroll:focus-visible {outline:2px solid hsl(263 38% 84% / 1)
 }
-
-html[data-theme="light"] .returns-dialog::backdrop {
-    background: hsl(228 32% 97% / 0.72)
+html[data-theme="light"] .returns-dialog {border:1px solid hsl(264 38% 84% / 1);background:hsl(228 29% 97% / 1);color:hsl(240 40% 35% / 1);box-shadow:0 24px 80px rgb(31 39 65 / 0.09)
 }
-
-html[data-theme="light"] .returns-cancel {
-    border: 1px solid hsl(224 16% 84% / 1);
-    background: hsl(223 28% 96% / 1);
-    color: hsl(221 40% 35% / 1)
+html[data-theme="light"] .returns-dialog::backdrop {background:hsl(228 32% 97% / 0.72)
 }
-
-html[data-theme="light"] .returns-dialog button:focus-visible {
-    outline: 2px solid hsl(264 38% 84% / 1)
+html[data-theme="light"] .returns-cancel {border:1px solid hsl(224 16% 84% / 1);background:hsl(223 28% 96% / 1);color:hsl(221 40% 35% / 1)
 }
-
-html[data-theme="light"] .form-grid label {
-    color: #626b80
+html[data-theme="light"] .returns-dialog button:focus-visible {outline:2px solid hsl(264 38% 84% / 1)
 }
-
+html[data-theme="light"] .form-grid label {color:#626b80
+}
 html[data-theme="light"] .form-grid input,
-html[data-theme="light"] .form-grid select {
-    border: 1px solid hsl(258 38% 84% / 1);
-    background: hsl(228 29% 97% / 1);
-    color: hsl(240 40% 35% / 1)
+html[data-theme="light"] .form-grid select {border:1px solid hsl(258 38% 84% / 1);background:hsl(228 29% 97% / 1);color:hsl(240 40% 35% / 1)
 }
-
 html[data-theme="light"] .form-grid input:focus,
-html[data-theme="light"] .form-grid select:focus {
-    border-color: hsl(263 38% 84% / 1);
-    box-shadow: 0 0 0 2px rgb(31 39 65 / 0.09)
+html[data-theme="light"] .form-grid select:focus {border-color:hsl(263 38% 84% / 1);box-shadow:0 0 0 2px rgb(31 39 65 / 0.09)
 }
-
-html[data-theme="light"] .receipt-preview {
-    border: 1px solid hsl(229 19% 84% / 1);
-    background: hsl(227 28% 97% / 1);
-    color: #626b80
+html[data-theme="light"] .receipt-preview {border:1px solid hsl(229 19% 84% / 1);background:hsl(227 28% 97% / 1);color:#626b80
 }
-
-html[data-theme="light"] .receipt-preview strong {
-    color: hsl(265 80% 35% / 1)
+html[data-theme="light"] .receipt-preview strong {color:hsl(265 80% 35% / 1)
 }
-
-html[data-theme="light"] .receipt-preview-items {
-    border-top: 1px solid hsl(227 18% 84% / 1)
+html[data-theme="light"] .receipt-preview-items {border-top:1px solid hsl(227 18% 84% / 1)
 }
-
-html[data-theme="light"] .receipt-preview-item {
-    border-bottom: 1px solid hsl(226 21% 84% / 1)
+html[data-theme="light"] .receipt-preview-item {border-bottom:1px solid hsl(226 21% 84% / 1)
 }
-
 html[data-theme="light"] .receipt-preview-item small,
-html[data-theme="light"] .receipt-item-value small {
-    color: #626b80
+html[data-theme="light"] .receipt-item-value small {color:#626b80
 }
-
-html[data-theme="light"] .receipt-item-value strong {
-    color: hsl(162 64% 35% / 1)
+html[data-theme="light"] .receipt-item-value strong {color:hsl(162 64% 35% / 1)
 }
-
-html[data-theme="light"] .refund-value-card {
-    border: 1px solid hsl(160 34% 84% / 1);
-    background: rgba(78, 226, 166, .07)
+html[data-theme="light"] .refund-value-card {border:1px solid hsl(160 34% 84% / 1);background:rgba(78,226,166,.07)
 }
-
-html[data-theme="light"] .refund-value-card span {
-    color: #626b80
+html[data-theme="light"] .refund-value-card span {color:#626b80
 }
-
-html[data-theme="light"] .refund-value-card strong {
-    color: hsl(162 64% 35% / 1)
+html[data-theme="light"] .refund-value-card strong {color:hsl(162 64% 35% / 1)
 }
-
-html[data-theme="light"] .refund-value-card small {
-    color: #202338
+html[data-theme="light"] .refund-value-card small {color:#202338
 }
-
-html[data-theme="light"] .refund-value-card b {
-    color: #202338
+html[data-theme="light"] .refund-value-card b {color:#202338
 }
-
-html[data-theme="light"] .inventory-note {
-    border-left: 2px solid hsl(263 38% 84% / 1);
-    background: rgba(139, 86, 223, .08);
-    color: #626b80
+html[data-theme="light"] .inventory-note {border-left:2px solid hsl(263 38% 84% / 1);background:rgba(139,86,223,.08);color:#626b80
 }
-
-html[data-theme="light"] .returns-notice.success {
-    border: 1px solid hsl(150 38% 84% / 1);
-    background: hsl(150 32% 97% / 1);
-    color: hsl(162 64% 35% / 1)
+html[data-theme="light"] .returns-notice.success {border:1px solid hsl(150 38% 84% / 1);background:hsl(150 32% 97% / 1);color:hsl(162 64% 35% / 1)
 }
-
-html[data-theme="light"] .returns-notice.error {
-    border: 1px solid hsl(350 38% 84% / 1);
-    background: hsl(335 32% 97% / 1);
-    color: hsl(354 80% 35% / 1)
+html[data-theme="light"] .returns-notice.error {border:1px solid hsl(350 38% 84% / 1);background:hsl(335 32% 97% / 1);color:hsl(354 80% 35% / 1)
 }
-
-html[data-theme="light"] .panel-action {
-    border: 1px solid hsl(263 38% 84% / 1);
-    background: hsl(267 32% 93% / 1);
-    color: #202338
+html[data-theme="light"] .panel-action {border:1px solid hsl(263 38% 84% / 1);background:hsl(267 32% 93% / 1);color:#202338
 }
-
-html[data-theme="light"] .case-card {
-    background: hsl(229 26% 97% / 1)
+html[data-theme="light"] .case-card {background:hsl(229 26% 97% / 1)
 }
-
 html[data-theme="light"] .case-main small,
-html[data-theme="light"] .case-side small {
-    color: #626b80
+html[data-theme="light"] .case-side small {color:#626b80
 }
-
-html[data-theme="light"] .case-meta {
-    color: #202338
+html[data-theme="light"] .case-meta {color:#202338
 }
-
-html[data-theme="light"] .amount {
-    color: hsl(28 80% 35% / 1)
+html[data-theme="light"] .amount {color:hsl(28 80% 35% / 1)
 }
-
-html[data-theme="light"] .status.approved {
-    background: rgba(78, 226, 166, .12);
-    color: hsl(156 72% 35% / 1)
+html[data-theme="light"] .status.approved {background:rgba(78,226,166,.12);color:hsl(156 72% 35% / 1)
 }
-
-html[data-theme="light"] .status.pending {
-    background: rgba(255, 138, 52, .12);
-    color: hsl(28 80% 35% / 1)
+html[data-theme="light"] .status.pending {background:rgba(255,138,52,.12);color:hsl(28 80% 35% / 1)
 }
-
-html[data-theme="light"] .mini-button {
-    border: 1px solid hsl(131 38% 84% / 1);
-    background: hsl(131 32% 96% / 1);
-    color: hsl(134 80% 35% / 1)
+html[data-theme="light"] .mini-button {border:1px solid hsl(131 38% 84% / 1);background:hsl(131 32% 96% / 1);color:hsl(134 80% 35% / 1)
 }
-
-html[data-theme="light"] .mini-button.success {
-    background: hsl(131 32% 95% / 1);
-    color: hsl(132 80% 35% / 1)
+html[data-theme="light"] .mini-button.success {background:hsl(131 32% 95% / 1);color:hsl(132 80% 35% / 1)
 }
-
-html[data-theme="light"] .empty-returns {
-    border: 1px dashed hsl(232 16% 84% / 1);
-    background: hsl(229 26% 97% / 1);
-    color: #626b80
+html[data-theme="light"] .empty-returns {border:1px dashed hsl(232 16% 84% / 1);background:hsl(229 26% 97% / 1);color:#626b80
 }
-
-html[data-theme="light"] .returns-toast {
-    border: 1px solid hsl(164 38% 84% / 1);
-    background: hsl(163 32% 97% / 1);
-    color: hsl(162 64% 35% / 1);
-    box-shadow: 0 15px 40px rgb(31 39 65 / 0.09)
+html[data-theme="light"] .returns-toast {border:1px solid hsl(164 38% 84% / 1);background:hsl(163 32% 97% / 1);color:hsl(162 64% 35% / 1);box-shadow:0 15px 40px rgb(31 39 65 / 0.09)
 }
-
-html[data-theme="light"] .return-review-actions button {
-    border: 1px solid hsl(165 31% 84% / 1);
-    background: hsl(166 32% 96% / 1);
-    color: hsl(163 51% 35% / 1)
+html[data-theme="light"] .return-review-actions button {border:1px solid hsl(165 31% 84% / 1);background:hsl(166 32% 96% / 1);color:hsl(163 51% 35% / 1)
 }
-
-html[data-theme="light"] .return-review-actions button[value=rejected] {
-    border-color: hsl(351 28% 84% / 1);
-    background: hsl(339 25% 96% / 1);
-    color: hsl(351 59% 35% / 1)
+html[data-theme="light"] .return-review-actions button[value=rejected] {border-color:hsl(351 28% 84% / 1);background:hsl(339 25% 96% / 1);color:hsl(351 59% 35% / 1)
 }
-
-html[data-theme="light"] .return-review-actions button:focus-visible {
-    outline: 2px solid hsl(264 38% 84% / 1)
+html[data-theme="light"] .return-review-actions button:focus-visible {outline:2px solid hsl(264 38% 84% / 1)
 }
-
-html[data-theme="light"] .damage-confirm-dialog {
-    border: 1px solid hsl(226 17% 84% / 1);
-    background: hsl(222 25% 97% / 1);
-    color: hsl(220 40% 35% / 1);
-    box-shadow: 0 24px 80px rgb(31 39 65 / 0.09)
+html[data-theme="light"] .damage-confirm-dialog {border:1px solid hsl(226 17% 84% / 1);background:hsl(222 25% 97% / 1);color:hsl(220 40% 35% / 1);box-shadow:0 24px 80px rgb(31 39 65 / 0.09)
 }
-
-html[data-theme="light"] .damage-confirm-dialog::backdrop {
-    background: hsl(228 32% 97% / 0.7294117647058823)
+html[data-theme="light"] .damage-confirm-dialog::backdrop {background:hsl(228 32% 97% / 0.7294117647058823)
 }
-
-html[data-theme="light"] .damage-confirm-heading>i {
-    color: hsl(39 61% 35% / 1)
+html[data-theme="light"] .damage-confirm-heading>i {color:hsl(39 61% 35% / 1)
 }
-
-html[data-theme="light"] .damage-confirm-dialog p {
-    color: #626b80
+html[data-theme="light"] .damage-confirm-dialog p {color:#626b80
 }
-
-html[data-theme="light"] .damage-confirm-dialog dt {
-    color: #626b80
+html[data-theme="light"] .damage-confirm-dialog dt {color:#626b80
 }
-
-html[data-theme="light"] .damage-confirm-actions button {
-    border: 1px solid hsl(224 16% 84% / 1);
-    background: hsl(223 28% 96% / 1);
-    color: hsl(221 40% 35% / 1)
+html[data-theme="light"] .damage-confirm-actions button {border:1px solid hsl(224 16% 84% / 1);background:hsl(223 28% 96% / 1);color:hsl(221 40% 35% / 1)
 }
-
-html[data-theme="light"] .damage-confirm-actions button[data-damage-save] {
-    background: hsl(268 32% 94% / 1);
-    border-color: hsl(271 30% 84% / 1);
-    color: hsl(269 80% 35% / 1)
+html[data-theme="light"] .damage-confirm-actions button[data-damage-save] {background:hsl(268 32% 94% / 1);border-color:hsl(271 30% 84% / 1);color:hsl(269 80% 35% / 1)
 }
-
-html[data-theme="light"] .damage-confirm-actions button:focus-visible {
-    outline: 2px solid hsl(264 38% 84% / 1)
+html[data-theme="light"] .damage-confirm-actions button:focus-visible {outline:2px solid hsl(264 38% 84% / 1)
 }
-
 :root[data-theme="light"] {
     --bg: hsl(230 30% 97% / 1);
     --panel: hsl(228 28% 97% / 1);
@@ -2782,152 +1239,101 @@ html[data-theme="light"] .damage-confirm-actions button:focus-visible {
     --orange: hsl(24 80% 35% / 1);
     --cyan: hsl(188 60% 35% / 1)
 }
-
 html[data-theme="light"] body {
     background:
-        radial-gradient(circle at 50% 15%,
+        radial-gradient(
+            circle at 50% 15%,
             rgba(255, 101, 0, 0.09),
-            transparent 28rem),
+            transparent 28rem
+        ),
         var(--bg)
 }
-
-html[data-theme="light"] .brand>span {
+html[data-theme="light"] .brand > span {
     color: hsl(230 40% 35% / 1)
 }
-
 html[data-theme="light"] .auth-card {
     background: hsl(228 28% 97% / 0.97);
     box-shadow: 0 24px 70px rgb(31 39 65 / 0.09)
 }
-
 html[data-theme="light"] .password-change-popup[open] {
     box-shadow: 0 0 0 100vmax rgb(31 39 65 / 0.09), 0 24px 70px rgb(31 39 65 / 0.09)
 }
-
 html[data-theme="light"] .role-option {
     background: hsl(229 26% 97% / 1)
 }
-
 html[data-theme="light"] .role-option:hover {
     border-color: hsl(226 13% 84% / 1)
 }
-
 html[data-theme="light"] .role-option.selected {
     background: rgba(255, 101, 0, 0.08)
 }
-
 html[data-theme="light"] .role-icon {
     background: hsl(229 20% 96% / 1)
 }
-
 html[data-theme="light"] .primary-button {
     background: linear-gradient(90deg, var(--cyan), #51c7d8);
     color: hsl(201 50% 35% / 1)
 }
-
 html[data-theme="light"] .account-form label {
     color: #202338
 }
-
 html[data-theme="light"] .account-form input {
     background: hsl(227 31% 97% / 1)
 }
-
 html[data-theme="light"] .account-form input:focus {
     box-shadow: 0 0 0 3px rgb(31 39 65 / 0.09)
 }
-
 html[data-theme="light"] .error-box {
     border: 1px solid hsl(351 38% 84% / 1);
     background: rgba(255, 70, 92, 0.08);
     color: hsl(350 80% 35% / 1)
 }
-
 html[data-theme="light"] .error-box strong {
     color: #202338
 }
-
 html[data-theme="light"] .success-box {
     border: 1px solid hsl(161 38% 84% / 1);
     background: hsl(161 32% 94% / 0.12);
     color: hsl(161 58% 35% / 1)
 }
-
-html[data-theme="light"] .sales-target-card {
-    border-color: hsl(263 38% 84% / 1)
+html[data-theme="light"] .sales-target-card {border-color:hsl(263 38% 84% / 1)
 }
-
-html[data-theme="light"] .sales-target-card p {
-    color: hsl(259 40% 35% / 1)
+html[data-theme="light"] .sales-target-card p {color:hsl(259 40% 35% / 1)
 }
-
-html[data-theme="light"] .sales-target-button {
-    border: 1px solid hsl(263 38% 84% / 1);
-    background: linear-gradient(120deg, #8957db, #6833ac);
-    color: #202338
+html[data-theme="light"] .sales-target-button {border:1px solid hsl(263 38% 84% / 1);background:linear-gradient(120deg,#8957db,#6833ac);color:#202338
 }
-
-html[data-theme="light"] .sales-target-progress-heading span {
-    color: hsl(259 40% 35% / 1)
+html[data-theme="light"] .sales-target-progress-heading span {color:hsl(259 40% 35% / 1)
 }
-
-html[data-theme="light"] .sales-target-status {
-    background: hsl(261 32% 96% / 1);
-    color: hsl(265 80% 35% / 1) !important
+html[data-theme="light"] .sales-target-status {background:hsl(261 32% 96% / 1);color:hsl(265 80% 35% / 1)!important
 }
-
-html[data-theme="light"] .sales-target-track {
-    background: hsl(262 23% 96% / 1)
+html[data-theme="light"] .sales-target-track {background:hsl(262 23% 96% / 1)
 }
-
-html[data-theme="light"] .sales-target-track>div {
-    background: linear-gradient(90deg, #8957db, #b28aef)
+html[data-theme="light"] .sales-target-track>div {background:linear-gradient(90deg,#8957db,#b28aef)
 }
-
-html[data-theme="light"] .sales-target-metrics dt {
-    color: hsl(259 40% 35% / 1)
+html[data-theme="light"] .sales-target-metrics dt {color:hsl(259 40% 35% / 1)
 }
-
-html[data-theme="light"] .sales-target-note {
-    color: hsl(259 40% 35% / 1)
+html[data-theme="light"] .sales-target-note {color:hsl(259 40% 35% / 1)
 }
-
-html[data-theme="light"] .sales-target-form input {
-    border: 1px solid hsl(262 21% 84% / 1);
-    background: hsl(228 31% 97% / 1);
-    color: #202338
+html[data-theme="light"] .sales-target-form input {border:1px solid hsl(262 21% 84% / 1);background:hsl(228 31% 97% / 1);color:#202338
 }
-
-html[data-theme="light"] .analytics-tabs button {
-    border: 1px solid hsl(262 21% 84% / 1);
-    color: hsl(260 40% 35% / 1);
-    background: hsl(231 28% 97% / 1)
+html[data-theme="light"] .analytics-tabs button {border:1px solid hsl(262 21% 84% / 1);color:hsl(260 40% 35% / 1);background:hsl(231 28% 97% / 1)
 }
-
-html[data-theme="light"] .analytics-tabs button[aria-selected=true] {
-    color: #202338;
-    background: linear-gradient(120deg, #8957db, #6833ac);
-    border-color: hsl(263 38% 84% / 1)
+html[data-theme="light"] .analytics-tabs button[aria-selected=true] {color:#202338;background:linear-gradient(120deg,#8957db,#6833ac);border-color:hsl(263 38% 84% / 1)
 }
-
 html[data-theme="light"] .sales-target-card .sales-target-button {
     color: #202338
 }
-
 html[data-theme="light"] .sales-target-empty {
     border: 1px solid hsl(267 27% 84% / 1);
     background: hsl(260 32% 97% / 1)
 }
-
 html[data-theme="light"] .sales-target-empty-icon {
     background: hsl(263 32% 96% / 1);
     color: hsl(266 80% 35% / 1)
 }
-
 html[data-theme="light"] .sales-target-card .sales-target-note {
     border-top: 1px solid hsl(267 27% 84% / 1)
 }
-
 html[data-theme="light"] .sort-button,
 html[data-theme="light"] .sort-stock-button,
 html[data-theme="light"] .supplier-sort-button {
@@ -2935,149 +1341,120 @@ html[data-theme="light"] .supplier-sort-button {
     background: hsl(265 32% 96% / 1);
     color: hsl(264 70% 35% / 1)
 }
-
 html[data-theme="light"] .sort-button:hover,
 html[data-theme="light"] .sort-stock-button:hover,
 html[data-theme="light"] .supplier-sort-button:hover {
     background: hsl(269 32% 95% / 1)
 }
-
 html[data-theme="light"] .supplier-sort-form .supplier-sort-button {
     border-color: hsl(265 38% 84% / 1);
     background: #6d35b5;
     color: #fff
 }
-
 html[data-theme="light"] .supplier-sort-form .supplier-sort-button:hover {
     background: #8043cb
 }
-
 html[data-theme="light"] .supplier-sort-form .supplier-sort-button:focus-visible {
     outline: 2px solid hsl(263 38% 84% / 1)
 }
-
 html[data-theme="light"] .supplier-sort-form label {
     color: #626b80
 }
-
 html[data-theme="light"] .supplier-sort-form select {
     border: 1px solid hsl(264 32% 84% / 1);
     background: hsl(229 26% 97% / 1);
     color: #202338
 }
-
 html[data-theme="light"] .search-button {
     border: 1px solid hsl(264 38% 84% / 1);
     background: hsl(264 32% 93% / 1);
     color: #202338
 }
-
-html[data-theme="light"] .flash-message.success {
-    border-color: hsl(166 38% 84% / 1);
-    background: hsl(163 32% 97% / 1);
-    color: hsl(161 62% 35% / 1)
+html[data-theme="light"] .flash-message.success { border-color: hsl(166 38% 84% / 1); background: hsl(163 32% 97% / 1); color: hsl(161 62% 35% / 1)
 }
-
-html[data-theme="light"] .flash-message.error {
-    border-color: hsl(349 38% 84% / 1);
-    background: hsl(342 32% 96% / 1);
-    color: hsl(351 80% 35% / 1)
+html[data-theme="light"] .flash-message.error { border-color: hsl(349 38% 84% / 1); background: hsl(342 32% 96% / 1); color: hsl(351 80% 35% / 1)
 }
-
 html[data-theme="light"] .inventory-actions select {
     background: hsl(227 29% 97% / 1);
     color: #626b80
 }
-
 html[data-theme="light"] .add-product {
     border: 1px solid hsl(264 38% 84% / 1) !important;
     background: hsl(264 32% 93% / 1) !important;
     color: #202338 !important
 }
-
 html[data-theme="light"] th {
     color: #626b80
 }
-
 html[data-theme="light"] td {
     border-bottom: 1px solid hsl(228 22% 84% / 1);
     color: #626b80
 }
-
 html[data-theme="light"] td strong {
     color: hsl(228 40% 35% / 1)
 }
-
 html[data-theme="light"] td small {
     color: #626b80
 }
-
-html[data-theme="light"] .stock-level>div {
+html[data-theme="light"] .stock-level > div {
     background: hsl(229 19% 96% / 1)
 }
-
 html[data-theme="light"] .stock-level i {
     background: linear-gradient(90deg, #7c3fd1, #b062ff)
 }
-
 html[data-theme="light"] .status-badge.healthy {
     background: rgba(40, 194, 215, 0.12)
 }
-
 html[data-theme="light"] .status-badge.warning {
     background: rgba(255, 138, 52, 0.12)
 }
-
 html[data-theme="light"] .status-badge.critical {
     background: rgba(255, 70, 92, 0.12)
 }
-
 html[data-theme="light"] .row-menu {
     color: #626b80
 }
-
 html[data-theme="light"] .shelf-location-form input,
 html[data-theme="light"] .shelf-location-form select {
     border: 1px solid hsl(229 17% 84% / 1);
     background: hsl(224 30% 97% / 1);
     color: hsl(228 40% 35% / 1)
 }
-
 html[data-theme="light"] .shelf-location-form input:focus {
     border-color: hsl(265 38% 84% / 1)
 }
-
-html[data-theme="light"] .inline-option-form label {
-    color: hsl(225 40% 35% / 1)
+html[data-theme="light"] .inline-option-form label { color: hsl(225 40% 35% / 1)
 }
-
 html[data-theme="light"] .shelf-location-form button {
     border: 1px solid hsl(264 38% 84% / 1);
     background: hsl(263 32% 94% / 1);
     color: #202338
 }
-
 html[data-theme="light"] .movement-guidance {
     border-left: 3px solid hsl(265 38% 84% / 1);
     background: hsl(259 32% 97% / 1)
 }
-
 html[data-theme="light"] .movement-guidance strong {
     color: hsl(263 80% 35% / 1)
 }
-
 html[data-theme="light"] .movement-guidance span {
     color: #626b80
 }
-
 html[data-theme="light"] .movement-fields label {
     color: #626b80
 }
-
-html[data-theme="light"] .movement-fields label>small {
+html[data-theme="light"] .movement-fields label > small {
     color: #626b80
 }
-
+html[data-theme="light"] .movement-product-picker summary,
+html[data-theme="light"] .movement-product-menu {
+    border: 1px solid hsl(230 17% 84% / 1)
+}
+html[data-theme="light"] .movement-product-results button:hover,
+html[data-theme="light"] .movement-product-results button:focus-visible,
+html[data-theme="light"] .movement-product-results button[aria-pressed="true"] {
+    background: hsl(261 30% 91% / 0.25)
+}
 html[data-theme="light"] .movement-fields input,
 html[data-theme="light"] .movement-fields select,
 html[data-theme="light"] .movement-fields textarea {
@@ -3085,73 +1462,57 @@ html[data-theme="light"] .movement-fields textarea {
     background: hsl(227 32% 97% / 1);
     color: #202338
 }
-
 html[data-theme="light"] .movement-fields input:focus,
 html[data-theme="light"] .movement-fields select:focus,
 html[data-theme="light"] .movement-fields textarea:focus {
     border-color: hsl(264 38% 84% / 1)
 }
-
 html[data-theme="light"] .movement-audit-note {
     color: #626b80
 }
-
 html[data-theme="light"] .movement-audit-note strong {
     color: #202338
 }
-
 html[data-theme="light"] .movement-result {
     border: 1px solid hsl(231 17% 84% / 1);
     background: hsl(227 31% 97% / 1)
 }
-
-html[data-theme="light"] .movement-result>span {
+html[data-theme="light"] .movement-result > span {
     border-right: 1px solid hsl(231 17% 84% / 1)
 }
-
 html[data-theme="light"] .movement-result small {
     color: #626b80
 }
-
 html[data-theme="light"] .movement-result strong {
     color: #202338
 }
-
 html[data-theme="light"] .movement-result .invalid-stock {
     color: hsl(352 80% 35% / 1)
 }
-
 html[data-theme="light"] .movement-submit {
     border: 1px solid hsl(265 38% 84% / 1);
     background: hsl(266 32% 93% / 1);
     color: #202338
 }
-
 html[data-theme="light"] .ui-note {
     background: hsl(259 32% 96% / 1)
 }
-
 html[data-theme="light"] .adjustment-card {
     border: 1px solid hsl(262 38% 84% / 1);
     background: hsl(229 27% 97% / 1)
 }
-
 html[data-theme="light"] .movement-icon.in {
     background: rgba(40, 194, 215, 0.12)
 }
-
 html[data-theme="light"] .movement-icon.out {
     background: rgba(255, 70, 92, 0.12)
 }
-
 html[data-theme="light"] .movement-icon.adjust {
     background: rgba(255, 138, 52, 0.12)
 }
-
 html[data-theme="light"] .adjustment-card label {
     color: #626b80
 }
-
 html[data-theme="light"] .adjustment-card input,
 html[data-theme="light"] .adjustment-card select,
 html[data-theme="light"] .adjustment-card textarea {
@@ -3159,864 +1520,398 @@ html[data-theme="light"] .adjustment-card textarea {
     background: hsl(227 32% 97% / 1);
     color: #202338
 }
-
 html[data-theme="light"] .adjustment-card input:focus,
 html[data-theme="light"] .adjustment-card select:focus,
 html[data-theme="light"] .adjustment-card textarea:focus {
     border-color: hsl(265 38% 84% / 1)
 }
-
-html[data-theme="light"] .qty-in {
-    color: hsl(162 64% 35% / 1)
+html[data-theme="light"] .qty-in { color: hsl(162 64% 35% / 1)
 }
-
-html[data-theme="light"] .qty-out {
-    color: hsl(351 80% 35% / 1)
+html[data-theme="light"] .qty-out { color: hsl(351 80% 35% / 1)
 }
-
-html[data-theme="light"] .reason-code {
-    background: hsl(261 32% 96% / 1);
-    color: hsl(263 80% 35% / 1)
+html[data-theme="light"] .reason-code { background: hsl(261 32% 96% / 1); color: hsl(263 80% 35% / 1)
 }
-
-html[data-theme="light"] .modal-backdrop {
-    background: hsl(230 32% 98% / 0.82)
+html[data-theme="light"] .modal-backdrop { background: hsl(230 32% 98% / 0.82)
 }
-
-html[data-theme="light"] .modal-card {
-    border: 1px solid hsl(265 38% 84% / 1);
-    background: hsl(228 29% 97% / 1);
-    box-shadow: 0 24px 80px rgb(31 39 65 / 0.09)
+html[data-theme="light"] .modal-card { border: 1px solid hsl(265 38% 84% / 1); background: hsl(228 29% 97% / 1); box-shadow: 0 24px 80px rgb(31 39 65 / 0.09)
 }
-
-html[data-theme="light"] .modal-header>button {
-    color: #626b80
+html[data-theme="light"] .modal-header > button { color: #626b80
 }
-
-html[data-theme="light"] .product-form label {
-    color: #626b80
+html[data-theme="light"] .product-form label { color: #626b80
 }
-
 html[data-theme="light"] .product-form input,
 html[data-theme="light"] .product-form select,
-html[data-theme="light"] .product-form textarea {
-    border: 1px solid hsl(230 17% 84% / 1);
-    background: hsl(227 32% 97% / 1);
-    color: #202338
+html[data-theme="light"] .product-form textarea { border: 1px solid hsl(230 17% 84% / 1); background: hsl(227 32% 97% / 1); color: #202338
 }
-
 html[data-theme="light"] .product-form input:focus,
 html[data-theme="light"] .product-form select:focus,
-html[data-theme="light"] .product-form textarea:focus {
-    border-color: hsl(264 38% 84% / 1)
+html[data-theme="light"] .product-form textarea:focus { border-color: hsl(264 38% 84% / 1)
 }
-
-html[data-theme="light"] .modal-actions button {
-    color: #202338
+html[data-theme="light"] .modal-actions button { color: #202338
 }
-
-html[data-theme="light"] .secondary-button {
-    border: 1px solid hsl(229 15% 84% / 1);
-    background: hsl(226 22% 96% / 1)
+html[data-theme="light"] .secondary-button { border: 1px solid hsl(229 15% 84% / 1); background: hsl(226 22% 96% / 1)
 }
-
-html[data-theme="light"] .primary-button {
-    border: 1px solid hsl(265 38% 84% / 1);
-    background: hsl(266 32% 93% / 1)
+html[data-theme="light"] .primary-button { border: 1px solid hsl(265 38% 84% / 1); background: hsl(266 32% 93% / 1)
 }
-
 html[data-theme="light"] .delete-product-button {
     border: 1px solid hsl(352 38% 84% / 0.5);
     background: rgba(255, 70, 92, .1);
     color: hsl(352 80% 35% / 1)
 }
-
-html[data-theme="light"] .edit-product-button {
-    border: 1px solid hsl(264 38% 84% / 1);
-    background: hsl(263 32% 95% / 1);
-    color: hsl(261 80% 35% / 1)
+html[data-theme="light"] .edit-product-button {border:1px solid hsl(264 38% 84% / 1);background:hsl(263 32% 95% / 1);color:hsl(261 80% 35% / 1)
 }
-
-html[data-theme="light"] .edit-product-button:hover {
-    background: hsl(266 32% 94% / 1)
+html[data-theme="light"] .edit-product-button:hover {background:hsl(266 32% 94% / 1)
 }
-
-html[data-theme="light"] .stock-readonly {
-    border: 1px solid hsl(229 17% 84% / 1);
-    background: hsl(225 27% 97% / 1)
+html[data-theme="light"] .stock-readonly {border:1px solid hsl(229 17% 84% / 1);background:hsl(225 27% 97% / 1)
 }
-
-html[data-theme="light"] .stock-readonly small {
-    color: #626b80
+html[data-theme="light"] .stock-readonly small {color:#626b80
 }
-
-html[data-theme="light"] .stock-readonly strong {
-    color: hsl(228 40% 35% / 1)
+html[data-theme="light"] .stock-readonly strong {color:hsl(228 40% 35% / 1)
 }
-
-html[data-theme="light"] .stock-readonly span {
-    color: #626b80
+html[data-theme="light"] .stock-readonly span {color:#626b80
 }
-
-html[data-theme="light"] .promotion-edit-note {
-    border: 1px solid hsl(28 38% 84% / 1);
-    background: hsl(26 32% 97% / 1);
-    color: hsl(30 80% 35% / 1)
+html[data-theme="light"] .promotion-edit-note {border:1px solid hsl(28 38% 84% / 1);background:hsl(26 32% 97% / 1);color:hsl(30 80% 35% / 1)
 }
-
-html[data-theme="light"] .modal-form-errors {
-    border: 1px solid hsl(349 38% 84% / 1);
-    background: hsl(342 32% 96% / 1);
-    color: hsl(351 80% 35% / 1)
+html[data-theme="light"] .modal-form-errors {border:1px solid hsl(349 38% 84% / 1);background:hsl(342 32% 96% / 1);color:hsl(351 80% 35% / 1)
 }
-
-html[data-theme="light"] .delete-product-button:hover {
-    background: rgba(255, 70, 92, .2)
+html[data-theme="light"] .delete-product-button:hover { background: rgba(255, 70, 92, .2)
 }
-
-html[data-theme="light"] .delete-product-card {
-    border-color: hsl(350 38% 84% / 1)
+html[data-theme="light"] .delete-product-card { border-color: hsl(350 38% 84% / 1)
 }
-
-html[data-theme="light"] .danger-kicker {
-    color: hsl(352 80% 35% / 1)
+html[data-theme="light"] .danger-kicker { color: hsl(352 80% 35% / 1)
 }
-
-html[data-theme="light"] .delete-product-summary {
-    border: 1px solid hsl(229 17% 84% / 1);
-    background: hsl(225 27% 97% / 1)
+html[data-theme="light"] .delete-product-summary { border: 1px solid hsl(229 17% 84% / 1); background: hsl(225 27% 97% / 1)
 }
-
-html[data-theme="light"] .delete-product-summary strong {
-    color: hsl(228 40% 35% / 1)
+html[data-theme="light"] .delete-product-summary strong { color: hsl(228 40% 35% / 1)
 }
-
-html[data-theme="light"] .delete-product-summary span {
-    color: #626b80
+html[data-theme="light"] .delete-product-summary span { color: #626b80
 }
-
-html[data-theme="light"] .delete-product-summary p {
-    color: #626b80
+html[data-theme="light"] .delete-product-summary p { color: #626b80
 }
-
-html[data-theme="light"] .delete-product-warning {
-    border: 1px solid hsl(16 38% 84% / 1);
-    background: rgba(255, 138, 52, .1);
-    color: hsl(25 80% 35% / 1)
+html[data-theme="light"] .delete-product-warning { border: 1px solid hsl(16 38% 84% / 1); background: rgba(255, 138, 52, .1); color: hsl(25 80% 35% / 1)
 }
-
-html[data-theme="light"] .danger-button {
-    border: 1px solid hsl(351 38% 84% / 1);
-    background: hsl(349 32% 94% / 1)
+html[data-theme="light"] .danger-button { border: 1px solid hsl(351 38% 84% / 1); background: hsl(349 32% 94% / 1)
 }
-
 html[data-theme="light"] .adjustment-card button {
     background: hsl(265 32% 94% / 1);
     color: hsl(261 80% 35% / 1)
 }
-
 html[data-theme="light"] .demo-toast {
     border: 1px solid hsl(164 38% 84% / 1);
     background: hsl(163 32% 97% / 1);
     color: hsl(162 64% 35% / 1);
     box-shadow: 0 15px 40px rgb(31 39 65 / 0.09)
 }
-
 @media (max-width: 600px) {
-    html[data-theme="light"] .movement-result>span {
+html[data-theme="light"] .movement-result > span {
         border-bottom: 1px solid hsl(231 17% 84% / 1)
-    }
 }
-
-html[data-theme="light"] .inventory-pagination {
-    color: #626b80
 }
-
+html[data-theme="light"] .inventory-pagination {color:#626b80
+}
 html[data-theme="light"] .inventory-pagination nav a,
-html[data-theme="light"] .inventory-pagination nav span {
-    border: 1px solid hsl(251 17% 84% / 1);
-    background: hsl(229 24% 97% / 1);
-    color: hsl(265 44% 35% / 1)
+html[data-theme="light"] .inventory-pagination nav span {border:1px solid hsl(251 17% 84% / 1);background:hsl(229 24% 97% / 1);color:hsl(265 44% 35% / 1)
 }
-
-html[data-theme="light"] .inventory-pagination .page-current {
-    border-color: hsl(265 38% 84% / 1);
-    background: hsl(270 32% 95% / 1);
-    color: #202338
+html[data-theme="light"] .inventory-pagination .page-current {border-color:hsl(265 38% 84% / 1);background:hsl(270 32% 95% / 1);color:#202338
 }
-
-html[data-theme="light"] .bulk-archive-toolbar {
-    color: #202338
+html[data-theme="light"] .bulk-archive-toolbar {color:#202338
 }
-
-html[data-theme="light"] .bulk-archive-toolbar button {
-    border: 1px solid hsl(269 38% 84% / 1);
-    background: hsl(268 32% 93% / 1);
-    color: #202338
+html[data-theme="light"] .bulk-archive-toolbar button {border:1px solid hsl(269 38% 84% / 1);background:hsl(268 32% 93% / 1);color:#202338
 }
-
-html[data-theme="light"] .inventory-panel input[type=checkbox] {
-    accent-color: hsl(266 63% 35% / 1)
+html[data-theme="light"] .inventory-panel input[type=checkbox] {accent-color:hsl(266 63% 35% / 1)
 }
-
-html[data-theme="light"] .bulk-archive-dialog {
-    border: 1px solid hsl(265 38% 84% / 1);
-    background: hsl(228 29% 97% / 1);
-    color: hsl(223 40% 35% / 1)
+html[data-theme="light"] .bulk-archive-dialog {border:1px solid hsl(265 38% 84% / 1);background:hsl(228 29% 97% / 1);color:hsl(223 40% 35% / 1)
 }
-
-html[data-theme="light"] .bulk-archive-dialog::backdrop {
-    background: hsl(0 0% 98% / 0.75)
+html[data-theme="light"] .bulk-archive-dialog::backdrop {background:hsl(0 0% 98% / 0.75)
 }
-
-html[data-theme="light"] .bulk-archive-dialog p {
-    color: #626b80
+html[data-theme="light"] .bulk-archive-dialog p {color:#626b80
 }
-
 html[data-theme="light"] .bulk-archive-dialog input,
-html[data-theme="light"] .bulk-archive-dialog textarea {
-    border: 1px solid hsl(264 32% 84% / 1);
-    background: hsl(227 29% 97% / 1);
-    color: #202338
+html[data-theme="light"] .bulk-archive-dialog textarea {border:1px solid hsl(264 32% 84% / 1);background:hsl(227 29% 97% / 1);color:#202338
 }
-
-html[data-theme="light"] .movement-choices button {
-    border: 1px solid hsl(268 38% 84% / 1);
-    background: hsl(261 32% 97% / 1);
-    color: hsl(265 55% 35% / 1)
+html[data-theme="light"] .movement-choices button {border:1px solid hsl(268 38% 84% / 1);background:hsl(261 32% 97% / 1);color:hsl(265 55% 35% / 1)
 }
-
-html[data-theme="light"] .movement-choices button:hover {
-    border-color: hsl(269 38% 84% / 1);
-    background: hsl(265 32% 96% / 1)
+html[data-theme="light"] .movement-choices button:hover {border-color:hsl(269 38% 84% / 1);background:hsl(265 32% 96% / 1)
 }
-
-html[data-theme="light"] .movement-choices button>i:first-child {
-    color: hsl(270 73% 35% / 1)
+html[data-theme="light"] .movement-choices button>i:first-child {color:hsl(270 73% 35% / 1)
 }
-
-html[data-theme="light"] .movement-choices small {
-    color: #626b80
+html[data-theme="light"] .movement-choices small {color:#626b80
 }
-
-html[data-theme="light"] .movement-dialog {
-    border: 1px solid hsl(265 38% 84% / 1);
-    background: hsl(228 29% 97% / 1);
-    color: hsl(228 40% 35% / 1)
+html[data-theme="light"] .movement-dialog {border:1px solid hsl(265 38% 84% / 1);background:hsl(228 29% 97% / 1);color:hsl(228 40% 35% / 1)
 }
-
-html[data-theme="light"] .movement-dialog::backdrop {
-    background: hsl(0 0% 98% / 0.7)
+html[data-theme="light"] .movement-dialog::backdrop {background:hsl(0 0% 98% / 0.7)
 }
-
 @media (max-width:640px) {
-    html[data-theme="light"] .movement-dialog .movement-result>span {
-        border-bottom: 1px solid hsl(232 17% 84% / 1)
-    }
+html[data-theme="light"] .movement-dialog .movement-result>span {border-bottom:1px solid hsl(232 17% 84% / 1)
 }
-
-html[data-theme="light"] #archived-products input[type=checkbox] {
-    accent-color: hsl(263 65% 35% / 1)
 }
-
-html[data-theme="light"] .bulk-archive-toolbar [data-archived-action="delete"] {
-    border-color: hsl(351 38% 84% / 1);
-    background: hsl(349 32% 94% / 1);
-    color: #202338
+html[data-theme="light"] #archived-products input[type=checkbox] {accent-color:hsl(263 65% 35% / 1)
 }
-
+html[data-theme="light"] .bulk-archive-toolbar [data-archived-action="delete"] {border-color:hsl(351 38% 84% / 1);background:hsl(349 32% 94% / 1);color:#202338
+}
 html[data-theme="light"] .supplier-purge-launch .delete-all-button,
-html[data-theme="light"] .supplier-purge-dialog .delete-all-button {
-    border: 1px solid hsl(349 38% 84% / 1);
-    background: #bc304b;
-    color: #fff
+html[data-theme="light"] .supplier-purge-dialog .delete-all-button {border:1px solid hsl(349 38% 84% / 1);background:#bc304b;color:#fff
 }
-
-html[data-theme="light"] .suppliers-main .supplier-danger-zone>summary {
-    background: hsl(339 32% 96% / 1);
-    color: hsl(352 80% 35% / 1)
+html[data-theme="light"] .suppliers-main .supplier-danger-zone>summary {background:hsl(339 32% 96% / 1);color:hsl(352 80% 35% / 1)
 }
-
-html[data-theme="light"] .supplier-danger-zone>summary:focus-visible {
-    outline: 3px solid hsl(353 38% 84% / 1)
+html[data-theme="light"] .supplier-danger-zone>summary:focus-visible {outline:3px solid hsl(353 38% 84% / 1)
 }
-
-html[data-theme="light"] .supplier-danger-zone .delete-all-button {
-    border: 1px solid hsl(349 38% 84% / 1);
-    background: #bc304b;
-    color: #fff
+html[data-theme="light"] .supplier-danger-zone .delete-all-button {border:1px solid hsl(349 38% 84% / 1);background:#bc304b;color:#fff
 }
-
-html[data-theme="light"] .supplier-danger-zone .delete-all-button:hover {
-    background: #a52640
+html[data-theme="light"] .supplier-danger-zone .delete-all-button:hover {background:#a52640
 }
-
-html[data-theme="light"] .supplier-danger-zone .delete-all-button:focus-visible {
-    outline: 3px solid hsl(353 38% 84% / 1)
+html[data-theme="light"] .supplier-danger-zone .delete-all-button:focus-visible {outline:3px solid hsl(353 38% 84% / 1)
 }
-
-html[data-theme="light"] .archive-note {
-    color: #626b80
+html[data-theme="light"] .archive-note {color:#626b80
 }
-
-html[data-theme="light"] .supplier-sort-form label {
-    color: #626b80
+html[data-theme="light"] .supplier-sort-form label {color:#626b80
 }
-
 html[data-theme="light"] .supplier-sort-form input,
-html[data-theme="light"] .supplier-sort-form select {
-    border: 1px solid hsl(264 29% 84% / 1);
-    background: hsl(228 26% 97% / 1);
-    color: hsl(225 40% 35% / 1)
+html[data-theme="light"] .supplier-sort-form select {border:1px solid hsl(264 29% 84% / 1);background:hsl(228 26% 97% / 1);color:hsl(225 40% 35% / 1)
 }
-
-html[data-theme="light"] .supplier-search-clear {
-    color: hsl(263 80% 35% / 1)
+html[data-theme="light"] .supplier-search-clear {color:hsl(263 80% 35% / 1)
 }
-
-html[data-theme="light"] .archive-filter label {
-    color: #202338
+html[data-theme="light"] .archive-filter label {color:#202338
 }
-
 html[data-theme="light"] .archive-filter select,
-html[data-theme="light"] .archive-filter input[type="search"] {
-    border: 1px solid hsl(262 38% 84% / 1);
-    background: hsl(229 26% 97% / 1);
-    color: hsl(228 40% 35% / 1)
+html[data-theme="light"] .archive-filter input[type="search"] {border:1px solid hsl(262 38% 84% / 1);background:hsl(229 26% 97% / 1);color:hsl(228 40% 35% / 1)
 }
-
 html[data-theme="light"] .archive-filter a,
-html[data-theme="light"] .archive-pagination a {
-    color: hsl(262 80% 35% / 1)
+html[data-theme="light"] .archive-pagination a {color:hsl(262 80% 35% / 1)
 }
-
-html[data-theme="light"] .archive-pagination {
-    color: #626b80
+html[data-theme="light"] .archive-pagination {color:#626b80
 }
-
-html[data-theme="light"] .pricing-card {
-    background: hsl(229 26% 97% / 1)
+html[data-theme="light"] .pricing-card {background:hsl(229 26% 97% / 1)
 }
-
-html[data-theme="light"] .supplier-line small {
-    color: #626b80
+html[data-theme="light"] .supplier-line small {color:#626b80
 }
-
-html[data-theme="light"] .pricing-pill {
-    border: 1px solid hsl(263 38% 84% / 1);
-    background: hsl(229 32% 97% / 1);
-    color: hsl(228 40% 35% / 1)
+html[data-theme="light"] .pricing-pill {border:1px solid hsl(263 38% 84% / 1);background:hsl(229 32% 97% / 1);color:hsl(228 40% 35% / 1)
 }
-
-html[data-theme="light"] .pricing-pill span {
-    color: #626b80
+html[data-theme="light"] .pricing-pill span {color:#626b80
 }
-
-html[data-theme="light"] .pricing-pill.accent {
-    border-color: hsl(263 38% 84% / 1);
-    box-shadow: inset 0 0 0 1px rgb(31 39 65 / 0.09)
+html[data-theme="light"] .pricing-pill.accent {border-color:hsl(263 38% 84% / 1);box-shadow:inset 0 0 0 1px rgb(31 39 65 / 0.09)
 }
-
-html[data-theme="light"] .recommendation-list p {
-    background: hsl(229 26% 97% / 1);
-    color: #202338
+html[data-theme="light"] .recommendation-list p {background:hsl(229 26% 97% / 1);color:#202338
 }
-
-html[data-theme="light"] .apply-button {
-    border: 1px solid hsl(263 38% 84% / 1);
-    background: hsl(265 32% 94% / 1);
-    color: #202338
+html[data-theme="light"] .apply-button {border:1px solid hsl(263 38% 84% / 1);background:hsl(265 32% 94% / 1);color:#202338
 }
-
-html[data-theme="light"] .suppliers-toast {
-    border: 1px solid hsl(164 38% 84% / 1);
-    background: hsl(163 32% 97% / 1);
-    color: hsl(162 64% 35% / 1);
-    box-shadow: 0 15px 40px rgb(31 39 65 / 0.09)
+html[data-theme="light"] .suppliers-toast {border:1px solid hsl(164 38% 84% / 1);background:hsl(163 32% 97% / 1);color:hsl(162 64% 35% / 1);box-shadow:0 15px 40px rgb(31 39 65 / 0.09)
 }
-
-html[data-theme="light"] .supplier-message.success {
-    border-color: hsl(158 38% 84% / 1);
-    background: hsl(162 32% 97% / 1);
-    color: hsl(159 60% 35% / 1)
+html[data-theme="light"] .supplier-message.success {border-color:hsl(158 38% 84% / 1);background:hsl(162 32% 97% / 1);color:hsl(159 60% 35% / 1)
 }
-
-html[data-theme="light"] .supplier-message.error {
-    border-color: hsl(349 38% 84% / 1);
-    background: hsl(344 32% 96% / 1);
-    color: hsl(353 80% 35% / 1)
+html[data-theme="light"] .supplier-message.error {border-color:hsl(349 38% 84% / 1);background:hsl(344 32% 96% / 1);color:hsl(353 80% 35% / 1)
 }
-
 html[data-theme="light"] .source-badge,
-html[data-theme="light"] .import-status {
-    border: 1px solid hsl(262 30% 84% / 1);
-    color: hsl(262 55% 35% / 1)
+html[data-theme="light"] .import-status {border:1px solid hsl(262 30% 84% / 1);color:hsl(262 55% 35% / 1)
 }
-
-html[data-theme="light"] .supplier-import-form label {
-    color: #202338
+html[data-theme="light"] .supplier-import-form label {color:#202338
 }
-
-html[data-theme="light"] .supplier-import-form input {
-    border: 1px solid hsl(262 38% 84% / 1);
-    background: hsl(229 26% 97% / 1);
-    color: hsl(228 40% 35% / 1)
+html[data-theme="light"] .supplier-import-form input {border:1px solid hsl(262 38% 84% / 1);background:hsl(229 26% 97% / 1);color:hsl(228 40% 35% / 1)
 }
-
-html[data-theme="light"] .file-field span {
-    border: 1px dashed hsl(264 37% 84% / 1);
-    background: hsl(229 26% 97% / 1);
-    color: #626b80
+html[data-theme="light"] .file-field span {border:1px dashed hsl(264 37% 84% / 1);background:hsl(229 26% 97% / 1);color:#626b80
 }
-
-html[data-theme="light"] .format-guide {
-    color: #626b80
+html[data-theme="light"] .format-guide {color:#626b80
 }
-
-html[data-theme="light"] .format-guide code {
-    border: 1px solid hsl(262 19% 84% / 1);
-    background: hsl(227 27% 97% / 1);
-    color: hsl(262 58% 35% / 1)
+html[data-theme="light"] .format-guide code {border:1px solid hsl(262 19% 84% / 1);background:hsl(227 27% 97% / 1);color:hsl(262 58% 35% / 1)
 }
-
-html[data-theme="light"] .import-note {
-    color: #626b80
+html[data-theme="light"] .import-note {color:#626b80
 }
-
 html[data-theme="light"] .supplier-table-wrap th,
-html[data-theme="light"] .supplier-table-wrap td {
-    border-bottom: 1px solid hsl(227 13% 84% / 1)
+html[data-theme="light"] .supplier-table-wrap td {border-bottom:1px solid hsl(227 13% 84% / 1)
 }
-
-html[data-theme="light"] .supplier-table-wrap th {
-    color: #626b80
+html[data-theme="light"] .supplier-table-wrap th {color:#626b80
 }
-
-html[data-theme="light"] .row-error {
-    background: rgba(190, 50, 70, .08)
+html[data-theme="light"] .row-error {background:rgba(190,50,70,.08)
 }
-
-html[data-theme="light"] .row-errors {
-    color: hsl(353 80% 35% / 1)
+html[data-theme="light"] .row-errors {color:hsl(353 80% 35% / 1)
 }
-
-html[data-theme="light"] .valid-label {
-    color: hsl(158 59% 35% / 1)
+html[data-theme="light"] .valid-label {color:hsl(158 59% 35% / 1)
 }
-
-html[data-theme="light"] .reject-button {
-    border: 1px solid hsl(349 38% 84% / 1);
-    background: hsl(347 32% 96% / 1);
-    color: hsl(350 80% 35% / 1)
+html[data-theme="light"] .reject-button {border:1px solid hsl(349 38% 84% / 1);background:hsl(347 32% 96% / 1);color:hsl(350 80% 35% / 1)
 }
-
-html[data-theme="light"] .supplier-line em {
-    color: #626b80
+html[data-theme="light"] .supplier-line em {color:#626b80
 }
-
-html[data-theme="light"] .pricing-pill.stale {
-    border-color: hsl(352 38% 84% / 1);
-    color: hsl(350 80% 35% / 1)
+html[data-theme="light"] .pricing-pill.stale {border-color:hsl(352 38% 84% / 1);color:hsl(350 80% 35% / 1)
 }
-
-html[data-theme="light"] .empty-state {
-    border: 1px dashed hsl(227 11% 84% / 1);
-    color: #626b80
+html[data-theme="light"] .empty-state {border:1px dashed hsl(227 11% 84% / 1);color:#626b80
 }
-
-html[data-theme="light"] .import-list a {
-    border: 1px solid hsl(229 14% 84% / 1);
-    background: hsl(229 26% 97% / 1);
-    color: #202338
+html[data-theme="light"] .import-list a {border:1px solid hsl(229 14% 84% / 1);background:hsl(229 26% 97% / 1);color:#202338
 }
-
 html[data-theme="light"] .import-list a span,
-html[data-theme="light"] .import-list time {
-    color: #626b80
+html[data-theme="light"] .import-list time {color:#626b80
 }
-
 html[data-theme="light"] .import-status.approved,
-html[data-theme="light"] .import-status.ready {
-    border-color: hsl(161 38% 84% / 1);
-    color: hsl(160 60% 35% / 1)
+html[data-theme="light"] .import-status.ready {border-color:hsl(161 38% 84% / 1);color:hsl(160 60% 35% / 1)
 }
-
 html[data-theme="light"] .import-status.rejected,
-html[data-theme="light"] .import-status.has-errors {
-    border-color: hsl(350 38% 84% / 1);
-    color: hsl(350 80% 35% / 1)
+html[data-theme="light"] .import-status.has-errors {border-color:hsl(350 38% 84% / 1);color:hsl(350 80% 35% / 1)
 }
-
-html[data-theme="light"] .supplier-danger-zone {
-    border-color: hsl(347 37% 84% / 1);
-    background: hsl(327 21% 97% / 1)
+html[data-theme="light"] .supplier-danger-zone {border-color:hsl(347 37% 84% / 1);background:hsl(327 21% 97% / 1)
 }
-
-html[data-theme="light"] .supplier-danger-zone>summary {
-    color: hsl(353 80% 35% / 1)
+html[data-theme="light"] .supplier-danger-zone>summary {color:hsl(353 80% 35% / 1)
 }
-
-html[data-theme="light"] .danger-zone-content {
-    border-top: 1px solid hsl(347 33% 84% / 1)
+html[data-theme="light"] .danger-zone-content {border-top:1px solid hsl(347 33% 84% / 1)
 }
-
-html[data-theme="light"] .danger-zone-content p {
-    color: #626b80
+html[data-theme="light"] .danger-zone-content p {color:#626b80
 }
-
-html[data-theme="light"] .danger-zone-content label {
-    color: #202338
+html[data-theme="light"] .danger-zone-content label {color:#202338
 }
-
-html[data-theme="light"] .danger-zone-content input {
-    border: 1px solid hsl(347 34% 84% / 1);
-    background: hsl(330 14% 97% / 1);
-    color: #202338
+html[data-theme="light"] .danger-zone-content input {border:1px solid hsl(347 34% 84% / 1);background:hsl(330 14% 97% / 1);color:#202338
 }
-
-html[data-theme="light"] .delete-all-button {
-    border: 1px solid hsl(348 38% 84% / 1);
-    background: hsl(347 32% 94% / 1);
-    color: #202338
+html[data-theme="light"] .delete-all-button {border:1px solid hsl(348 38% 84% / 1);background:hsl(347 32% 94% / 1);color:#202338
 }
-
-html[data-theme="light"] .match-label.matched {
-    background: rgba(67, 204, 151, .1);
-    color: hsl(160 62% 35% / 1)
+html[data-theme="light"] .match-label.matched {background:rgba(67,204,151,.1);color:hsl(160 62% 35% / 1)
 }
-
-html[data-theme="light"] .match-label.unmatched {
-    background: rgba(255, 158, 74, .1);
-    color: hsl(27 80% 35% / 1)
+html[data-theme="light"] .match-label.unmatched {background:rgba(255,158,74,.1);color:hsl(27 80% 35% / 1)
 }
-
-html[data-theme="light"] .catalog-sync {
-    border-top: 1px solid hsl(231 17% 84% / 1)
+html[data-theme="light"] .catalog-sync {border-top:1px solid hsl(231 17% 84% / 1)
 }
-
-html[data-theme="light"] .catalog-sync>summary {
-    color: hsl(263 80% 35% / 1)
+html[data-theme="light"] .catalog-sync>summary {color:hsl(263 80% 35% / 1)
 }
-
-html[data-theme="light"] .catalog-sync-body {
-    border: 1px solid hsl(250 19% 84% / 1);
-    background: hsl(227 27% 97% / 1)
+html[data-theme="light"] .catalog-sync-body {border:1px solid hsl(250 19% 84% / 1);background:hsl(227 27% 97% / 1)
 }
-
-html[data-theme="light"] .sync-explanation span {
-    color: #626b80
+html[data-theme="light"] .sync-explanation span {color:#626b80
 }
-
 html[data-theme="light"] .match-product-form label,
-html[data-theme="light"] .create-catalog-product label {
-    color: #626b80
+html[data-theme="light"] .create-catalog-product label {color:#626b80
 }
-
 html[data-theme="light"] .match-product-form input,
-html[data-theme="light"] .create-catalog-product input {
-    border: 1px solid hsl(262 31% 84% / 1);
-    background: hsl(229 24% 97% / 1);
-    color: #202338
+html[data-theme="light"] .create-catalog-product input {border:1px solid hsl(262 31% 84% / 1);background:hsl(229 24% 97% / 1);color:#202338
 }
-
-html[data-theme="light"] .match-button {
-    border: 1px solid hsl(266 23% 84% / 1);
-    background: hsl(254 21% 96% / 1);
-    color: hsl(266 57% 35% / 1)
+html[data-theme="light"] .match-button {border:1px solid hsl(266 23% 84% / 1);background:hsl(254 21% 96% / 1);color:hsl(266 57% 35% / 1)
 }
-
-html[data-theme="light"] .apply-cost-form {
-    border-top: 1px solid hsl(229 16% 84% / 1)
+html[data-theme="light"] .apply-cost-form {border-top:1px solid hsl(229 16% 84% / 1)
 }
-
-html[data-theme="light"] .apply-cost-form>div {
-    border: 1px solid hsl(227 16% 84% / 1)
+html[data-theme="light"] .apply-cost-form>div {border:1px solid hsl(227 16% 84% / 1)
 }
-
-html[data-theme="light"] .apply-cost-form small {
-    color: #626b80
+html[data-theme="light"] .apply-cost-form small {color:#626b80
 }
-
-html[data-theme="light"] .create-catalog-product {
-    border-top: 1px solid hsl(229 16% 84% / 1)
+html[data-theme="light"] .create-catalog-product {border-top:1px solid hsl(229 16% 84% / 1)
 }
-
-html[data-theme="light"] .currency-warning {
-    border-left: 2px solid hsl(22 38% 84% / 1);
-    background: hsl(23 32% 97% / 1);
-    color: hsl(27 80% 35% / 1)
+html[data-theme="light"] .currency-warning {border-left:2px solid hsl(22 38% 84% / 1);background:hsl(23 32% 97% / 1);color:hsl(27 80% 35% / 1)
 }
-
-html[data-theme="light"] .matched-text {
-    color: hsl(160 62% 35% / 1) !important
+html[data-theme="light"] .matched-text {color:hsl(160 62% 35% / 1)!important
 }
-
-html[data-theme="light"] .unmatched-text {
-    color: hsl(27 80% 35% / 1) !important
+html[data-theme="light"] .unmatched-text {color:hsl(27 80% 35% / 1)!important
 }
-
-html[data-theme="light"] .price-match-panel {
-    border: 1px solid hsl(229 17% 84% / 1);
-    background: hsl(224 32% 97% / 1)
+html[data-theme="light"] .price-match-panel {border:1px solid hsl(229 17% 84% / 1);background:hsl(224 32% 97% / 1)
 }
-
-html[data-theme="light"] .price-match-panel.matched {
-    border-color: hsl(165 38% 84% / 1);
-    background: linear-gradient(135deg, hsl(161 32% 94% / 0.12), hsl(224 32% 97% / 1))
+html[data-theme="light"] .price-match-panel.matched {border-color:hsl(165 38% 84% / 1);background:linear-gradient(135deg,hsl(161 32% 94% / 0.12),hsl(224 32% 97% / 1))
 }
-
-html[data-theme="light"] .price-match-panel.unmatched {
-    border-color: hsl(30 38% 84% / 1);
-    background: hsl(28 32% 95% / 0.1)
+html[data-theme="light"] .price-match-panel.unmatched {border-color:hsl(30 38% 84% / 1);background:hsl(28 32% 95% / 0.1)
 }
-
 html[data-theme="light"] .price-match-panel>header small,
-html[data-theme="light"] .price-match-panel.unmatched>small {
-    color: #626b80
+html[data-theme="light"] .price-match-panel.unmatched>small {color:#626b80
 }
-
-html[data-theme="light"] .match-state {
-    color: hsl(159 63% 35% / 1)
+html[data-theme="light"] .match-state {color:hsl(159 63% 35% / 1)
 }
-
-html[data-theme="light"] .price-match-panel.unmatched .match-state {
-    color: hsl(27 80% 35% / 1)
+html[data-theme="light"] .price-match-panel.unmatched .match-state {color:hsl(27 80% 35% / 1)
 }
-
-html[data-theme="light"] .price-comparison-grid>div {
-    border: 1px solid hsl(225 17% 84% / 1);
-    background: hsl(225 30% 97% / 1)
+html[data-theme="light"] .price-comparison-grid>div {border:1px solid hsl(225 17% 84% / 1);background:hsl(225 30% 97% / 1)
 }
-
-html[data-theme="light"] .price-comparison-grid span {
-    color: #626b80
+html[data-theme="light"] .price-comparison-grid span {color:#626b80
 }
-
-html[data-theme="light"] .price-comparison-grid strong {
-    color: hsl(223 40% 35% / 1)
+html[data-theme="light"] .price-comparison-grid strong {color:hsl(223 40% 35% / 1)
 }
-
-html[data-theme="light"] .price-comparison-grid small {
-    color: #626b80
+html[data-theme="light"] .price-comparison-grid small {color:#626b80
 }
-
-html[data-theme="light"] .price-comparison-grid .comparison-higher {
-    border-color: hsl(351 34% 84% / 1)
+html[data-theme="light"] .price-comparison-grid .comparison-higher {border-color:hsl(351 34% 84% / 1)
 }
-
-html[data-theme="light"] .price-comparison-grid .comparison-higher strong {
-    color: hsl(352 80% 35% / 1)
+html[data-theme="light"] .price-comparison-grid .comparison-higher strong {color:hsl(352 80% 35% / 1)
 }
-
-html[data-theme="light"] .price-comparison-grid .comparison-lower {
-    border-color: hsl(161 38% 84% / 1)
+html[data-theme="light"] .price-comparison-grid .comparison-lower {border-color:hsl(161 38% 84% / 1)
 }
-
 html[data-theme="light"] .price-comparison-grid .comparison-lower strong,
-html[data-theme="light"] .price-comparison-grid .comparison-equal strong {
-    color: hsl(159 63% 35% / 1)
+html[data-theme="light"] .price-comparison-grid .comparison-equal strong {color:hsl(159 63% 35% / 1)
 }
-
-html[data-theme="light"] .price-comparison-grid .comparison-warning {
-    border-color: hsl(31 38% 84% / 1)
+html[data-theme="light"] .price-comparison-grid .comparison-warning {border-color:hsl(31 38% 84% / 1)
 }
-
-html[data-theme="light"] .price-comparison-grid .comparison-warning strong {
-    color: hsl(28 80% 35% / 1)
+html[data-theme="light"] .price-comparison-grid .comparison-warning strong {color:hsl(28 80% 35% / 1)
 }
-
-html[data-theme="light"] .automatic-match-note {
-    border: 1px solid hsl(161 38% 84% / 1);
-    background: hsl(158 32% 93% / 0.1)
+html[data-theme="light"] .automatic-match-note {border:1px solid hsl(161 38% 84% / 1);background:hsl(158 32% 93% / 0.1)
 }
-
-html[data-theme="light"] .automatic-match-note strong {
-    color: hsl(160 62% 35% / 1)
+html[data-theme="light"] .automatic-match-note strong {color:hsl(160 62% 35% / 1)
 }
-
-html[data-theme="light"] .automatic-match-note span {
-    color: #626b80
+html[data-theme="light"] .automatic-match-note span {color:#626b80
 }
-
-html[data-theme="light"] .unmatch-product-form {
-    border: 1px solid hsl(344 22% 84% / 1);
-    background: hsl(346 32% 95% / 0.09)
+html[data-theme="light"] .unmatch-product-form {border:1px solid hsl(344 22% 84% / 1);background:hsl(346 32% 95% / 0.09)
 }
-
-html[data-theme="light"] .unmatch-product-form strong {
-    color: hsl(345 40% 35% / 1)
+html[data-theme="light"] .unmatch-product-form strong {color:hsl(345 40% 35% / 1)
 }
-
-html[data-theme="light"] .unmatch-product-form small {
-    color: #626b80
+html[data-theme="light"] .unmatch-product-form small {color:#626b80
 }
-
-html[data-theme="light"] .unmatch-button {
-    border: 1px solid hsl(347 38% 84% / 1);
-    background: hsl(345 32% 95% / 1);
-    color: hsl(350 80% 35% / 1)
+html[data-theme="light"] .unmatch-button {border:1px solid hsl(347 38% 84% / 1);background:hsl(345 32% 95% / 1);color:hsl(350 80% 35% / 1)
 }
-
-html[data-theme="light"] .unmatch-button:hover {
-    background: hsl(346 32% 95% / 1)
+html[data-theme="light"] .unmatch-button:hover {background:hsl(346 32% 95% / 1)
 }
-
-html[data-theme="light"] .supplier-modal {
-    background: hsl(230 32% 98% / 0.82)
+html[data-theme="light"] .supplier-modal {background:hsl(230 32% 98% / 0.82)
 }
-
-html[data-theme="light"] .supplier-modal-card {
-    border: 1px solid hsl(259 18% 84% / 1);
-    background: hsl(230 26% 97% / 1);
-    box-shadow: 0 28px 90px rgb(31 39 65 / 0.09)
+html[data-theme="light"] .supplier-modal-card {border:1px solid hsl(259 18% 84% / 1);background:hsl(230 26% 97% / 1);box-shadow:0 28px 90px rgb(31 39 65 / 0.09)
 }
-
-html[data-theme="light"] .supplier-modal-card>p {
-    color: #626b80
+html[data-theme="light"] .supplier-modal-card>p {color:#626b80
 }
-
-html[data-theme="light"] .supplier-modal-close {
-    border: 1px solid hsl(229 15% 84% / 1);
-    background: hsl(227 22% 96% / 1);
-    color: #202338
+html[data-theme="light"] .supplier-modal-close {border:1px solid hsl(229 15% 84% / 1);background:hsl(227 22% 96% / 1);color:#202338
 }
-
-html[data-theme="light"] .modal-warning {
-    border-left: 2px solid hsl(350 38% 84% / 1);
-    background: hsl(339 31% 97% / 1);
-    color: hsl(350 80% 35% / 1) !important
+html[data-theme="light"] .modal-warning {border-left:2px solid hsl(350 38% 84% / 1);background:hsl(339 31% 97% / 1);color:hsl(350 80% 35% / 1)!important
 }
-
-html[data-theme="light"] .modal-cancel-button {
-    border: 1px solid hsl(229 12% 84% / 1);
-    background: hsl(227 17% 96% / 1);
-    color: #202338
+html[data-theme="light"] .modal-cancel-button {border:1px solid hsl(229 12% 84% / 1);background:hsl(227 17% 96% / 1);color:#202338
 }
-
-html[data-theme="light"] .bulk-product-toolbar {
-    border: 1px solid hsl(160 34% 84% / 1);
-    background: rgba(78, 226, 166, .06)
+html[data-theme="light"] .bulk-product-toolbar {border:1px solid hsl(160 34% 84% / 1);background:rgba(78,226,166,.06)
 }
-
-html[data-theme="light"] .bulk-product-toolbar span {
-    color: #626b80
+html[data-theme="light"] .bulk-product-toolbar span {color:#626b80
 }
-
-html[data-theme="light"] .bulk-select-all {
-    color: hsl(264 66% 35% / 1)
+html[data-theme="light"] .bulk-select-all {color:hsl(264 66% 35% / 1)
 }
-
 html[data-theme="light"] .bulk-select-all input,
-html[data-theme="light"] .bulk-product-select input {
-    accent-color: hsl(263 68% 35% / 1)
+html[data-theme="light"] .bulk-product-select input {accent-color:hsl(263 68% 35% / 1)
 }
-
-html[data-theme="light"] .bulk-product-select {
-    color: hsl(264 66% 35% / 1)
+html[data-theme="light"] .bulk-product-select {color:hsl(264 66% 35% / 1)
 }
-
-html[data-theme="light"] .bulk-product-form label {
-    color: #626b80
+html[data-theme="light"] .bulk-product-form label {color:#626b80
 }
-
-html[data-theme="light"] .bulk-product-form input {
-    border: 1px solid hsl(262 31% 84% / 1);
-    background: hsl(227 27% 97% / 1);
-    color: #202338
+html[data-theme="light"] .bulk-product-form input {border:1px solid hsl(262 31% 84% / 1);background:hsl(227 27% 97% / 1);color:#202338
 }
-
-html[data-theme="light"] [data-open-import-decision] {
-    border: 1px solid hsl(263 38% 84% / 1) !important;
-    background: hsl(267 32% 95% / 1) !important;
-    color: hsl(265 80% 35% / 1) !important;
-    box-shadow: 0 3px 12px rgb(31 39 65 / 0.09)
+html[data-theme="light"] [data-open-import-decision] {border:1px solid hsl(263 38% 84% / 1)!important;background:hsl(267 32% 95% / 1)!important;color:hsl(265 80% 35% / 1)!important;box-shadow:0 3px 12px rgb(31 39 65 / 0.09)
 }
-
-html[data-theme="light"] [data-open-import-decision]:hover {
-    background: hsl(267 32% 94% / 1) !important;
-    border-color: hsl(265 38% 84% / 1) !important
+html[data-theme="light"] [data-open-import-decision]:hover {background:hsl(267 32% 94% / 1)!important;border-color:hsl(265 38% 84% / 1)!important
 }
-
-html[data-theme="light"] [data-open-import-decision]:focus-visible {
-    outline: 2px solid hsl(264 38% 84% / 1)
+html[data-theme="light"] [data-open-import-decision]:focus-visible {outline:2px solid hsl(264 38% 84% / 1)
 }
-
 html[data-theme="light"] .published-price-table th,
-html[data-theme="light"] .published-price-table td {
-    border-bottom: 1px solid hsl(230 19% 84% / 1)
+html[data-theme="light"] .published-price-table td {border-bottom:1px solid hsl(230 19% 84% / 1)
 }
-
-html[data-theme="light"] .published-price-table th {
-    color: #626b80
+html[data-theme="light"] .published-price-table th {color:#626b80
 }
-
-html[data-theme="light"] .published-price-table td>strong {
-    color: hsl(225 40% 35% / 1)
+html[data-theme="light"] .published-price-table td>strong {color:hsl(225 40% 35% / 1)
 }
-
-html[data-theme="light"] .published-price-table td>small {
-    color: #626b80
+html[data-theme="light"] .published-price-table td>small {color:#626b80
 }
-
-html[data-theme="light"] .published-price-table input[type=checkbox] {
-    accent-color: hsl(263 65% 35% / 1)
+html[data-theme="light"] .published-price-table input[type=checkbox] {accent-color:hsl(263 65% 35% / 1)
 }
-
-html[data-theme="light"] .supplier-price-dialog {
-    border: 1px solid hsl(265 38% 84% / 1);
-    background: hsl(228 29% 97% / 1);
-    color: hsl(228 40% 35% / 1)
+html[data-theme="light"] .supplier-price-dialog {border:1px solid hsl(265 38% 84% / 1);background:hsl(228 29% 97% / 1);color:hsl(228 40% 35% / 1)
 }
-
-html[data-theme="light"] .supplier-price-dialog::backdrop {
-    background: hsl(0 0% 98% / 0.65)
+html[data-theme="light"] .supplier-price-dialog::backdrop {background:hsl(0 0% 98% / 0.65)
 }
-
-html[data-theme="light"] .supplier-price-dialog-header button {
-    border: 1px solid hsl(229 17% 84% / 1);
-    background: hsl(227 28% 96% / 1);
-    color: hsl(228 40% 35% / 1)
+html[data-theme="light"] .supplier-price-dialog-header button {border:1px solid hsl(229 17% 84% / 1);background:hsl(227 28% 96% / 1);color:hsl(228 40% 35% / 1)
 }
-
-html[data-theme="light"] .supplier-price-dialog .catalog-sync h3 {
-    color: hsl(263 80% 35% / 1)
+html[data-theme="light"] .supplier-price-dialog .catalog-sync h3 {color:hsl(263 80% 35% / 1)
 }
-
-html[data-theme="light"] .published-price-pagination {
-    color: #626b80
+html[data-theme="light"] .published-price-pagination {color:#626b80
 }
-
 html[data-theme="light"] .published-price-pagination nav a,
-html[data-theme="light"] .published-price-pagination nav span {
-    border: 1px solid hsl(228 17% 84% / 1);
-    background: hsl(228 27% 97% / 1);
-    color: hsl(226 40% 35% / 1)
+html[data-theme="light"] .published-price-pagination nav span {border:1px solid hsl(228 17% 84% / 1);background:hsl(228 27% 97% / 1);color:hsl(226 40% 35% / 1)
 }
-
-html[data-theme="light"] .published-price-pagination .page-current {
-    border-color: hsl(263 38% 84% / 1);
-    background: #6634a8;
-    color: #fff
+html[data-theme="light"] .published-price-pagination .page-current {border-color:hsl(263 38% 84% / 1);background:#6634a8;color:#fff
 }
-
-html[data-theme="light"] .supplier-import-form select {
-    border: 1px solid hsl(264 32% 84% / 1);
-    background: hsl(227 29% 97% / 1);
-    color: #202338
+html[data-theme="light"] .supplier-import-form select {border:1px solid hsl(264 32% 84% / 1);background:hsl(227 29% 97% / 1);color:#202338
 }
-
-html[data-theme="light"] .import-row-form input {
-    border: 1px solid hsl(264 32% 84% / 1);
-    background: hsl(227 29% 97% / 1);
-    color: #202338
+html[data-theme="light"] .import-row-form input {border:1px solid hsl(264 32% 84% / 1);background:hsl(227 29% 97% / 1);color:#202338
 }
-
-html[data-theme="light"] .import-review-confirm input {
-    accent-color: hsl(263 65% 35% / 1)
+html[data-theme="light"] .import-review-confirm input {accent-color:hsl(263 65% 35% / 1)
 }
-
-html[data-theme="light"] .supplier-catalog-option select {
-    border: 1px solid hsl(262 31% 84% / 1);
-    background: hsl(229 24% 97% / 1);
-    color: #202338
+html[data-theme="light"] .supplier-catalog-option select {border:1px solid hsl(262 31% 84% / 1);background:hsl(229 24% 97% / 1);color:#202338
+}
+html[data-theme="light"] .supplier-review-list button[aria-current] { border-color: hsl(263 38% 84% / 1)
+}
+html[data-theme="light"] .supplier-review-dialog::backdrop { background: hsl(0 0% 98% / 0.65)
 }

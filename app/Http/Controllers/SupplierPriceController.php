@@ -88,6 +88,8 @@ class SupplierPriceController extends Controller
             ->latest()
             ->orderByDesc('supplier_import_id')
             ->get();
+        $publishedPriceList = $imports->where('status', 'approved')->whereNull('archived_at')
+            ->sortByDesc('approved_at')->first()?->getKey() ?? 0;
         $importHistory = SupplierImport::query()->with('supplier')->latest()->orderByDesc('supplier_import_id')
             ->paginate(\App\Support\TablePagination::size($request, 'history_rows'), ['*'], 'history_page')
             ->withQueryString()->fragment('import-history');
@@ -118,7 +120,7 @@ class SupplierPriceController extends Controller
             'stale' => (clone $priceSummaryQuery)->reorder()->where('last_updated_at', '<', now()->subDays(30))->count(),
         ];
 
-        return view('admin.suppliers', compact('prices', 'imports', 'importHistory', 'selectedImport', 'importRows', 'summary', 'catalogProducts', 'categories', 'shelves', 'sort', 'search', 'importSearch', 'perPage'));
+        return view('admin.suppliers', compact('prices', 'imports', 'publishedPriceList', 'importHistory', 'selectedImport', 'importRows', 'summary', 'catalogProducts', 'categories', 'shelves', 'sort', 'search', 'importSearch', 'perPage'));
     }
 
     public function upload(Request $request, SupplierSpreadsheetImporter $importer, \App\Services\AiSupplierPriceExtractor $extractor): RedirectResponse
@@ -131,7 +133,7 @@ class SupplierPriceController extends Controller
             'supplier_code' => ['required', 'string', 'max:50', 'regex:/^[A-Za-z0-9_-]+$/'],
             'import_mode' => ['nullable', Rule::in(['spreadsheet', 'ai'])],
             'default_currency' => ['required', 'regex:/^[A-Z]{3}$/'],
-            'price_file' => ['required', 'file', 'max:'.($mode === 'ai' ? '5120' : '10240'), 'mimes:'.$types],
+            'price_file' => ['required', 'file', 'mimes:'.$types],
         ]);
         $file = $request->file('price_file');
         $fileHash = hash_file('sha256', $file->getRealPath());
@@ -140,9 +142,6 @@ class SupplierPriceController extends Controller
         try {
             // Known supplier headings convert locally; unfamiliar layouts use AI automatically.
             if ($mode !== 'ai' && ! $importer->recognizesColumns($file->getRealPath(), $file->getClientOriginalExtension())) {
-                if ($file->getSize() > 5 * 1024 * 1024) {
-                    throw new InvalidArgumentException('This unfamiliar layout needs AI formatting. Split the file into files under 5 MB and 200 items.');
-                }
                 $mode = 'ai';
             }
             $rows = $mode === 'ai' ? $extractor->extract($file, $validated['default_currency']) : null;
@@ -182,6 +181,8 @@ class SupplierPriceController extends Controller
         $values = $request->validate([
             'supplier_sku' => ['required', 'string', 'max:255'], 'product_name' => ['required', 'string', 'max:255'],
             'unit_price' => ['required', 'numeric', 'gt:0', 'max:9999999999.99'], 'currency' => ['required', 'regex:/^[A-Z]{3}$/'],
+            'manufacturer_part_number' => ['sometimes', 'nullable', 'string', 'max:150'],
+            'shop_received_quantity' => ['sometimes', 'nullable', 'integer', 'min:0', 'max:2147483647'],
             'confirm_review' => ['accepted'],
         ]);
         unset($values['confirm_review']);
@@ -204,9 +205,7 @@ class SupplierPriceController extends Controller
             $supplierImport = SupplierImport::query()->lockForUpdate()->findOrFail($supplierImport->supplier_import_id);
             abort_unless($supplierImport->status === 'pending' && !$supplierImport->archived_at, 409, 'This import has already been processed or archived.');
             if ($supplierImport->error_count > 0) throw ValidationException::withMessages(['import' => 'Review and correct the flagged import rows before approval.']);
-            $supplierImport->load('rows');
-
-            foreach ($supplierImport->rows as $row) {
+            foreach ($supplierImport->rows()->lazyById(250, 'supplier_import_row_id') as $row) {
                 if (! $row->product_id) {
                     $matchedProduct = $productMatcher->match($row->internal_sku, $row->supplier_sku, $row->product_name);
                     if ($matchedProduct) {
@@ -234,6 +233,8 @@ class SupplierPriceController extends Controller
                     'minimum_order_quantity' => $row->minimum_order_quantity,
                     'lead_time_days' => $row->lead_time_days,
                     'effective_date' => $row->effective_date,
+                    'manufacturer_part_number' => $row->manufacturer_part_number,
+                    'shop_received_quantity' => $row->shop_received_quantity,
                     'source_type' => $supplierImport->extraction_method === 'ai' ? 'ai_document' : 'spreadsheet',
                     'source_filename' => $supplierImport->source_filename,
                     'last_updated_at' => now(),
@@ -325,6 +326,7 @@ class SupplierPriceController extends Controller
         $validated = $request->validate([
             'sku' => ['required', 'string', 'max:100'],
             'selling_price' => ['required', 'numeric', 'min:0', 'max:9999999999.99'],
+            'initial_stock' => ['sometimes', 'required', 'integer', 'min:0', 'max:2147483647'],
             'manufacturer_part_number' => ['required', 'string', 'max:150'],
             'category' => ['nullable', 'string', 'max:100'],
             'new_category' => ['nullable', 'required_if:category,__new__', 'string', 'max:100', 'regex:/\S/u'],
@@ -344,6 +346,11 @@ class SupplierPriceController extends Controller
         ], $inactiveProduct);
 
         $product = DB::transaction(function () use ($validated, $supplierPrice, $request, $inactiveProduct) {
+            $supplierPrice = SupplierPrice::query()->lockForUpdate()->findOrFail($supplierPrice->getKey());
+            if ($supplierPrice->product_id) {
+                throw ValidationException::withMessages(['product_id' => 'This supplier item is already matched to a product.']);
+            }
+            $openingStock = (int) ($validated['initial_stock'] ?? 0);
             $attributes = [
                 'sku' => trim($validated['sku']),
                 'name' => $supplierPrice->product_name,
@@ -353,7 +360,7 @@ class SupplierPriceController extends Controller
                 'shelf_location' => $this->nullableCleanString($validated['shelf_location'] ?? null),
                 'unit_cost' => $supplierPrice->unit_price,
                 'unit_price' => $validated['selling_price'],
-                'current_stock' => 0,
+                'current_stock' => $openingStock,
                 'reorder_level' => $validated['reorder_level'],
                 'is_active' => true,
                 'dead_stock_archived_at' => null,
@@ -376,7 +383,7 @@ class SupplierPriceController extends Controller
             InventoryLedger::create([
                 'product_id' => $product->product_id,
                 'user_id' => $request->user()->id,
-                'qty_in' => 0,
+                'qty_in' => $openingStock,
                 'qty_out' => 0,
                 'reason_code' => 'SUPPLIER_IMPORT',
                 'logs' => ($inactiveProduct ? 'Previously deleted product restored' : 'Product created')
@@ -393,105 +400,224 @@ class SupplierPriceController extends Controller
         });
 
         return back()->with('success', $inactiveProduct
-            ? "Deleted SKU {$product->sku} was restored in Products with zero store stock and matched to this supplier price."
-            : "{$product->sku} was added to Products with zero store stock and matched to this supplier price.");
+            ? "Deleted SKU {$product->sku} was restored with {$product->current_stock} opening units and matched to this supplier price."
+            : "{$product->sku} was added with {$product->current_stock} opening units and matched to this supplier price.");
+    }
+
+    public function validateBulkSelection(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $ids = $request->validate([
+            'supplier_price_ids' => ['required', 'array', 'min:1', 'max:500'],
+            'supplier_price_ids.*' => ['required', 'integer', 'min:1'],
+        ])['supplier_price_ids'];
+
+        $eligible = SupplierPrice::whereIntegerInRaw('supplier_price_id', $ids)
+            ->whereNull('product_id')
+            ->get(['supplier_price_id', 'currency'])
+            ->filter(fn (SupplierPrice $price) => strtoupper($price->currency) === 'PHP')
+            ->pluck('supplier_price_id')->values();
+
+        return response()->json(['ids' => $eligible]);
+    }
+
+    public function startBulkReview(Request $request): RedirectResponse
+    {
+        $ids = $request->validate([
+            'supplier_price_ids' => ['required', 'array', 'min:1', 'max:500'],
+            'supplier_price_ids.*' => ['required', 'integer', 'distinct', 'exists:supplier_prices,supplier_price_id'],
+        ])['supplier_price_ids'];
+
+        $prices = SupplierPrice::whereIn('supplier_price_id', $ids)->get()->keyBy('supplier_price_id');
+        $entries = [];
+        foreach ($ids as $id) {
+            $price = $prices->get($id);
+            if (! $price) {
+                throw ValidationException::withMessages(['supplier_price_ids' => 'A selected supplier price was deleted. Refresh your selection and try again.']);
+            }
+            if ($price->product_id || strtoupper($price->currency) !== 'PHP') {
+                throw ValidationException::withMessages(['supplier_price_ids' => "Supplier item {$price->supplier_sku} is no longer eligible."]);
+            }
+            $entries[$id] = [
+                'manufacturer_part_number' => $price->manufacturer_part_number,
+                'initial_stock' => (int) ($price->available_quantity ?? $price->shop_received_quantity ?? 0),
+                'reorder_level' => 5,
+            ];
+        }
+
+        $batch = (string) Str::uuid();
+        $request->session()->put("supplier_bulk.{$batch}", [
+            'owner' => $request->user()->id, 'entries' => $entries,
+            'popup' => $request->boolean('popup'),
+        ]);
+
+        return redirect()->route('admin.suppliers.bulk.review', ['batch' => $batch]);
+    }
+
+    public function bulkReview(Request $request, string $batch): View
+    {
+        $draft = $this->bulkDraft($request, $batch);
+        $entries = $draft['entries'];
+        $prices = SupplierPrice::whereIn('supplier_price_id', array_keys($entries))->get()->keyBy('supplier_price_id');
+        $ready = [];
+        foreach ($entries as $id => $details) {
+            $ready[$id] = isset($prices[$id]) && $this->bulkDetailsValidator($details, $prices[$id])->passes();
+        }
+        $selected = $request->integer('item', array_key_first($entries));
+        abort_unless(array_key_exists($selected, $entries), 404);
+        $categories = Product::whereNotNull('category')->distinct()->orderBy('category')->pluck('category');
+        $shelves = Product::whereNotNull('shelf_location')->distinct()->orderBy('shelf_location')->pluck('shelf_location');
+
+        return view('admin.supplier-bulk-review', compact('batch', 'entries', 'prices', 'ready', 'selected', 'categories', 'shelves'));
+    }
+
+    public function saveBulkReview(Request $request, string $batch, int $item): RedirectResponse
+    {
+        $draft = $this->bulkDraft($request, $batch);
+        abort_unless(array_key_exists($item, $draft['entries']), 404);
+        $price = SupplierPrice::findOrFail($item);
+        $details = $request->only(array_keys($this->bulkDetailsRules()));
+        // Keep invalid scalar entries so the owner can correct them.
+        $draft['entries'][$item] = array_filter($details, fn ($value) => is_scalar($value) || $value === null);
+        $request->session()->put("supplier_bulk.{$batch}", $draft);
+        $destination = $request->integer('destination');
+        if (array_key_exists($destination, $draft['entries'])) {
+            return redirect()->route('admin.suppliers.bulk.review', ['batch' => $batch, 'item' => $destination]);
+        }
+
+        $validation = $this->bulkDetailsValidator($details, $price);
+        if ($validation->fails()) {
+            return redirect()->route('admin.suppliers.bulk.review', ['batch' => $batch, 'item' => $item])
+                ->withErrors($validation);
+        }
+
+        $prices = SupplierPrice::whereIn('supplier_price_id', array_keys($draft['entries']))->get()->keyBy('supplier_price_id');
+        foreach ($draft['entries'] as $id => $entry) {
+            if (!isset($prices[$id]) || $this->bulkDetailsValidator($entry, $prices[$id])->fails()) {
+                return redirect()->route('admin.suppliers.bulk.review', ['batch' => $batch, 'item' => $id]);
+            }
+        }
+
+        return redirect()->route('admin.suppliers.bulk.review', ['batch' => $batch, 'item' => $item]);
     }
 
     public function bulkCreateProducts(Request $request, ProductDuplicateGuard $duplicates): RedirectResponse
     {
-        $validated = $request->validate([
-            'supplier_price_ids' => ['required', 'array', 'min:1', 'max:500'],
-            'supplier_price_ids.*' => ['integer', 'distinct', 'exists:supplier_prices,supplier_price_id'],
-            'initial_stocks' => ['sometimes', 'array', 'max:500'],
-            'initial_stocks.*' => ['required', 'integer', 'min:0', 'max:2147483647'],
-            'markup_percent' => ['required', 'numeric', 'min:0', 'max:1000'],
-            'category' => ['nullable', 'string', 'max:100'],
-            'new_category' => ['nullable', 'required_if:category,__new__', 'string', 'max:100', 'regex:/\S/u'],
-            'shelf_location' => ['nullable', 'string', 'max:100'],
-            'new_shelf_location' => ['nullable', 'required_if:shelf_location,__new__', 'string', 'max:100', 'regex:/\S/u'],
-            'reorder_level' => ['required', 'integer', 'min:0', 'max:2147483647'],
-        ]);
-
-        $validated = $this->resolveCatalogOptions($validated);
-
-        $prices = SupplierPrice::query()
-            ->with('supplier')
-            ->whereIn('supplier_price_id', $validated['supplier_price_ids'])
-            ->whereNull('product_id')
-            ->orderBy('supplier_price_id')
-            ->get();
-
-        if ($prices->count() !== count($validated['supplier_price_ids'])) {
-            throw ValidationException::withMessages([
-                'supplier_price_ids' => 'One or more selected supplier items are already matched or no longer available.',
-            ]);
+        $batch = $request->validate(['batch' => ['required', 'uuid']])['batch'];
+        if ($request->session()->get("supplier_bulk_completed.{$batch}") === $request->user()->id) {
+            return redirect()->route('admin.suppliers')->with('success', 'This batch was already created.');
         }
-
-        foreach ($prices as $price) {
-            $this->ensurePesoPrice($price);
-            if (round((float) $price->unit_price * (1 + ((float) $validated['markup_percent'] / 100)), 2) > 9999999999.99) {
-                throw ValidationException::withMessages(['markup_percent' => 'The markup produces a selling price above the maximum supported amount.']);
-            }
-        }
-
-        $created = DB::transaction(function () use ($prices, $validated, $request, $duplicates) {
-            $count = 0;
-            foreach ($prices as $price) {
-                $sku = trim($price->supplier_sku);
-                $initialStock = (int) ($validated['initial_stocks'][$price->supplier_price_id] ?? 0);
-                $inactiveProduct = $duplicates->findInactiveBySku($sku);
-                $duplicates->assertUnique([
-                    'sku' => $sku,
-                    'name' => $price->product_name,
-                    'manufacturer_part_number' => $sku,
-                ], $inactiveProduct, 'bulk_create');
-
-                $attributes = [
-                    'sku' => $sku,
-                    'name' => $price->product_name,
-                    'manufacturer_part_number' => $sku,
-                    'description' => "Bulk-created from {$price->supplier->name} supplier price {$price->supplier_sku}.",
-                    'category' => $this->nullableCleanString($validated['category'] ?? null),
-                    'shelf_location' => $this->nullableCleanString($validated['shelf_location'] ?? null),
-                    'unit_cost' => $price->unit_price,
-                    'unit_price' => round((float) $price->unit_price * (1 + ((float) $validated['markup_percent'] / 100)), 2),
-                    'current_stock' => $initialStock,
-                    'reorder_level' => $validated['reorder_level'],
-                    'is_active' => true,
-                    'dead_stock_archived_at' => null,
-                    'dead_stock_archived_by' => null,
-                    'dead_stock_archive_note' => null,
-                ];
-
-                if ($inactiveProduct) {
-                    $product = Product::query()->lockForUpdate()->findOrFail($inactiveProduct->product_id);
-                    if ($product->is_active || (int) $product->current_stock !== 0) {
-                        throw ValidationException::withMessages([
-                            'supplier_price_ids' => "Deleted SKU {$sku} cannot be restored because it is active or still has stock.",
-                        ])->errorBag('bulk_create');
+        $draft = $this->bulkDraft($request, $batch);
+        $item = array_key_first($draft['entries']);
+        try {
+            DB::transaction(function () use ($request, $draft, $duplicates, &$item) {
+                $prices = SupplierPrice::with('supplier')->whereIn('supplier_price_id', array_keys($draft['entries']))
+                    ->orderBy('supplier_price_id')->lockForUpdate()->get()->keyBy('supplier_price_id');
+                foreach ($draft['entries'] as $item => $entry) {
+                    $price = $prices->get($item);
+                    if (!$price) {
+                        throw ValidationException::withMessages(['supplier_price' => 'This supplier item was removed. Start a new review.']);
                     }
-                    $product->update($attributes);
-                } else {
-                    $product = Product::create($attributes);
+                    $details = $this->resolveCatalogOptions($this->bulkDetailsValidator($entry, $price)->validate());
+                    $sku = trim($price->supplier_sku);
+                    $initialStock = (int) $details['initial_stock'];
+                    $inactiveProduct = $duplicates->findInactiveBySku($sku);
+                    $duplicates->assertUnique([
+                        'sku' => $sku,
+                        'name' => $price->product_name,
+                        'manufacturer_part_number' => $details['manufacturer_part_number'],
+                    ], $inactiveProduct, 'bulk_create');
+
+                    $attributes = [
+                        'sku' => $sku,
+                        'name' => $price->product_name,
+                        'manufacturer_part_number' => $details['manufacturer_part_number'],
+                        'description' => "Bulk-created from {$price->supplier->name} supplier price {$price->supplier_sku}.",
+                        'category' => $this->nullableCleanString($details['category'] ?? null),
+                        'shelf_location' => $this->nullableCleanString($details['shelf_location'] ?? null),
+                        'unit_cost' => $price->unit_price,
+                        'unit_price' => round((float) $price->unit_price * (1 + ((float) $details['markup_percent'] / 100)), 2),
+                        'current_stock' => $initialStock,
+                        'reorder_level' => $details['reorder_level'],
+                        'is_active' => true,
+                        'dead_stock_archived_at' => null,
+                        'dead_stock_archived_by' => null,
+                        'dead_stock_archive_note' => null,
+                    ];
+
+                    if ($inactiveProduct) {
+                        $product = Product::query()->lockForUpdate()->findOrFail($inactiveProduct->product_id);
+                        if ($product->is_active || (int) $product->current_stock !== 0) {
+                            throw ValidationException::withMessages([
+                                'supplier_price_ids' => "Deleted SKU {$sku} cannot be restored because it is active or still has stock.",
+                            ])->errorBag('bulk_create');
+                        }
+                        $product->update($attributes);
+                    } else {
+                        $product = Product::create($attributes);
+                    }
+
+                    if ($initialStock > 0) {
+                        InventoryLedger::create([
+                            'product_id' => $product->product_id,
+                            'user_id' => $request->user()->id,
+                            'qty_in' => $initialStock,
+                            'qty_out' => 0,
+                            'reason_code' => 'SUPPLIER_IMPORT',
+                            'logs' => "Opening stock of {$initialStock} units from supplier item {$price->supplier_sku}.",
+                        ]);
+                    }
+                    $price->update(['product_id' => $product->product_id, 'auto_match_disabled' => false]);
+                    $this->syncImportRowMatches($price, $product);
                 }
+            });
+        } catch (ValidationException $error) {
+            return redirect()->route('admin.suppliers.bulk.review', ['batch' => $batch, 'item' => $item])
+                ->withErrors($error->errors());
+        }
 
-                InventoryLedger::create([
-                    'product_id' => $product->product_id,
-                    'user_id' => $request->user()->id,
-                    'qty_in' => $initialStock,
-                    'qty_out' => 0,
-                    'reason_code' => 'SUPPLIER_IMPORT',
-                    'logs' => "Product bulk-created from supplier price {$price->supplier_sku} with {$initialStock} opening units entered by the owner. Supplier availability was not copied to store inventory.",
-                ]);
-                $price->update(['product_id' => $product->product_id, 'auto_match_disabled' => false]);
-                $this->syncImportRowMatches($price, $product);
-                $count++;
+        $request->session()->forget("supplier_bulk.{$batch}");
+        $request->session()->put("supplier_bulk_completed.{$batch}", $request->user()->id);
+
+        return redirect()->route('admin.suppliers')
+            ->with('bulk_review_finished', $draft['popup'] ?? false)
+            ->with('success', count($draft['entries']).' supplier products created.');
+    }
+
+    private function bulkDraft(Request $request, string $batch): array
+    {
+        abort_unless(Str::isUuid($batch), 404);
+        $draft = $request->session()->get("supplier_bulk.{$batch}");
+        abort_unless($draft && $draft['owner'] === $request->user()->id, 404);
+
+        return $draft;
+    }
+
+    private function bulkDetailsRules(): array
+    {
+        return [
+            'manufacturer_part_number' => ['required', 'string', 'max:150', 'regex:/\S/u'],
+            'category' => ['nullable', 'string', 'max:100'],
+            'shelf_location' => ['nullable', 'string', 'max:100'],
+            'initial_stock' => ['required', 'integer', 'min:0', 'max:2147483647'],
+            'reorder_level' => ['required', 'integer', 'min:0', 'max:2147483647'],
+            'markup_percent' => ['required', 'numeric', 'min:0', 'max:1000'],
+        ];
+    }
+
+    private function bulkDetailsValidator(array $details, SupplierPrice $price): \Illuminate\Validation\Validator
+    {
+        return validator($details, $this->bulkDetailsRules())->after(function ($validator) use ($price, $details) {
+            if ($price->product_id || strtoupper($price->currency) !== 'PHP') {
+                $validator->errors()->add('supplier_price', 'This supplier item is already matched or does not have a PHP price.');
             }
-
-            return $count;
+            if (mb_strlen(trim($price->supplier_sku)) > 100) {
+                $validator->errors()->add('sku', 'The supplier SKU exceeds the product SKU limit of 100 characters.');
+            }
+            if (is_numeric($details['markup_percent'] ?? null)
+                && round((float) $price->unit_price * (1 + (float) $details['markup_percent'] / 100), 2) > 9999999999.99) {
+                $validator->errors()->add('markup_percent', 'The selling price exceeds the supported amount.');
+            }
         });
-
-        return back()->with('success', "{$created} supplier ".Str::plural('item', $created).' added to Products with the entered opening stock.');
     }
 
     public function reject(SupplierImport $supplierImport): RedirectResponse
@@ -499,10 +625,10 @@ class SupplierPriceController extends Controller
         DB::transaction(function () use ($supplierImport) {
             $supplierImport = SupplierImport::query()->lockForUpdate()->findOrFail($supplierImport->supplier_import_id);
             abort_unless($supplierImport->status === 'pending' && !$supplierImport->archived_at, 409, 'This import has already been processed or archived.');
-            $supplierImport->update(['status' => 'rejected']);
+            $supplierImport->delete();
         });
 
-        return redirect()->route('admin.suppliers')->with('success', 'Import rejected. No prices were changed.');
+        return redirect()->route('admin.suppliers')->with('success', 'Import rejected and removed.');
     }
 
     public function purge(Request $request): RedirectResponse

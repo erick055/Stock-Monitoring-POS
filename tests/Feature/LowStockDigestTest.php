@@ -22,7 +22,7 @@ class LowStockDigestTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_manual_check_of_one_hundred_products_queues_one_digest_and_one_history_row(): void
+    public function test_manual_check_of_one_hundred_products_sends_one_digest_and_records_each_click(): void
     {
         Mail::fake();
         Queue::fake();
@@ -33,18 +33,26 @@ class LowStockDigestTest extends TestCase
         }
         Product::create(['sku' => 'B2-WARNING', 'name' => 'Warning part', 'current_stock' => 8, 'reorder_level' => 5]);
         $this->actingAs($owner)->post(route('admin.low-stocks.run-now'))->assertRedirect();
-        Mail::assertNothingSent();
-        Queue::assertPushed(SendStockAlertDigest::class, 1);
+        Mail::assertSent(InventoryAlertMail::class, 1);
+        Queue::assertNothingPushed();
         $this->assertDatabaseCount('stock_alert_deliveries', 1);
         $delivery = StockAlertDelivery::firstOrFail();
-        $this->assertSame('queued', $delivery->status);
+        $this->assertSame('sent', $delivery->status);
         $this->assertNull($delivery->product_id);
-        foreach (['B2-1', 'B2-100', 'B2-WARNING'] as $sku) {
+        foreach (['B2-1', 'B2-100'] as $sku) {
             $this->assertStringContainsString($sku, $delivery->message);
         }
-        $this->post(route('admin.low-stocks.run-now'))->assertRedirect();
-        Queue::assertPushed(SendStockAlertDigest::class, 1);
+        $this->assertStringNotContainsString('B2-WARNING', $delivery->message);
+        $this->get(route('admin.low-stocks.export-pdf'))->assertOk()
+            ->assertSee('Print / Save as PDF')
+            ->assertSee('MotoSync Inventory Alert Digest')
+            ->assertSee('B2-100')
+            ->assertDontSee('B2-WARNING');
+        Mail::assertSent(InventoryAlertMail::class, 1);
         $this->assertDatabaseCount('stock_alert_deliveries', 1);
+        $this->post(route('admin.low-stocks.run-now'))->assertRedirect();
+        Mail::assertSent(InventoryAlertMail::class, 2);
+        $this->assertDatabaseCount('stock_alert_deliveries', 2);
     }
 
     public function test_delivery_uses_the_database_queue_even_with_a_sync_default(): void
@@ -138,7 +146,8 @@ class LowStockDigestTest extends TestCase
         $state = StockAlertState::firstOrFail();
         $this->assertNull($state->last_notified_at);
         $this->assertNull($state->pending_delivery_id);
-        $this->assertSame(1, $alerts->checkAll(force: true));
+        $this->assertSame(1, $alerts->checkAll());
+        $this->assertSame(0, $alerts->checkAll());
         Queue::assertPushed(SendStockAlertDigest::class, 2);
     }
 
@@ -157,17 +166,37 @@ class LowStockDigestTest extends TestCase
         $this->assertDatabaseCount('stock_alert_states', 0);
     }
 
-    public function test_daily_summary_failure_releases_the_day_and_shares_the_product_cooldown(): void
+    public function test_daily_summary_queues_at_the_configured_manila_time_once_per_day(): void
+    {
+        Queue::fake();
+        StockAlertSetting::create([
+            'daily_summary_enabled' => true,
+            'notification_email' => 'alerts@example.com',
+            'daily_summary_time' => '18:30',
+        ]);
+        $alerts = app(LowStockAlertService::class);
+        $this->travelTo(Carbon::parse('2026-11-13 18:29:59', 'Asia/Manila'));
+        $this->assertSame(0, $alerts->sendDailySummaryIfDue());
+        $this->travelTo(Carbon::parse('2026-11-13 18:30:00', 'Asia/Manila'));
+        $this->assertSame(1, $alerts->sendDailySummaryIfDue());
+        $this->travelTo(Carbon::parse('2026-11-13 18:31:00', 'Asia/Manila'));
+        $this->assertSame(0, $alerts->sendDailySummaryIfDue());
+        Queue::assertPushed(SendStockAlertDigest::class, 1);
+    }
+
+    public function test_daily_summary_can_send_after_an_immediate_alert_and_retry_after_failure(): void
     {
         Queue::fake();
         Mail::fake();
         StockAlertSetting::create(['email_enabled' => true, 'daily_summary_enabled' => true, 'notification_email' => 'alerts@example.com', 'daily_summary_time' => '00:00']);
         Product::create(['sku' => 'DAILY-RETRY', 'name' => 'Daily retry', 'current_stock' => 0, 'reorder_level' => 5]);
         $alerts = app(LowStockAlertService::class);
+        $this->assertSame(1, $alerts->checkAll());
+        Queue::pushed(SendStockAlertDigest::class)->first()->handle();
         $this->assertSame(1, $alerts->sendDailySummaryIfDue());
-        $this->assertSame(0, $alerts->sendDailySummaryIfDue(force: true));
+        $this->assertSame(0, $alerts->sendDailySummaryIfDue());
         $this->assertSame(0, $alerts->checkAll(force: true));
-        $job = Queue::pushed(SendStockAlertDigest::class)->first();
+        $job = Queue::pushed(SendStockAlertDigest::class)->last();
         $job->failed(new \RuntimeException('Delivery failed'));
         $this->assertNull(StockAlertSetting::firstOrFail()->last_daily_summary_at);
         $this->assertSame(1, $alerts->sendDailySummaryIfDue());
@@ -176,6 +205,6 @@ class LowStockDigestTest extends TestCase
         $retry = Queue::pushed(SendStockAlertDigest::class)->last();
         $retry->handle();
         $this->assertSame(0, $alerts->checkAll(force: true));
-        Mail::assertSent(InventoryAlertMail::class, 1);
+        Mail::assertSent(InventoryAlertMail::class, 2);
     }
 }

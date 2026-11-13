@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\CustomerReturn;
 use App\Models\Product;
+use App\Models\SalesItem;
 use App\Models\SalesTarget;
 use App\Models\SalesTransaction;
 use App\Models\User;
@@ -59,6 +60,7 @@ class SalesTargetTest extends TestCase
         $this->assertEquals(35000, $target['achieved']);
         $this->assertEquals(70, $target['percent']);
         $this->assertEquals(15000, $target['remaining']);
+        $this->assertNull($target['gross_profit']);
         $this->assertSame('In progress', $target['status']);
         SalesTarget::query()->update(['amount' => 10000]);
         $target = app(SalesTargetService::class)->current();
@@ -67,6 +69,39 @@ class SalesTargetTest extends TestCase
         $this->assertEquals(0, $target['remaining']);
         $this->assertSame('Achieved', $target['status']);
         $this->actingAs($owner)->get(route('admin.dashboard'))->assertOk()->assertSee('Monthly Sales Target')->assertSee('350.0%');
+    }
+
+    public function test_monthly_card_shows_recovery_and_profit_after_sellable_and_damaged_returns(): void
+    {
+        $this->travelTo(now()->setDate(2026, 11, 5)->setTime(12, 0));
+        $owner = User::factory()->create(['role' => 'admin']);
+        $product = Product::create(['sku' => 'MARGIN', 'name' => 'Stock part', 'unit_cost' => 1200]);
+        SalesTarget::create(['month' => '2026-11-01', 'amount' => 100000]);
+        $sale = SalesTransaction::create(['staff_id' => $owner->id, 'total_sale_amount' => 115000,
+            'payment_status' => 'paid', 'sale_date' => now()->subDay()]);
+        SalesItem::create(['sale_id' => $sale->sale_id, 'product_id' => $product->product_id, 'quantity' => 115,
+            'unit_sale_price' => 1000, 'unit_cost' => 700, 'line_total' => 115000]);
+
+        foreach (['sellable' => 3, 'damaged' => 2] as $condition => $quantity) {
+            CustomerReturn::create(['sale_id' => $sale->sale_id, 'product_id' => $product->product_id,
+                'quantity' => $quantity, 'reason' => 'Return', 'item_condition' => $condition,
+                'refund_amount' => 1000 * $quantity, 'status' => 'approved', 'returned_at' => now(), 'approved_at' => now()]);
+        }
+
+        $target = app(SalesTargetService::class)->current();
+        $this->assertEquals(115000, $target['gross_sales']);
+        $this->assertEquals(5000, $target['refunds']);
+        $this->assertEquals(110000, $target['achieved']);
+        $this->assertEquals(100000, $target['recovered']);
+        $this->assertEquals(10000, $target['above_target']);
+        $this->assertEquals(105000, $target['gross_sales_needed']);
+        $this->assertEquals(31600, $target['gross_profit']);
+
+        $this->actingAs($owner)->get(route('admin.dashboard'))->assertOk()
+            ->assertSee('Stock Cost Recovery')->assertSee('110.0%')->assertSee('₱31,600.00')
+            ->assertSee('sales-target-refunds')->assertSee('sales-target-surplus');
+        $this->get(route('admin.analytics', ['tab' => 'targets']))->assertOk()
+            ->assertSee('Gross Sales Needed After Refunds')->assertSee('₱105,000.00');
     }
 
     public function test_history_is_paginated_with_past_and_future_statuses_and_panels_render_once(): void

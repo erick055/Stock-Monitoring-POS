@@ -262,7 +262,7 @@ class LowStocksPageTest extends TestCase
             ->from(route('admin.low-stocks'))
             ->post(route('admin.low-stocks.run-now'))
             ->assertRedirect(route('admin.low-stocks'))
-            ->assertSessionHas('success');
+            ->assertSessionHas('error', 'Save an email destination before running an alert check.');
 
         $this->actingAs($admin)
             ->get(route('admin.low-stocks'))
@@ -270,12 +270,12 @@ class LowStocksPageTest extends TestCase
             ->assertSee('Provider unavailable');
     }
 
-    public function test_run_now_forces_a_new_delivery_for_an_existing_low_stock_state(): void
+    public function test_run_now_sends_an_existing_low_stock_item_with_automatic_email_disabled(): void
     {
         Mail::fake();
         $admin = User::factory()->create(['role' => 'admin']);
         StockAlertSetting::create([
-            'email_enabled' => true,
+            'email_enabled' => false,
             'notification_email' => 'alerts@example.com',
         ]);
         $product = Product::create([
@@ -287,16 +287,21 @@ class LowStocksPageTest extends TestCase
             'severity' => 'critical',
             'last_stock' => 2,
             'last_checked_at' => now(),
+            'last_notified_at' => now(),
         ]);
 
         $this->actingAs($admin)
             ->post(route('admin.low-stocks.run-now'))
-            ->assertSessionHas('success', 'Stock alert check completed. 1 new notification(s) queued.');
+            ->assertSessionHas('success', 'Stock alert accepted by the mail server.');
+
+        $this->post(route('admin.low-stocks.run-now'))
+            ->assertSessionHas('success', 'Stock alert accepted by the mail server.');
+        $this->assertDatabaseCount('stock_alert_deliveries', 2);
 
         $this->assertDatabaseHas('stock_alert_deliveries', [
             'product_id' => null,
             'channel' => 'email',
-            'status' => 'queued',
+            'status' => 'sent',
         ]);
     }
 
@@ -317,7 +322,7 @@ class LowStocksPageTest extends TestCase
         ]);
 
         $this->actingAs($admin)->post(route('admin.low-stocks.run-now'))
-            ->assertSessionHas('success', 'Stock alert check completed. 0 new notification(s) queued.');
+            ->assertSessionHas('error', 'Save an email destination before running an alert check.');
 
         Http::assertNothingSent();
         $this->assertDatabaseMissing('stock_alert_deliveries', ['channel' => 'sms']);

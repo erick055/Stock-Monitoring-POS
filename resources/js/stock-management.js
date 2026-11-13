@@ -189,6 +189,15 @@ const movementForm = document.querySelector('[data-movement-form]');
 if (movementForm) {
     const typeInput = movementForm.querySelector('[data-movement-type]');
     const productInput = movementForm.querySelector('[data-movement-product]');
+    const productPicker = movementForm.querySelector('[data-movement-product-picker]');
+    const productTrigger = productPicker.querySelector('summary');
+    const productResults = productPicker.querySelector('[data-movement-product-results]');
+    const productSearch = movementForm.querySelector('[data-movement-product-search]');
+    const productSearchStatus = movementForm.querySelector('[data-movement-product-search-status]');
+    const productOptions = Array.from(productInput.querySelectorAll('option[data-search]'), (option) => ({
+        option,
+        searchText: option.dataset.search.toLowerCase(),
+    }));
     const quantityInput = movementForm.querySelector('[data-movement-quantity]');
     const reasonInput = movementForm.querySelector('[data-movement-reason]');
     const reasonOptions = [...reasonInput.querySelectorAll('option[data-types]')];
@@ -216,6 +225,24 @@ if (movementForm) {
 
     function selectedType() {
         return typeInput.value || 'in';
+    }
+
+    function filterProducts() {
+        const query = productSearch.value.trim().toLowerCase();
+        const terms = query ? query.split(/\s+/) : [];
+        const results = document.createDocumentFragment();
+        productOptions.forEach(({ option, searchText }) => {
+            if (!terms.every((term) => searchText.includes(term))) return;
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.value = option.value;
+            button.textContent = option.textContent;
+            button.setAttribute('aria-pressed', String(option.selected));
+            results.append(button);
+        });
+        productSearchStatus.textContent = results.childElementCount ? '' : 'No products found.';
+        productResults.replaceChildren(results);
+        productResults.scrollTop = 0;
     }
 
     function updateResult() {
@@ -258,7 +285,49 @@ if (movementForm) {
     }
 
     typeInput.addEventListener('change', updateMovementType);
-    productInput.addEventListener('change', updateResult);
+    productInput.addEventListener('change', () => {
+        productTrigger.textContent = productInput.selectedOptions[0].textContent;
+        productTrigger.removeAttribute('aria-invalid');
+        updateResult();
+    });
+    productInput.addEventListener('invalid', (event) => {
+        event.preventDefault();
+        productTrigger.setAttribute('aria-invalid', 'true');
+        productPicker.open = true;
+        productSearch.focus();
+    });
+    productPicker.addEventListener('toggle', () => {
+        if (!productPicker.open) return;
+        productSearch.value = '';
+        filterProducts();
+        productSearch.focus();
+    });
+    productPicker.addEventListener('focusout', (event) => {
+        if (!productPicker.contains(event.relatedTarget)) productPicker.open = false;
+    });
+    productPicker.addEventListener('keydown', (event) => {
+        if (event.key !== 'Escape' || !productPicker.open) return;
+        event.preventDefault();
+        productPicker.open = false;
+        productTrigger.focus();
+    });
+    productResults.addEventListener('click', (event) => {
+        const button = event.target.closest('button');
+        if (!button) return;
+        productInput.value = button.value;
+        productInput.dispatchEvent(new Event('change', { bubbles: true }));
+        productPicker.open = false;
+        productTrigger.focus();
+    });
+    productSearch.addEventListener('input', filterProducts);
+    productSearch.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter') return;
+        event.preventDefault();
+        productResults.querySelector('button')?.focus();
+    });
+    productTrigger.textContent = productInput.selectedOptions[0].textContent;
+    productInput.hidden = true;
+    productPicker.hidden = false;
     quantityInput.addEventListener('input', updateResult);
     updateMovementType();
     if (oldReason && [...reasonInput.options].some((option) => option.value === oldReason && !option.disabled)) reasonInput.value = oldReason;
@@ -272,7 +341,8 @@ if (movementForm) {
         movementDialog.querySelector('[data-movement-dialog-title]').textContent = titles[type];
         movementDialog.showModal();
         document.body.classList.add('modal-open');
-        productInput.focus();
+        productTrigger.textContent = productInput.selectedOptions[0].textContent;
+        productTrigger.focus();
     }
     document.querySelectorAll('[data-open-movement]').forEach((button) => {
         button.addEventListener('click', () => {

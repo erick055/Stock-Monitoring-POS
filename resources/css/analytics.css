@@ -98,3 +98,4 @@
 .analytics-panel .chart-period-menu .chart-period-toggle:focus-visible{outline:2px solid #bd8eff;outline-offset:3px}
 html[data-theme="light"] .analytics-panel .chart-period-menu .chart-period-toggle{background:#efe4ff;border-color:#9964d0;color:#602c91}
 html[data-theme="light"] .analytics-panel .chart-period-menu .chart-period-toggle:hover,html[data-theme="light"] .analytics-panel .chart-period-menu .chart-period-toggle[aria-expanded=true]{background:#e2cdf9;border-color:#7745ad;color:#49206f}
+.day-column.sales-negative .day-bar-track i { background: var(--red); box-shadow: none; }

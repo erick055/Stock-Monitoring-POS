@@ -88,16 +88,54 @@ const bulkCount = document.querySelector('[data-bulk-count]');
 const bulkModal = document.querySelector('[data-bulk-products-modal]');
 const bulkModalCount = bulkModal?.querySelector('[data-bulk-modal-count]');
 const bulkIds = bulkModal?.querySelector('[data-bulk-product-ids]');
+const reviewDialog = document.querySelector('[data-bulk-review-dialog]');
+if (reviewDialog && bulkModal) {
+    const frame = reviewDialog.querySelector('iframe');
+    const launcher = bulkModal.querySelector('[data-bulk-review-launch]');
+    launcher.target = frame.name;
+    launcher.addEventListener('submit', () => {
+        launcher.querySelectorAll('[name="popup"]').forEach(input => { input.value = '1'; });
+        closeModal(bulkModal);
+        reviewDialog.showModal();
+    });
+    reviewDialog.querySelector('[data-close-bulk-review]').addEventListener('click', () => reviewDialog.close());
+    frame.addEventListener('load', () => {
+        if (frame.contentDocument?.querySelector('[data-bulk-review-finished]')) {
+            bulkSelection.clear();
+            syncBulkSelection();
+            window.location.reload();
+        }
+    });
+}
 
 const bulkSelection = new Set();
-const bulkProductDetails = new Map();
-const bulkOpeningStocks = new Map();
+const selectionOwner = document.body?.dataset?.supplierSelectionOwner;
+const selectionKey = selectionOwner && `motosync:supplier-selection:${selectionOwner}:${window.location.pathname}`;
+const currentPriceList = () => document.querySelector('#supplier-prices')?.dataset.publishedPriceList;
+let publishedPriceList = currentPriceList();
+if (selectionKey) {
+    try {
+        const saved = JSON.parse(window.sessionStorage.getItem(selectionKey) ?? 'null');
+        if (saved?.publishedPriceList === publishedPriceList && Array.isArray(saved?.ids)) {
+            saved.ids.filter(id => typeof id === 'string' && /^[1-9]\d*$/.test(id))
+                .forEach(id => bulkSelection.add(id));
+        }
+    } catch {
+        // Keep selection in memory when browser storage is unavailable.
+    }
+}
 const selectedBulkIds = () => [...bulkSelection];
 const syncBulkSelection = () => {
+    if (selectionKey) {
+        try {
+            window.sessionStorage.setItem(selectionKey, JSON.stringify({ publishedPriceList, ids: selectedBulkIds() }));
+        } catch {
+            // In-place pagination still works without browser storage.
+        }
+    }
     const visible = bulkCheckboxes();
     visible.forEach(checkbox => {
         checkbox.checked = bulkSelection.has(checkbox.value);
-        bulkProductDetails.set(checkbox.value, `${checkbox.dataset.productName} (${checkbox.dataset.productSku})`);
     });
     const count = selectedBulkIds().length;
     if (bulkCount) bulkCount.textContent = String(count);
@@ -116,7 +154,44 @@ document.addEventListener('change', event => {
     else bulkSelection.delete(event.target.value);
     syncBulkSelection();
 });
-document.addEventListener('motosync:table-updated', syncBulkSelection);
+const refreshBulkSelection = async () => {
+    const ids = selectedBulkIds();
+    if (!ids.length || !bulkButton) return;
+
+    try {
+        const url = bulkButton.dataset.selectionUrl;
+        const token = bulkModal.querySelector('input[name="_token"]').value;
+        const eligible = new Set();
+        for (let offset = 0; offset < ids.length; offset += 500) {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'X-CSRF-TOKEN': token },
+                body: JSON.stringify({ supplier_price_ids: ids.slice(offset, offset + 500) }),
+            });
+            if (!response.ok) return;
+            const result = await response.json();
+            result.ids.forEach(id => eligible.add(String(id)));
+        }
+        ids.forEach(id => {
+            if (!eligible.has(id)) bulkSelection.delete(id);
+        });
+        syncBulkSelection();
+    } catch {
+        // Preserve selections if the server could not verify them.
+    }
+};
+document.addEventListener('motosync:table-updated', () => {
+    const priceList = currentPriceList();
+    if (priceList !== publishedPriceList) {
+        publishedPriceList = priceList;
+        bulkSelection.clear();
+    }
+    syncBulkSelection();
+    void refreshBulkSelection();
+});
+window.addEventListener('pageshow', event => {
+    if (event.persisted) void refreshBulkSelection();
+});
 bulkSelectAll?.addEventListener('change', () => {
     bulkCheckboxes().forEach((checkbox) => {
         if (bulkSelectAll.checked) bulkSelection.add(checkbox.value);
@@ -125,7 +200,9 @@ bulkSelectAll?.addEventListener('change', () => {
     syncBulkSelection();
 });
 syncBulkSelection();
-bulkButton?.addEventListener('click', () => {
+void refreshBulkSelection();
+bulkButton?.addEventListener('click', async () => {
+    await refreshBulkSelection();
     const ids = selectedBulkIds();
     if (!ids.length || !bulkIds) return;
     bulkIds.replaceChildren(...ids.map((id) => {
@@ -134,22 +211,6 @@ bulkButton?.addEventListener('click', () => {
         input.name = 'supplier_price_ids[]';
         input.value = id;
         return input;
-    }));
-    const stocks = bulkModal.querySelector('[data-bulk-opening-stocks]');
-    stocks?.replaceChildren(...ids.map(id => {
-        const label = document.createElement('label');
-        label.textContent = `${bulkProductDetails.get(id) ?? id} — Opening stock`;
-        const input = document.createElement('input');
-        input.type = 'number';
-        input.name = `initial_stocks[${id}]`;
-        input.min = '0';
-        input.max = '2147483647';
-        input.step = '1';
-        input.required = true;
-        input.value = bulkOpeningStocks.get(id) ?? '0';
-        input.addEventListener('input', () => bulkOpeningStocks.set(id, input.value));
-        label.append(input);
-        return label;
     }));
     if (bulkModalCount) bulkModalCount.textContent = String(ids.length);
     openModal(bulkModal);
@@ -259,3 +320,75 @@ document.addEventListener('change', (event) => {
     input.required = creating;
     if (creating) input.focus();
 });
+const review = document.querySelector('.supplier-review');
+if (review) {
+    const form = review.querySelector('#supplier-review-form');
+    const list = form.querySelector('.supplier-review-list');
+    const details = form.querySelector('.supplier-review-details');
+    const progress = review.querySelector('[data-review-progress]');
+    const create = review.querySelector('[data-review-create]');
+    const status = review.querySelector('[data-review-status]');
+    const unsaved = review.querySelector('[data-review-unsaved]');
+    const peso = new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' });
+    let saving = false;
+
+    function updatePrice() {
+        const markup = details.querySelector('[data-review-markup]');
+        const price = details.querySelector('[data-review-price]');
+        if (!markup || !price) return;
+        price.textContent = markup.validity.valid && Number.isFinite(markup.valueAsNumber)
+            ? peso.format(Number(price.dataset.cost) * (1 + markup.valueAsNumber / 100))
+            : '—';
+    }
+
+    form.addEventListener('input', () => {
+        updatePrice();
+        create.disabled = true;
+        unsaved.hidden = false;
+    });
+
+    form.addEventListener('submit', async event => {
+        event.preventDefault();
+        if (saving) return;
+        const data = new FormData(form, event.submitter);
+        const controls = [...form.querySelectorAll('button, input')].filter(control => !control.disabled);
+        const createWasDisabled = create.disabled;
+        saving = true;
+        create.disabled = true;
+        form.setAttribute('aria-busy', 'true');
+        controls.forEach(control => { control.disabled = true; });
+        status.textContent = 'Saving…';
+        try {
+            const response = await fetch(form.action, { method: 'POST', body: data, credentials: 'same-origin' });
+            if (!response.ok) throw new Error('Save failed');
+            const page = new DOMParser().parseFromString(await response.text(), 'text/html');
+            const nextForm = page.querySelector('#supplier-review-form');
+            const nextCreate = page.querySelector('[data-review-create]');
+            const nextProgress = page.querySelector('[data-review-progress]');
+            const nextList = nextForm?.querySelector('.supplier-review-list');
+            const nextDetails = nextForm?.querySelector('.supplier-review-details');
+            if (!nextList || !nextDetails || !nextCreate || !nextProgress) throw new Error('Review unavailable');
+            const scroll = list.scrollTop;
+            form.action = nextForm.action;
+            list.replaceChildren(...nextList.childNodes);
+            list.scrollTop = scroll;
+            details.replaceChildren(...nextDetails.childNodes);
+            progress.textContent = nextProgress.textContent;
+            create.disabled = nextCreate.disabled;
+            unsaved.hidden = true;
+            status.textContent = details.querySelector('[role="alert"]') ? 'Check the highlighted details.' : 'Draft saved.';
+            window.history.replaceState(null, '', response.url);
+            updatePrice();
+            details.focus({ preventScroll: true });
+        } catch {
+            create.disabled = createWasDisabled;
+            status.textContent = 'Could not update the review. Your entries are still here. Try again.';
+        } finally {
+            controls.forEach(control => { control.disabled = false; });
+            form.removeAttribute('aria-busy');
+            saving = false;
+        }
+    });
+
+    updatePrice();
+}

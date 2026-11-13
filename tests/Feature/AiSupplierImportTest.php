@@ -53,6 +53,48 @@ class AiSupplierImportTest extends TestCase
         Http::assertSentCount(1);
     }
 
+    public function test_large_spreadsheets_are_imported_without_row_caps(): void
+    {
+        $owner = User::factory()->create(['role' => 'admin']);
+        $csv = "supplier_sku,product_name,unit_price\n";
+        foreach (range(1, 2001) as $index) {
+            $csv .= "LARGE-{$index},Part {$index},15.00\n";
+        }
+        $this->actingAs($owner)->post(route('admin.suppliers.imports.upload'), [
+            'supplier_name' => 'Large Supplier', 'supplier_code' => 'LARGE',
+            'price_file' => UploadedFile::fake()->createWithContent('large.csv', $csv),
+        ])->assertSessionHasNoErrors();
+        $this->assertDatabaseCount('supplier_import_rows', 2001);
+    }
+
+    public function test_ai_spreadsheet_processes_every_batch(): void
+    {
+        config(['openai.api_key' => 'test-only-key', 'openai.ca_bundle' => '', 'openai.base_url' => 'https://api.openai.com/v1']);
+        Http::fake(function ($request) {
+            $input = json_decode($request['input'][0]['content'][0]['text'], true);
+            $rows = [];
+            foreach ($input['source_rows'] as $source) {
+                [$sku, $name, $price] = $source['cells'];
+                if ($sku === 'Reference') continue;
+                $rows[] = $this->row(['supplier_sku' => $sku, 'product_name' => $name, 'unit_price' => $price]);
+            }
+            return Http::response(['status' => 'completed', 'output' => [[
+                'content' => [['type' => 'output_text', 'text' => json_encode(['complete' => true, 'rows' => $rows])]],
+            ]]]);
+        });
+        $csv = "Reference,Merchandise,Trade Amount\n";
+        foreach (range(1, 201) as $index) {
+            $csv .= "AI-{$index},Part {$index},15.00\n";
+        }
+        $this->actingAs(User::factory()->create(['role' => 'admin']))->post(route('admin.suppliers.imports.upload'), [
+            'supplier_name' => 'Batch Supplier', 'supplier_code' => 'BATCH',
+            'import_mode' => 'ai',
+            'price_file' => UploadedFile::fake()->createWithContent('batch.csv', $csv),
+        ])->assertSessionHasNoErrors();
+        $this->assertDatabaseCount('supplier_import_rows', 201);
+        $this->assertDatabaseHas('supplier_import_rows', ['supplier_sku' => 'AI-201']);
+    }
+
     private function fakeExtraction(array $rows, bool $complete = true, string $status = 'completed'): void
     {
         config(['openai.api_key' => 'test-only-key', 'openai.ca_bundle' => '', 'openai.base_url' => 'https://api.openai.com/v1', 'openai.supplier_import_model' => 'test-model']);
@@ -94,6 +136,19 @@ class AiSupplierImportTest extends TestCase
         $this->assertDatabaseHas('supplier_prices', ['supplier_sku' => '000123', 'unit_price' => 125.50, 'source_type' => 'ai_document']);
         $this->assertSame(7, $product->fresh()->current_stock);
         $this->assertSame('80.00', $product->fresh()->unit_cost);
+    }
+
+    public function test_ai_import_without_a_supplier_sku_can_publish_with_a_name_based_sku(): void
+    {
+        $this->fakeExtraction([$this->row(['supplier_sku' => null])]);
+        $this->actingAs(User::factory()->create(['role' => 'admin']));
+        $this->upload()->assertSessionHasNoErrors();
+        $import = SupplierImport::firstOrFail();
+        $row = $import->rows()->firstOrFail();
+        $this->assertStringStartsWith('BRAK-', $row->supplier_sku);
+        $this->assertSame(0, (int) $import->error_count);
+        $this->post(route('admin.suppliers.imports.approve', $import))->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('supplier_prices', ['supplier_sku' => $row->supplier_sku]);
     }
 
     public function test_uncertain_or_missing_values_block_approval_until_owner_corrects_and_confirms_them(): void

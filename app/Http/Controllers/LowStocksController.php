@@ -123,12 +123,31 @@ class LowStocksController extends Controller
         return back()->with('success', 'Stock alert notification settings saved.');
     }
 
+    public function exportPdf(LowStockAlertService $alerts): \Illuminate\Http\Response
+    {
+        return response()->view('admin.partials.stock-alert-pdf', [
+            'bodyText' => $alerts->criticalStockReport(),
+        ], 200, [
+            'Cache-Control' => 'private, no-store',
+        ]);
+    }
+
     public function runNow(LowStockAlertService $alerts): RedirectResponse
     {
-        // Manual checks include warning items but still respect pending jobs and cooldowns.
-        $sent = $alerts->checkAll(force: true);
+        if (! $alerts->settings()->notification_email) {
+            return back()->with('error', 'Save an email destination before running an alert check.');
+        }
 
-        return back()->with('success', "Stock alert check completed. {$sent} new notification(s) queued.");
+        $deliveryId = $alerts->checkAll(manual: true);
+        if (! $deliveryId) {
+            return back()->with('success', 'No critical or out-of-stock items to email.');
+        }
+
+        $status = \App\Models\StockAlertDelivery::find($deliveryId)?->status;
+
+        return $status === 'sent'
+            ? back()->with('success', 'Stock alert accepted by the mail server.')
+            : back()->with('error', 'Stock alert could not be sent. Check Notification History for details.');
     }
 
     private function formatAlert(Product $product, string $status): array

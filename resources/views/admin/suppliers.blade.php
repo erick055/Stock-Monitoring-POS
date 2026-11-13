@@ -16,7 +16,8 @@ $navigation = [
     @vite(['resources/css/dashboard.css','resources/css/suppliers.css','resources/css/sorting-controls.css','resources/css/responsive.css','resources/js/dashboard.js','resources/js/suppliers.js'])
     @include('partials.appearance')
 </head>
-<body>
+<body data-supplier-selection-owner="{{ auth()->id() }}">
+@if(session('bulk_review_finished'))<span hidden data-bulk-review-finished></span>@endif
 <div class="dashboard-shell suppliers-shell">
     <aside class="sidebar" data-sidebar>
         <div class="sidebar-brand"><span class="logo-mark">M</span><div><strong>MotoSync</strong><small>Pareng RJJ Motorcycle Parts</small></div></div>
@@ -89,7 +90,7 @@ $navigation = [
                 <label class="file-field">Price-list file<input name="price_file" type="file" accept=".csv,.xlsx" required data-supplier-file><span data-file-name>Choose CSV or XLSX file</span></label>
                 <button class="apply-button" type="submit">Upload and preview</button>
             </form>
-            <p class="import-note" data-ai-import-note @if(old('import_mode') !== 'ai') hidden @endif><i class="bi bi-stars" aria-hidden="true"></i> AI reads SKU, product name, and supplier unit price from PDF, DOCX, TXT, CSV, XLSX, PNG, JPG, or WEBP. Maximum 5 MB / 200 items; split larger lists. This sends your document to the configured OpenAI service. Review the detected rows and correct missing or uncertain values before publishing.</p>
+            <p class="import-note" data-ai-import-note @if(old('import_mode') !== 'ai') hidden @endif><i class="bi bi-stars" aria-hidden="true"></i> AI reads SKU, product name, and supplier unit price from PDF, DOCX, TXT, CSV, XLSX, PNG, JPG, or WEBP. Large CSV and XLSX files are processed in batches. This sends your document to the configured OpenAI service. Review the detected rows and correct missing or uncertain values before publishing.</p>
             <div class="format-guide">
                 <strong>Standard field names (automatically converted):</strong>
                 <code>product_name</code><code>unit_price</code>
@@ -177,6 +178,8 @@ $navigation = [
                                                 <label>Product name<input name="product_name" value="{{ (string) old('_import_row_dialog') === (string) $row->supplier_import_row_id ? old('product_name') : $row->product_name }}" maxlength="255" required></label>
                                                 <label>Supplier unit price<input name="unit_price" type="number" min="0.01" max="9999999999.99" step="0.01" value="{{ (string) old('_import_row_dialog') === (string) $row->supplier_import_row_id ? old('unit_price') : $row->unit_price }}" required></label>
                                                 <label>Currency<input name="currency" maxlength="3" pattern="[A-Za-z]{3}" value="{{ (string) old('_import_row_dialog') === (string) $row->supplier_import_row_id ? old('currency') : $row->currency }}" required></label>
+                                                <label>Manufacturer part number<input name="manufacturer_part_number" maxlength="150" value="{{ (string) old('_import_row_dialog') === (string) $row->supplier_import_row_id ? old('manufacturer_part_number') : $row->manufacturer_part_number }}"></label>
+                                                <label>Units received by shop<input type="number" name="shop_received_quantity" min="0" max="2147483647" value="{{ (string) old('_import_row_dialog') === (string) $row->supplier_import_row_id ? old('shop_received_quantity') : $row->shop_received_quantity }}"></label>
                                                 <label class="import-review-confirm"><input type="checkbox" name="confirm_review" value="1" required> I checked these values against the original supplier document.</label>
                                                 <button class="apply-button" type="submit">Save reviewed row</button>
                                             </form>
@@ -202,6 +205,7 @@ $navigation = [
                         <span class="section-kicker">IMPORT DECISION</span>
                         <h2 id="import-decision-title">Accept or reject this supplier import?</h2>
                         <p><strong>{{ $selectedImport->supplier->name }}</strong> · {{ $selectedImport->source_filename }} · {{ $selectedImport->valid_count }} valid rows.</p>
+                        <p>Rejecting this import permanently removes it and its rows from the import archive.</p>
                         @if($selectedImport->error_count > 0)<p class="modal-warning">Approval is unavailable because this import has {{ $selectedImport->error_count }} validation errors.</p>@endif
                         <div class="supplier-modal-actions">
                             <form method="POST" action="{{ route('admin.suppliers.imports.reject', $selectedImport) }}">@csrf<button class="reject-button" type="submit">Reject import</button></form>
@@ -212,7 +216,7 @@ $navigation = [
             @endif
         @endif
 
-        <section class="panel suppliers-panel" id="supplier-prices">
+        <section class="panel suppliers-panel" id="supplier-prices" data-published-price-list="{{ $publishedPriceList }}">
             <div class="section-heading">
                 <div><span class="section-kicker">CURRENT DATA</span><h2>Published supplier prices</h2></div>
                 <form class="supplier-sort-form" method="GET" action="{{ route('admin.suppliers') }}">
@@ -245,7 +249,7 @@ $navigation = [
                     <div><strong>Bulk add to Products</strong><span>Select unmatched PHP supplier items across pages, then create them together. Selections stay while browsing this table.</span></div>
                     <div class="bulk-product-actions">
                         <label class="bulk-select-all"><input type="checkbox" data-bulk-select-all><span>Select all eligible on this page</span></label>
-                        <button class="apply-button" type="button" data-open-bulk-products disabled>Bulk add selected (<span data-bulk-count>0</span>)</button>
+                        <button class="apply-button" type="button" data-open-bulk-products data-selection-url="{{ route('admin.suppliers.bulk.selection') }}" disabled>Bulk add selected (<span data-bulk-count>0</span>)</button>
                     </div>
                 </div>
             <div class="supplier-table-wrap published-price-table">
@@ -294,6 +298,7 @@ $navigation = [
                         <div class="pricing-pill">{{ $price->previous_price ? $price->currency.' '.number_format((float) $price->previous_price, 2) : 'First import' }}<span>Previous supplier price</span></div>
                         <div class="pricing-pill accent">{{ $change === null ? 'New' : sprintf('%+.1f%%', $change) }}<span>Supplier price change</span></div>
                         <div class="pricing-pill">{{ $price->available_quantity ?? 'Unknown' }}<span>Supplier stock</span></div>
+                        <div class="pricing-pill">{{ $price->shop_received_quantity ?? 'Not supplied' }}<span>Imported shop opening stock</span></div>
                         <div class="pricing-pill {{ $isStale ? 'stale' : '' }}">{{ $isStale ? 'Stale' : $price->last_updated_at->diffForHumans() }}<span>Freshness</span></div>
 
                         @if($price->product)
@@ -371,6 +376,8 @@ $navigation = [
                                         <label>Selling price (₱)<input name="selling_price" type="number" min="0" step="0.01" placeholder="Set owner selling price" required></label>
                                         @include('admin.partials.supplier-catalog-options')
                                         <label>Reorder level<input name="reorder_level" type="number" min="0" value="5" required></label>
+                                        @php($openingStock = $price->available_quantity ?? $price->shop_received_quantity ?? 0)
+                                        <label>Opening stock<input name="initial_stock" type="number" min="0" max="2147483647" step="1" value="{{ (string) old('_supplier_price_dialog') === (string) $price->getKey() ? old('initial_stock', $openingStock) : $openingStock }}" required><small>Confirm the units your shop has on hand before creating the product.</small></label>
                                         <button class="apply-button" type="submit" @disabled(strtoupper($price->currency) !== 'PHP')>Create in Products</button>
                                     </form>
                                 @endif
@@ -399,18 +406,20 @@ $navigation = [
                 <button class="supplier-modal-close" type="button" data-close-modal aria-label="Close"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
                 <span class="section-kicker">BULK PRODUCT CREATION</span>
                 <h2 id="bulk-products-title">Add selected supplier items to Products?</h2>
-                <p><strong data-bulk-modal-count>0</strong> products will be created with their supplier SKU as the product SKU and part number. Enter the actual units in your shop for each product. Leave zero for items you do not have; supplier availability is separate.</p>
-                <form class="bulk-product-form" method="POST" action="{{ route('admin.suppliers.prices.bulk-create-products') }}" data-bulk-product-form>
+                <p><strong data-bulk-modal-count>0</strong> selected items</p>
+                <form method="POST" action="{{ route('admin.suppliers.bulk.start') }}" data-bulk-review-launch>
                     @csrf
+                    <input type="hidden" name="popup" value="0">
                     <div data-bulk-product-ids></div>
-                    <div class="bulk-opening-stocks" data-bulk-opening-stocks></div>
-                    <label>Selling price markup (%)<input name="markup_percent" type="number" min="0" max="1000" step="0.01" value="30" required></label>
-                    @include('admin.partials.supplier-catalog-options')
-                    <label>Reorder level<input name="reorder_level" type="number" min="0" value="5" required></label>
-                    <div class="supplier-modal-actions"><button class="modal-cancel-button" type="button" data-close-modal>Cancel</button><button class="apply-button" type="submit">Create selected products</button></div>
+                    <div class="supplier-modal-actions"><button class="modal-cancel-button" type="button" data-close-modal>Cancel</button><button class="apply-button" type="submit">Review products</button></div>
                 </form>
             </div>
         </div>
+
+        <dialog class="supplier-review-dialog" data-bulk-review-dialog aria-label="Review supplier products">
+            <button class="apply-button" type="button" data-close-bulk-review>Close review</button>
+            <iframe name="supplier-bulk-review" title="Review supplier products"></iframe>
+        </dialog>
 
         <datalist id="catalog-product-options">
             @foreach($catalogProducts as $catalogProduct)

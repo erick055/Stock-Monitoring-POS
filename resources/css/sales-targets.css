@@ -67,6 +67,18 @@
 .sales-target-card .sales-target-metrics { gap: 18px; }
 .sales-target-card .sales-target-metrics > div { min-width: 0; }
 .sales-target-card .sales-target-metrics dd { font-variant-numeric: tabular-nums; }
+.sales-target-card .sales-target-track > .sales-target-recovery-fill {
+    background: hsl(214 85% 55%);
+}
+.sales-target-recovered dd { color: hsl(212 95% 74%); }
+.sales-target-surplus dd { color: hsl(148 62% 63%); }
+.sales-target-refunds dd { color: hsl(30 96% 71%); }
+html[data-theme="light"] .sales-target-recovered dd { color: hsl(216 80% 36%); }
+html[data-theme="light"] .sales-target-surplus dd { color: hsl(147 67% 28%); }
+html[data-theme="light"] .sales-target-refunds dd { color: hsl(25 90% 32%); }
+@media (min-width: 421px) and (max-width: 700px) {
+    .sales-target-card .sales-target-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 @media (max-width: 640px) {
     .panel.sales-target-card { padding: 18px; gap: 18px; }
     .sales-target-card .section-heading { align-items: flex-start; }

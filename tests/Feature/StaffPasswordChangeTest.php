@@ -74,6 +74,7 @@ class StaffPasswordChangeTest extends TestCase
         $owner = User::factory()->create(['role' => 'admin']);
         $this->actingAs($owner)->post(route('admin.accounts.store'), [
             'name' => 'New Staff', 'email' => 'new-staff@example.com',
+            'current_password' => 'password',
             'password' => self::TEMPORARY, 'password_confirmation' => self::TEMPORARY,
         ])->assertSessionHas('success');
         $staff = User::where('email', 'new-staff@example.com')->firstOrFail();

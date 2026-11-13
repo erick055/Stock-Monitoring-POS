@@ -18,9 +18,14 @@ class LowStockAlertService
         return StockAlertSetting::query()->firstOrCreate(['id' => 1]);
     }
 
-    public function checkAll(bool $force = false): int
+    public function checkAll(bool $force = false, bool $manual = false): int
     {
-        return $this->checkProducts(Product::query()->where('is_active', true)->get(), $force);
+        $query = Product::query()->where('is_active', true);
+        if ($manual) {
+            $query->whereColumn('current_stock', '<=', 'reorder_level');
+        }
+
+        return $this->checkProducts($query->get(), $force, $manual);
     }
 
     public function checkProduct(Product $product, bool $force = false): int
@@ -29,11 +34,11 @@ class LowStockAlertService
     }
 
     /** One run can enqueue at most one email, regardless of the number of products. */
-    public function checkProducts(Collection $products, bool $force = false): int
+    public function checkProducts(Collection $products, bool $force = false, bool $manual = false): int
     {
         $this->settings();
 
-        return DB::transaction(function () use ($products, $force) {
+        return DB::transaction(function () use ($products, $force, $manual) {
             // Serialize checks, including creation of previously unseen product states.
             $settings = StockAlertSetting::query()->lockForUpdate()->findOrFail(1);
             $products = Product::query()->whereIn('product_id', $products->pluck('product_id'))->get();
@@ -42,6 +47,12 @@ class LowStockAlertService
             foreach ($products as $product) {
                 $state = $states->get($product->product_id) ?? new StockAlertState(['product_id' => $product->product_id]);
                 $severity = $product->is_active ? $this->severity($product) : 'healthy';
+                if ($manual) {
+                    if ($severity === 'critical') {
+                        $eligible->push($product);
+                    }
+                    continue;
+                }
                 $previousSeverity = $state->exists ? $state->severity : 'healthy';
                 $crossedReorder = $severity === 'critical' && $previousSeverity !== 'critical';
                 if ($severity !== 'healthy' && ($force || $crossedReorder) && $this->canNotify($state)) {
@@ -49,11 +60,11 @@ class LowStockAlertService
                 }
                 $state->fill(['severity' => $severity, 'last_stock' => $product->current_stock, 'last_checked_at' => now()])->save();
             }
-            if (! $settings->email_enabled || ! $settings->notification_email || $eligible->isEmpty()) {
+            if ((! $settings->email_enabled && ! $manual) || ! $settings->notification_email || $eligible->isEmpty()) {
                 return 0;
             }
 
-            return $this->queueDigest($settings, $eligible, 'immediate');
+            return $this->queueDigest($settings, $eligible, 'immediate', manual: $manual);
         });
     }
 
@@ -70,19 +81,7 @@ class LowStockAlertService
                 return 0;
             }
             $products = Product::query()->where('is_active', true)->get()->filter(fn ($product) => $this->severity($product) !== 'healthy');
-            $states = StockAlertState::query()->whereIn('product_id', $products->pluck('product_id'))->lockForUpdate()->get()->keyBy('product_id');
-            $eligible = $products->filter(function ($product) use ($states) {
-                $state = $states->get($product->product_id) ?? StockAlertState::create([
-                    'product_id' => $product->product_id, 'severity' => $this->severity($product),
-                    'last_stock' => $product->current_stock, 'last_checked_at' => now(),
-                ]);
-
-                return $this->canNotify($state);
-            });
-            if ($products->isNotEmpty() && $eligible->isEmpty()) {
-                return 0;
-            }
-            return $this->queueDigest($settings, $eligible, 'daily_summary');
+            return $this->queueDigest($settings, $products, 'daily_summary');
         });
     }
 
@@ -91,13 +90,11 @@ class LowStockAlertService
         return ! $state->pending_delivery_id && (! $state->last_notified_at || $state->last_notified_at->lte(now()->subHours(24)));
     }
 
-    private function queueDigest(StockAlertSetting $settings, Collection $products, string $type): int
+    private function queueDigest(StockAlertSetting $settings, Collection $products, string $type, bool $manual = false): int
     {
-        $products = $products->sortBy(fn ($product) => [$this->severity($product) === 'critical' ? 0 : 1, $product->current_stock])->values();
-        $message = $this->dailySummaryMessage($products);
+        $message = $this->digestMessage($products, $type);
         $subject = $this->dailySummarySubject($products);
         if ($type === 'immediate') {
-            $message = str_replace('MotoSync Daily Inventory Summary', 'MotoSync Inventory Alert Digest', $message);
             $subject = 'MotoSync Inventory Alert — '.$products->count().' Item(s) Need Attention';
         }
         $delivery = StockAlertDelivery::create([
@@ -107,11 +104,42 @@ class LowStockAlertService
         if ($type === 'daily_summary') {
             // Use the delivery's timestamp so final failure can release this reservation exactly.
             $settings->update(['last_daily_summary_at' => $delivery->created_at]);
+        } elseif (! $manual) {
+            StockAlertState::whereIn('product_id', $products->pluck('product_id'))->update(['pending_delivery_id' => $delivery->id]);
         }
-        StockAlertState::whereIn('product_id', $products->pluck('product_id'))->update(['pending_delivery_id' => $delivery->id]);
+        if ($manual) {
+            DB::afterCommit(function () use ($delivery, $subject) {
+                $job = new SendStockAlertDigest($delivery->id, $subject);
+                try {
+                    $job->handle();
+                } catch (\Throwable $error) {
+                    $job->failed($error);
+                    report($error);
+                }
+            });
+
+            return $delivery->id;
+        }
         Bus::dispatch(new SendStockAlertDigest($delivery->id, $subject));
 
         return 1;
+    }
+
+    public function criticalStockReport(): string
+    {
+        $products = Product::query()->where('is_active', true)
+            ->whereColumn('current_stock', '<=', 'reorder_level')->get();
+
+        return $this->digestMessage($products, 'immediate');
+    }
+
+    private function digestMessage(Collection $products, string $type): string
+    {
+        $products = $products->sortBy(fn ($product) => [
+            $this->severity($product) === 'critical' ? 0 : 1, $product->current_stock, $product->product_id,
+        ])->values();
+
+        return $this->dailySummaryMessage($products, $type);
     }
 
     public function severity(Product $product): string
@@ -126,14 +154,16 @@ class LowStockAlertService
         return 'healthy';
     }
 
-    private function dailySummaryMessage(Collection $products): string
+    private function dailySummaryMessage(Collection $products, string $type): string
     {
+        $heading = $type === 'immediate' ? 'MotoSync Inventory Alert Digest' : 'MotoSync Daily Inventory Summary';
         if ($products->isEmpty()) {
             return implode("\n", [
-                'MotoSync Daily Inventory Summary',
+                $heading,
                 now()->format('F d, Y · h:i A'),
                 '',
-                'Good news — no active products are currently within the low-stock warning range.',
+                $type === 'immediate' ? 'No active products are currently critical or out of stock.'
+                    : 'Good news — no active products are currently within the low-stock warning range.',
                 '',
                 'No replenishment action is required at this time. Continue monitoring sales and incoming stock movements.',
                 '',
@@ -156,7 +186,7 @@ class LowStockAlertService
         ));
 
         return implode("\n", [
-            'MotoSync Daily Inventory Summary',
+            $heading,
             now()->format('F d, Y · h:i A'),
             '',
             'Priority overview',

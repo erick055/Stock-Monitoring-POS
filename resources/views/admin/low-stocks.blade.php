@@ -107,13 +107,16 @@ $navigation = [
         <section class="panel settings-panel">
             <div class="section-heading">
                 <div><span class="section-kicker">NOTIFICATION CONTROL</span><h2>Alert Settings</h2></div>
-                <form method="POST" action="{{ route('admin.low-stocks.run-now') }}">@csrf<button class="check-button" type="submit"><span aria-hidden="true"><i class="bi bi-lightning-charge"></i></span> Run alert check now</button></form>
+                <div class="stock-alert-report-actions">
+                    <form method="POST" action="{{ route('admin.low-stocks.run-now') }}">@csrf<button class="check-button" type="submit"><span aria-hidden="true"><i class="bi bi-lightning-charge"></i></span> Run alert check now</button></form>
+                    <a class="check-button" href="{{ route('admin.low-stocks.export-pdf') }}" target="_blank" rel="noopener" aria-label="Export PDF (opens in a new tab)"><i class="bi bi-file-earmark-pdf" aria-hidden="true"></i> Export PDF</a>
+                </div>
             </div>
             <form class="notification-settings" method="POST" action="{{ route('admin.low-stocks.settings') }}">
                 @csrf
                 <div class="settings-grid">
                     <label class="setting-card">
-                        <span>Email Notification</span><small>Email newly critical stock with a 24-hour cooldown per product</small>
+                        <span>Email Notification</span><small>Automatically email newly critical stock with a 24-hour cooldown per product</small>
                         <input type="hidden" name="email_enabled" value="0"><input name="email_enabled" value="1" type="checkbox" @checked($settings->email_enabled)>
                     </label>
                     <label class="setting-card">
@@ -155,6 +158,7 @@ $navigation = [
 </section>
 
         @if(session('success'))<div class="alerts-toast" data-alerts-toast role="status">{{ session('success') }}</div>@endif
+        @if(session('error'))<div class="alerts-toast" data-alerts-toast role="alert">{{ session('error') }}</div>@endif
     </main>
 </div>
 @include('partials.login-stock-alert')

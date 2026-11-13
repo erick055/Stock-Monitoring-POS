@@ -374,14 +374,23 @@ $editErrorProduct = $errors->getBag('editProduct')->any()
                         </select>
                         <small>Choose what should happen to the selected product's balance.</small>
                     </label>
-                    <label>Product
-                        <select name="product_id" required data-movement-product>
+                    <div class="movement-product-field">
+                        <label id="movement-product-label" for="movement-product">Product</label>
+                        <select id="movement-product" name="product_id" required data-movement-product>
                             <option value="">Select product</option>
                             @foreach($allProducts as $product)
-                                <option value="{{ $product->product_id }}" data-stock="{{ $product->current_stock }}" @selected((string) old('product_id') === (string) $product->product_id)>{{ $product->sku }} — {{ $product->name }} ({{ $product->current_stock }} currently)</option>
+                                <option value="{{ $product->product_id }}" data-search="{{ $product->sku }} {{ $product->name }}" data-stock="{{ $product->current_stock }}" @selected((string) old('product_id') === (string) $product->product_id)>{{ $product->sku }} — {{ $product->name }} ({{ $product->current_stock }} currently)</option>
                             @endforeach
                         </select>
-                    </label>
+                        <details class="movement-product-picker" data-movement-product-picker hidden>
+                            <summary id="movement-product-trigger" aria-labelledby="movement-product-label movement-product-trigger">Select product</summary>
+                            <div class="movement-product-menu">
+                                <input type="search" aria-label="Search products" placeholder="Product name or SKU" autocomplete="off" data-movement-product-search>
+                                <div class="movement-product-results" data-movement-product-results></div>
+                                <small role="status" data-movement-product-search-status></small>
+                            </div>
+                        </details>
+                    </div>
                     <label><span data-quantity-label>Quantity received (+)</span>
                         <input name="quantity" value="{{ old('quantity') }}" type="number" min="1" placeholder="Enter a positive quantity" required data-movement-quantity>
                         <small data-quantity-help>Use - or + to add or deduct</small>

@@ -93,6 +93,7 @@ Route::middleware(['auth', 'verified', 'role:admin'])->group(function () {
     Route::get('/admin/low-stocks', [LowStocksController::class, 'index'])->name('admin.low-stocks');
     Route::post('/admin/low-stocks/settings', [LowStocksController::class, 'updateSettings'])->name('admin.low-stocks.settings');
     Route::post('/admin/low-stocks/run-now', [LowStocksController::class, 'runNow'])->name('admin.low-stocks.run-now');
+    Route::get('/admin/low-stocks/report', [LowStocksController::class, 'exportPdf'])->name('admin.low-stocks.export-pdf');
     Route::get('/admin/deadstock', [DeadStockController::class, 'index'])->name('admin.dead-stock');
     Route::post('/admin/dead-stock/train-model', [DeadStockController::class, 'trainModel'])->middleware('throttle:dead-stock-training')->name('admin.dead-stock.train-model');
     Route::get('/admin/dead-stock', [DeadStockController::class, 'index']);
@@ -115,6 +116,10 @@ Route::middleware(['auth', 'verified', 'role:admin'])->group(function () {
     Route::patch('/admin/suppliers/prices/{supplierPrice}/apply-cost', [SupplierPriceController::class, 'applyCost'])->name('admin.suppliers.prices.apply-cost');
     Route::post('/admin/suppliers/prices/{supplierPrice}/create-product', [SupplierPriceController::class, 'createProduct'])->name('admin.suppliers.prices.create-product');
     Route::post('/admin/suppliers/prices/bulk-create-products', [SupplierPriceController::class, 'bulkCreateProducts'])->name('admin.suppliers.prices.bulk-create-products');
+    Route::post('/admin/suppliers/bulk-review', [SupplierPriceController::class, 'startBulkReview'])->name('admin.suppliers.bulk.start');
+    Route::post('/admin/suppliers/bulk-selection', [SupplierPriceController::class, 'validateBulkSelection'])->name('admin.suppliers.bulk.selection');
+    Route::get('/admin/suppliers/bulk-review/{batch}', [SupplierPriceController::class, 'bulkReview'])->name('admin.suppliers.bulk.review');
+    Route::post('/admin/suppliers/bulk-review/{batch}/{item}', [SupplierPriceController::class, 'saveBulkReview'])->whereNumber('item')->name('admin.suppliers.bulk.save');
     Route::delete('/admin/suppliers/data', [SupplierPriceController::class, 'purge'])->middleware('throttle:supplier-purge')->name('admin.suppliers.purge');
     Route::get('/admin/compatibility', [CompatibilityController::class, 'index'])->name('admin.compatibility');
     Route::post('/admin/compatibility/ai-recommendations', [CompatibilityController::class, 'index'])->middleware('throttle:compatibility-search')->name('admin.compatibility.ai');
