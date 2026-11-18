@@ -59,7 +59,9 @@ class SystemRateLimitTest extends TestCase
 
     public function test_password_reset_cooldown_without_a_token_has_a_valid_destination(): void
     {
-        for ($i = 0; $i < 5; $i++) $this->post(route('password.update'))->assertSessionHasErrors('token');
+        for ($i = 0; $i < 5; $i++) {
+            $this->post(route('password.update'))->assertSessionHasErrors('token');
+        }
         $this->post(route('password.update'))->assertRedirect(route('password.request'))->assertSessionHasErrors('rate_limit');
     }
 

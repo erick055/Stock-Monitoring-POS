@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use App\Services\SalesAnalyticsService;
-
 use App\Models\Product;
 use App\Models\SalesItem;
 use App\Services\InventoryLiveService;
+use App\Services\SalesAnalyticsService;
+use App\Support\TablePagination;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -55,7 +55,7 @@ class ProductsController extends Controller
             ->when($category, fn ($query) => $query->where('category', $category))
             ->orderBy($sortColumn, $sortDirection)
             ->orderBy('product_id')
-            ->paginate(\App\Support\TablePagination::size($request))
+            ->paginate(TablePagination::size($request))
             ->withQueryString();
 
         $productTotals = app(SalesAnalyticsService::class)->productSummaries($products->pluck('product_id')->all());

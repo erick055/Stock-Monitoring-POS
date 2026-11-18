@@ -6,9 +6,9 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Validator;
 use InvalidArgumentException;
-use RuntimeException;
 use OpenSpout\Reader\CSV\Reader as CsvReader;
 use OpenSpout\Reader\XLSX\Reader as XlsxReader;
+use RuntimeException;
 
 class AiSupplierPriceExtractor
 {
@@ -70,7 +70,7 @@ class AiSupplierPriceExtractor
                 foreach ($sheet->getRowIterator() as $number => $line) {
                     $values = array_map(fn ($value) => $value instanceof \DateTimeInterface
                         ? $value->format('Y-m-d') : (string) ($value ?? ''), $line->toArray());
-                    if (!array_filter($values, fn ($value) => trim($value) !== '')) {
+                    if (! array_filter($values, fn ($value) => trim($value) !== '')) {
                         continue;
                     }
                     $entry = ['row' => $number, 'cells' => $values];
@@ -122,21 +122,31 @@ class AiSupplierPriceExtractor
         $http = Http::withToken(config('openai.api_key'))->acceptJson()->connectTimeout(10)->timeout(60);
         $ca = config('openai.ca_bundle');
         if (is_string($ca) && $ca !== '') {
-            if (!is_readable($ca)) throw new RuntimeException('The configured OpenAI CA bundle is unavailable.');
+            if (! is_readable($ca)) {
+                throw new RuntimeException('The configured OpenAI CA bundle is unavailable.');
+            }
             $http = $http->withOptions(['verify' => $ca]);
         }
         $response = $http->post(rtrim(config('openai.base_url'), '/').'/responses', $payload);
-        if (!$response->successful()) throw new RuntimeException('The AI service could not read this document (HTTP '.$response->status().').');
+        if (! $response->successful()) {
+            throw new RuntimeException('The AI service could not read this document (HTTP '.$response->status().').');
+        }
         $body = $response->json();
-        if (($body['status'] ?? null) !== 'completed') throw new InvalidArgumentException('AI extraction did not finish. Split the document into smaller files and try again. No prices were published.');
+        if (($body['status'] ?? null) !== 'completed') {
+            throw new InvalidArgumentException('AI extraction did not finish. Split the document into smaller files and try again. No prices were published.');
+        }
         $text = '';
         foreach ($body['output'] ?? [] as $item) {
             foreach ($item['content'] ?? [] as $part) {
-                if (($part['type'] ?? '') === 'output_text') $text .= $part['text'] ?? '';
+                if (($part['type'] ?? '') === 'output_text') {
+                    $text .= $part['text'] ?? '';
+                }
             }
         }
         $result = json_decode($text, true);
-        if (!is_array($result)) throw new RuntimeException('The AI service returned an unreadable extraction.');
+        if (! is_array($result)) {
+            throw new RuntimeException('The AI service returned an unreadable extraction.');
+        }
         $validator = Validator::make($result, [
             'complete' => ['required', 'boolean'], 'rows' => ['present', 'array'],
             'rows.*.supplier_sku' => ['present', 'nullable', 'string', 'max:255'],
@@ -148,15 +158,23 @@ class AiSupplierPriceExtractor
             'rows.*.manufacturer_part_number' => ['nullable', 'string', 'max:150'],
             'rows.*.shop_received_quantity' => ['nullable', 'integer', 'min:0', 'max:2147483647'],
         ]);
-        if ($validator->fails()) throw new InvalidArgumentException('The AI result was invalid. Try a clearer or smaller price list.');
-        if ($result['complete'] !== true) throw new InvalidArgumentException('AI could not confirm that the entire document was extracted. Try a smaller document. No prices were published.');
+        if ($validator->fails()) {
+            throw new InvalidArgumentException('The AI result was invalid. Try a clearer or smaller price list.');
+        }
+        if ($result['complete'] !== true) {
+            throw new InvalidArgumentException('AI could not confirm that the entire document was extracted. Try a smaller document. No prices were published.');
+        }
+
         return $result['rows'];
     }
 
     private function schema(): array
     {
         $properties = [];
-        foreach (['supplier_sku', 'product_name', 'unit_price', 'currency', 'source_reference', 'warning', 'internal_sku', 'available_quantity', 'minimum_order_quantity', 'lead_time_days', 'effective_date', 'manufacturer_part_number', 'shop_received_quantity'] as $field) $properties[$field] = ['type' => ['string', 'null']];
+        foreach (['supplier_sku', 'product_name', 'unit_price', 'currency', 'source_reference', 'warning', 'internal_sku', 'available_quantity', 'minimum_order_quantity', 'lead_time_days', 'effective_date', 'manufacturer_part_number', 'shop_received_quantity'] as $field) {
+            $properties[$field] = ['type' => ['string', 'null']];
+        }
+
         return ['type' => 'object', 'additionalProperties' => false, 'required' => ['complete', 'rows'], 'properties' => [
             'complete' => ['type' => 'boolean'],
             'rows' => ['type' => 'array', 'items' => ['type' => 'object', 'additionalProperties' => false, 'required' => array_keys($properties), 'properties' => $properties]],

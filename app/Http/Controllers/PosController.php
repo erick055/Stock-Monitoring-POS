@@ -8,8 +8,9 @@ use App\Models\InventoryLedger;
 use App\Models\Product;
 use App\Models\SalesItem;
 use App\Models\SalesTransaction;
-use App\Services\LowStockAlertService;
 use App\Services\InventoryLiveService;
+use App\Services\LowStockAlertService;
+use App\Support\TablePagination;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -75,7 +76,7 @@ class PosController extends Controller
             ->withSum('items as units_count', 'quantity')
             ->latest('sale_date')
             ->orderByDesc('sale_id')
-            ->paginate(\App\Support\TablePagination::size($request, 'checkout_rows'), ['*'], 'checkout_page')
+            ->paginate(TablePagination::size($request, 'checkout_rows'), ['*'], 'checkout_page')
             ->withQueryString()->fragment('checkout-history');
 
         $heldOrders = HeldOrder::query()
@@ -221,6 +222,7 @@ class PosController extends Controller
                 abort_unless(hash_equals($existing->checkout_fingerprint, $fingerprint), 409,
                     'This checkout key belongs to a different order.');
                 $replayed = true;
+
                 return $existing->load('items.product');
             }
             $subtotal = 0;

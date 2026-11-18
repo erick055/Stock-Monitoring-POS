@@ -135,6 +135,8 @@ $navigation = [
                         <span class="import-status {{ $selectedImport->error_count ? 'has-errors' : 'ready' }}">{{ $selectedImport->valid_count }} valid · {{ $selectedImport->error_count }} errors</span>
                         @if($selectedImport->status === 'pending' && ! $selectedImport->archived_at)
                             <button class="apply-button" type="button" data-open-import-decision><i class="bi bi-clipboard-check" aria-hidden="true"></i> Review import decision <i class="bi bi-chevron-right" aria-hidden="true"></i></button>
+                        @elseif($selectedImport->status === 'approved' && ! $selectedImport->archived_at)
+                            <a class="apply-button" href="{{ route('admin.suppliers.imports.stock-review', $selectedImport) }}" data-open-stock-review>Review stock additions</a>
                         @endif
                     </div>
                 </div>
@@ -218,7 +220,12 @@ $navigation = [
 
         <section class="panel suppliers-panel" id="supplier-prices" data-published-price-list="{{ $publishedPriceList }}">
             <div class="section-heading">
-                <div><span class="section-kicker">CURRENT DATA</span><h2>Published supplier prices</h2></div>
+                <div>
+                    <span class="section-kicker">CURRENT DATA</span><h2>Published supplier prices</h2>
+                    @if($publishedPriceList)
+                        <a href="{{ route('admin.suppliers.imports.stock-review', $publishedPriceList) }}" data-open-stock-review>Review stock from latest import</a>
+                    @endif
+                </div>
                 <form class="supplier-sort-form" method="GET" action="{{ route('admin.suppliers') }}">
                     @if($selectedImport)<input type="hidden" name="import" value="{{ $selectedImport->supplier_import_id }}">@endif
                     @if($importSearch !== '')<input type="hidden" name="import_search" value="{{ $importSearch }}">@endif
@@ -340,23 +347,25 @@ $navigation = [
                             <div class="catalog-sync-body">
                                 <div class="sync-explanation">
                                     <strong>{{ $price->product ? 'Currently matched to '.$price->product->sku.' — '.$price->product->name : 'This supplier item is not connected to Products yet.' }}</strong>
-                                    <span>Supplier stock is informational and will never be added to store inventory automatically.</span>
+                                    <span>Review the units your shop received before adding them to existing stock.</span>
                                 </div>
 
                                 @if(! $isAutomaticSkuMatch)
-                                    <form class="match-product-form" method="POST" action="{{ route('admin.suppliers.prices.match', $price) }}" data-catalog-match-form>
-                                        @csrf @method('PATCH')
+                                    <form class="match-product-form" method="GET" action="{{ route('admin.suppliers.prices.stock-review', $price) }}" data-catalog-match-form>
                                         <label>Match an existing product
                                             <input type="search" list="catalog-product-options" placeholder="Search SKU or product name" autocomplete="off" data-catalog-match-search required>
                                             <input type="hidden" name="product_id" data-catalog-product-id>
                                         </label>
-                                        <button class="match-button" type="submit">Save match</button>
+                                        <button class="match-button" type="submit">Review match</button>
                                     </form>
                                 @else
                                     <div class="automatic-match-note"><strong>No manual matching needed</strong><span>The supplier SKU and product SKU are the same.</span></div>
                                 @endif
 
                                 @if($price->product)
+                                    @if($price->product->is_active && ! $price->stock_applied_at)
+                                        <div><a class="apply-button" href="{{ route('admin.suppliers.prices.stock-review', $price) }}" data-open-stock-review>Review stock addition</a></div>
+                                    @endif
                                     <form class="unmatch-product-form" method="POST" action="{{ route('admin.suppliers.prices.unmatch', $price) }}" data-unmatch-product data-supplier-item="{{ $price->product_name }}" data-product-name="{{ $price->product->sku }} — {{ $price->product->name }}">
                                         @csrf @method('DELETE')
                                         <span><strong>Wrong product match?</strong><small>Remove only this connection. Product pricing and inventory will stay unchanged.</small></span>
@@ -419,6 +428,16 @@ $navigation = [
         <dialog class="supplier-review-dialog" data-bulk-review-dialog aria-label="Review supplier products">
             <button class="apply-button" type="button" data-close-bulk-review>Close review</button>
             <iframe name="supplier-bulk-review" title="Review supplier products"></iframe>
+        </dialog>
+
+        <dialog class="supplier-price-dialog stock-review-dialog" data-stock-review-dialog aria-labelledby="stock-review-title">
+            <header class="supplier-price-dialog-header">
+                <h2 id="stock-review-title">Review supplier stock</h2>
+                <button type="button" data-close-stock-review aria-label="Close stock review"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+            </header>
+            <p data-stock-review-status role="status" hidden></p>
+            <button class="apply-button" type="button" data-refresh-stock-review hidden>Refresh stock review</button>
+            <div data-stock-review-body></div>
         </dialog>
 
         <datalist id="catalog-product-options">

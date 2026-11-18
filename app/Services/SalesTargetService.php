@@ -5,8 +5,10 @@ namespace App\Services;
 use App\Models\SalesItem;
 use App\Models\SalesTarget;
 use App\Models\SalesTransaction;
+use App\Support\TablePagination;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 class SalesTargetService
 {
@@ -30,17 +32,16 @@ class SalesTargetService
         ];
     }
 
-    public function history(Request $request): \Illuminate\Pagination\LengthAwarePaginator
+    public function history(Request $request): LengthAwarePaginator
     {
         $rows = SalesTarget::orderByDesc('month')->paginate(
-            \App\Support\TablePagination::size($request, 'target_rows'), ['*'], 'target_page'
+            TablePagination::size($request, 'target_rows'), ['*'], 'target_page'
         )->withQueryString()->fragment('sales-target-history');
         $firstMonth = $rows->getCollection()->min('month');
         $now = CarbonImmutable::now();
         $totals = $firstMonth && $firstMonth->lessThanOrEqualTo($now)
             ? app(SalesAnalyticsService::class)->periods($firstMonth, $now, true) : [];
-        $rows->setCollection($rows->getCollection()->map(fn (SalesTarget $target) =>
-            $this->progress($target, $target->month, (float) ($totals[$target->month->format('Y-m')]['net_sales'] ?? 0))
+        $rows->setCollection($rows->getCollection()->map(fn (SalesTarget $target) => $this->progress($target, $target->month, (float) ($totals[$target->month->format('Y-m')]['net_sales'] ?? 0))
         ));
 
         return $rows;

@@ -10,6 +10,7 @@ use App\Models\SalesItem;
 use App\Models\SalesTransaction;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class PosCheckoutTest extends TestCase
@@ -19,7 +20,7 @@ class PosCheckoutTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->withHeader('Idempotency-Key', (string) \Illuminate\Support\Str::uuid());
+        $this->withHeader('Idempotency-Key', (string) Str::uuid());
     }
 
     public function test_checkout_retry_reuses_sale_and_rejects_changed_payload(): void
@@ -75,7 +76,7 @@ class PosCheckoutTest extends TestCase
         $staff = User::factory()->create(['role' => 'staff']);
 
         $this->actingAs($staff)->get(route('admin.pos'))->assertForbidden();
-        $this->actingAs($staff)->postJson(route('admin.pos.checkout'), ['payment_method' => 'cash', 'amount_tendered' => 10000000,])->assertForbidden();
+        $this->actingAs($staff)->postJson(route('admin.pos.checkout'), ['payment_method' => 'cash', 'amount_tendered' => 10000000])->assertForbidden();
     }
 
     public function test_pos_groups_categories_without_case_sensitive_duplicates(): void

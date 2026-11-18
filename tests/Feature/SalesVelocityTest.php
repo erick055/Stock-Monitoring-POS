@@ -35,7 +35,9 @@ class SalesVelocityTest extends TestCase
         $this->sold($owner, $bulk, 1000, '2026-11-04 12:00:01');
         $this->sold($owner, $bulk, 1000, '2026-11-01 12:00:00', 'cancelled');
         $this->sold($owner, $inactive, 1000, '2026-11-01 12:00:00');
-        foreach (range(1, 3) as $number) $this->sold($owner, $frequent, 10, '2026-11-04 12:00:00');
+        foreach (range(1, 3) as $number) {
+            $this->sold($owner, $frequent, 10, '2026-11-04 12:00:00');
+        }
         $rows = app(SellingSpeedService::class)->ranking();
         $this->assertSame(['BULK', 'FREQUENT'], $rows->pluck('sku')->all());
         $this->assertEquals(3, $rows[0]->units_per_day);
@@ -51,10 +53,17 @@ class SalesVelocityTest extends TestCase
         try {
             $reader->open($path);
             foreach ($reader->getSheetIterator() as $sheet) {
-                if ($sheet->getName() !== 'Selling Speed') continue;
-                foreach ($sheet->getRowIterator() as $row) $speedRows[] = $row->toArray();
+                if ($sheet->getName() !== 'Selling Speed') {
+                    continue;
+                }
+                foreach ($sheet->getRowIterator() as $row) {
+                    $speedRows[] = $row->toArray();
+                }
             }
-        } finally { $reader->close(); unlink($path); }
+        } finally {
+            $reader->close();
+            unlink($path);
+        }
         $this->assertSame('Sales velocity (units/day)', $speedRows[0][8]);
         $this->assertCount(9, $speedRows[0]);
         $this->assertEquals(3, $speedRows[1][8]);

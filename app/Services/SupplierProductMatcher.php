@@ -90,7 +90,7 @@ class SupplierProductMatcher
                 }
 
                 $nameGroups[$this->normalize($product->name)][] = $product;
-        });
+            });
 
         $this->skuMap = $this->uniqueMap($skuGroups);
         $this->partNumberMap = $this->uniqueMap($partNumberGroups);

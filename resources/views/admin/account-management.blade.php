@@ -89,9 +89,13 @@ $navigation = [
                             <div><strong>{{ $account->name }}</strong><span>{{ $account->email }}</span><small>Registered {{ $account->created_at->format('M d, Y · h:i A') }}</small></div>
                         </div>
                         <div class="account-state">
-                            <span class="status-pill {{ $account->account_status }}">{{ ucfirst($account->account_status) }}</span>
+                            <span class="status-pill {{ $account->account_status }}">{{ $account->isLockedByFailedLogins() ? 'Locked' : ucfirst($account->account_status) }}</span>
                             @if($account->approved_at)<small>Approved {{ $account->approved_at->diffForHumans() }} by {{ $account->approvedBy?->name ?? 'Owner' }}</small>@endif
-                            @if($account->disabled_at)<small>Disabled {{ $account->disabled_at->diffForHumans() }} by {{ $account->disabledBy?->name ?? 'Owner' }}</small>@endif
+                            @if($account->isLockedByFailedLogins())
+                                <small>Automatically locked {{ $account->disabled_at->diffForHumans() }}</small>
+                            @elseif($account->disabled_at)
+                                <small>Disabled {{ $account->disabled_at->diffForHumans() }} by {{ $account->disabledBy?->name ?? 'Owner' }}</small>
+                            @endif
                             @if($account->disabled_reason)<p><strong>Reason:</strong> {{ $account->disabled_reason }}</p>@endif
                         </div>
                         <div class="account-actions">
@@ -101,7 +105,7 @@ $navigation = [
                             @elseif($account->account_status === 'active')
                                 <form class="disable-form" method="POST" action="{{ route('admin.accounts.disable', $account) }}">@csrf @method('PATCH')<input name="disabled_reason" maxlength="500" placeholder="Reason (optional)" aria-label="Reason for disabling {{ $account->name }}"><button class="disable-button" type="submit">Disable staff access</button></form>
                             @else
-                                <form method="POST" action="{{ route('admin.accounts.reactivate', $account) }}">@csrf @method('PATCH')<button class="reactivate-button" type="submit">Restore staff access</button></form>
+                                <form method="POST" action="{{ route('admin.accounts.reactivate', $account) }}">@csrf @method('PATCH')<button class="reactivate-button" type="submit">{{ $account->isLockedByFailedLogins() ? 'Unlock staff account' : 'Restore staff access' }}</button></form>
                             @endif
                         </div>
                         <div class="account-dialog-actions">

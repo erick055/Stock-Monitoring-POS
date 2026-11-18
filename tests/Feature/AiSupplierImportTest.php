@@ -10,6 +10,9 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Testing\TestResponse;
+use OpenSpout\Common\Entity\Row;
+use OpenSpout\Writer\XLSX\Writer;
 use Tests\TestCase;
 
 class AiSupplierImportTest extends TestCase
@@ -20,10 +23,10 @@ class AiSupplierImportTest extends TestCase
     {
         Http::preventStrayRequests();
         $stream = tmpfile();
-        $writer = new \OpenSpout\Writer\XLSX\Writer;
+        $writer = new Writer;
         $writer->openToFile(stream_get_meta_data($stream)['uri']);
-        $writer->addRow(\OpenSpout\Common\Entity\Row::fromValues(['Part No.', 'Item Description', 'Dealer Price', 'Retail Price', 'Available Qty']));
-        $writer->addRow(\OpenSpout\Common\Entity\Row::fromValues(['000123', 'Brake Pad Set', 125.50, 200, 25]));
+        $writer->addRow(Row::fromValues(['Part No.', 'Item Description', 'Dealer Price', 'Retail Price', 'Available Qty']));
+        $writer->addRow(Row::fromValues(['000123', 'Brake Pad Set', 125.50, 200, 25]));
         $writer->close();
         $file = UploadedFile::fake()->createWithContent('supplier.xlsx', file_get_contents(stream_get_meta_data($stream)['uri']));
         fclose($stream);
@@ -75,9 +78,12 @@ class AiSupplierImportTest extends TestCase
             $rows = [];
             foreach ($input['source_rows'] as $source) {
                 [$sku, $name, $price] = $source['cells'];
-                if ($sku === 'Reference') continue;
+                if ($sku === 'Reference') {
+                    continue;
+                }
                 $rows[] = $this->row(['supplier_sku' => $sku, 'product_name' => $name, 'unit_price' => $price]);
             }
+
             return Http::response(['status' => 'completed', 'output' => [[
                 'content' => [['type' => 'output_text', 'text' => json_encode(['complete' => true, 'rows' => $rows])]],
             ]]]);
@@ -109,7 +115,7 @@ class AiSupplierImportTest extends TestCase
         return $overrides + ['supplier_sku' => '000123', 'product_name' => 'Brake Pad Set', 'unit_price' => '125.50', 'currency' => 'PHP', 'source_reference' => 'Page 1, row 2', 'warning' => null];
     }
 
-    private function upload(): \Illuminate\Testing\TestResponse
+    private function upload(): TestResponse
     {
         return $this->from(route('admin.suppliers'))->post(route('admin.suppliers.imports.upload'), [
             'supplier_name' => 'AI Supplier', 'supplier_code' => 'AI-SUPPLIER', 'import_mode' => 'ai', 'default_currency' => 'PHP',

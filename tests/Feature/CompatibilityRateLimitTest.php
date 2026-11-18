@@ -19,8 +19,12 @@ class CompatibilityRateLimitTest extends TestCase
         Http::fake();
         $owner = User::factory()->create(['role' => 'admin']);
         $this->actingAs($owner);
-        for ($i = 0; $i < 15; $i++) $this->getJson(route('session.status'))->assertOk();
-        for ($i = 0; $i < 10; $i++) $this->post(route('admin.compatibility.ai'), self::SEARCH)->assertOk();
+        for ($i = 0; $i < 15; $i++) {
+            $this->getJson(route('session.status'))->assertOk();
+        }
+        for ($i = 0; $i < 10; $i++) {
+            $this->post(route('admin.compatibility.ai'), self::SEARCH)->assertOk();
+        }
         Http::assertNothingSent();
     }
 
@@ -29,7 +33,9 @@ class CompatibilityRateLimitTest extends TestCase
         Http::fake();
         $staff = User::factory()->create(['role' => 'staff']);
         $this->actingAs($staff);
-        for ($i = 0; $i < 10; $i++) $this->post(route('staff.compatibility.ai'), self::SEARCH)->assertOk();
+        for ($i = 0; $i < 10; $i++) {
+            $this->post(route('staff.compatibility.ai'), self::SEARCH)->assertOk();
+        }
         $this->post(route('staff.compatibility.ai'), self::SEARCH)
             ->assertRedirect(route('staff.compatibility'))->assertSessionHasErrors('compatibility')
             ->assertSessionHasInput('brand', 'Honda')->assertSessionHasInput('model', 'Click 160');
@@ -45,7 +51,9 @@ class CompatibilityRateLimitTest extends TestCase
         $first = User::factory()->create(['role' => 'staff']);
         $second = User::factory()->create(['role' => 'staff']);
         $this->actingAs($first);
-        for ($i = 0; $i < 10; $i++) $this->post(route('staff.compatibility.ai'), self::SEARCH)->assertOk();
+        for ($i = 0; $i < 10; $i++) {
+            $this->post(route('staff.compatibility.ai'), self::SEARCH)->assertOk();
+        }
         $this->postJson(route('staff.compatibility.ai'), self::SEARCH)->assertStatus(429)
             ->assertHeader('Retry-After')->assertJsonStructure(['message', 'retry_after']);
         $this->actingAs($second)->post(route('staff.compatibility.ai'), self::SEARCH)->assertOk();
@@ -62,7 +70,9 @@ class CompatibilityRateLimitTest extends TestCase
             ]],
         ])])]);
         $this->actingAs($owner);
-        for ($i = 0; $i < 5; $i++) $this->post(route('admin.compatibility.ai'), self::SEARCH)->assertOk()->assertSee('Cached assessment.');
+        for ($i = 0; $i < 5; $i++) {
+            $this->post(route('admin.compatibility.ai'), self::SEARCH)->assertOk()->assertSee('Cached assessment.');
+        }
         Http::assertSentCount(1);
     }
 }

@@ -19,6 +19,7 @@ class RequireStaffPasswordChange
                     'password_change_url' => route('staff.password.edit'),
                 ], 403);
             }
+
             return redirect()->route('staff.password.edit');
         }
 

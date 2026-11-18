@@ -211,7 +211,7 @@ $editErrorProduct = $errors->getBag('editProduct')->any()
                     <thead><tr><th>Ledger ID</th><th>Product ID</th><th>Product</th><th>Qty In</th><th>Qty Out</th><th>Reason Code</th><th>Logs</th><th>Added By</th><th>Timestamp</th></tr></thead>
                     <tbody>
                     @forelse($ledgers as $ledger)
-                        <tr><td>#{{ $ledger->ledger_id }}</td><td>#{{ $ledger->product_id }}</td><td><strong>{{ $ledger->product->name }}</strong><small>{{ $ledger->product->sku }}</small></td><td class="qty-in">{{ number_format($ledger->qty_in) }}</td><td class="qty-out">{{ number_format($ledger->qty_out) }}</td><td><span class="reason-code">{{ str_replace('_', ' ', $ledger->reason_code) }}</span></td><td class="log-cell">{{ $ledger->logs ?: '—' }}</td><td>{{ $ledger->user?->name ?: 'System' }}</td><td>{{ $ledger->created_at->format('M d, Y h:i A') }}</td></tr>
+                        <tr><td>#{{ $ledger->ledger_id }}</td><td>#{{ $ledger->product_id }}</td><td><strong>{{ $ledger->product->name }}</strong><small>{{ $ledger->product->sku }}</small></td><td class="qty-in">{{ number_format($ledger->qty_in) }}</td><td class="qty-out">{{ number_format($ledger->qty_out) }}</td><td><span class="reason-code" data-reason="{{ $ledger->reason_code }}">{{ str_replace('_', ' ', $ledger->reason_code) }}</span></td><td class="log-cell">{{ $ledger->logs ?: '—' }}</td><td>{{ $ledger->user?->name ?: 'System' }}</td><td>{{ $ledger->created_at->format('M d, Y h:i A') }}</td></tr>
                     @empty
                         <tr><td colspan="9" class="empty-cell">No inventory movements recorded yet.</td></tr>
                     @endforelse
@@ -408,7 +408,11 @@ $editErrorProduct = $errors->getBag('editProduct')->any()
                             <option value="PHYSICAL_COUNT" data-types="adjustment">Physical count correction</option>
                             <option value="DATA_CORRECTION" data-types="adjustment">Encoding or data correction</option>
                             <option value="SHRINKAGE" data-types="adjustment">Loss, shrinkage, or discrepancy</option>
+                            <option value="CUSTOM">Type a reason</option>
                         </select>
+                    </label>
+                    <label data-manual-reason-field @if(old('reason_code') !== 'CUSTOM') hidden @endif>Reason
+                        <input name="manual_reason" value="{{ old('manual_reason') }}" maxlength="500" @required(old('reason_code') === 'CUSTOM') @disabled(old('reason_code') !== 'CUSTOM')>
                     </label>
                     <label>Reference number <small>Optional</small>
                         <input name="reference" value="{{ old('reference') }}" maxlength="100" placeholder="Invoice, delivery receipt, sale, or memo no.">

@@ -10,6 +10,7 @@ use Illuminate\Auth\Events\Verified;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\URL;
 use Tests\TestCase;
@@ -22,7 +23,7 @@ class AuthenticationTest extends TestCase
     {
         $user = User::factory()->create();
         $user->loginVerificationCode()->create([
-            'code_hash' => \Illuminate\Support\Facades\Hash::make('123456'), 'attempts' => 5,
+            'code_hash' => Hash::make('123456'), 'attempts' => 5,
             'expires_at' => now()->addMinutes(10), 'last_sent_at' => now(),
         ]);
         $this->withSession(['login_verification.user_id' => $user->id, 'login_verification.started_at' => now()->timestamp])
@@ -36,7 +37,7 @@ class AuthenticationTest extends TestCase
     {
         $user = User::factory()->create();
         $user->loginVerificationCode()->create([
-            'code_hash' => \Illuminate\Support\Facades\Hash::make('123456'), 'attempts' => 0,
+            'code_hash' => Hash::make('123456'), 'attempts' => 0,
             'expires_at' => now()->addMinutes(10), 'last_sent_at' => now(),
         ]);
         $this->withSession(['login_verification.user_id' => $user->id, 'login_verification.started_at' => now()->timestamp])
@@ -49,7 +50,7 @@ class AuthenticationTest extends TestCase
     {
         Notification::fake();
         $user = User::factory()->create();
-        $oldHash = \Illuminate\Support\Facades\Hash::make('000000');
+        $oldHash = Hash::make('000000');
         $user->loginVerificationCode()->create([
             'code_hash' => $oldHash, 'attempts' => 0,
             'expires_at' => now()->addMinutes(10), 'last_sent_at' => now()->subSeconds(61),
@@ -84,7 +85,8 @@ class AuthenticationTest extends TestCase
     {
         Notification::fake();
         $owner = User::factory()->create(['role' => 'admin', 'password' => self::STRONG_PASSWORD]);
-        $this->post('/login', ['email' => $owner->email, 'password' => 'Wrong!Password123'])->assertSessionHasErrors('email');
+        $this->post('/login', ['email' => $owner->email, 'password' => 'Wrong!Password123'])
+            ->assertSessionHasErrors(['password' => 'Password is incorrect.']);
         $this->assertGuest();
         $owner->update(['account_status' => 'disabled']);
         $this->post('/login', ['email' => $owner->email, 'password' => self::STRONG_PASSWORD])->assertSessionHasErrors('email');
@@ -104,6 +106,17 @@ class AuthenticationTest extends TestCase
         $this->assertGuest();
         $this->assertDatabaseMissing('users', ['email' => 'staff@example.com']);
     }
+
+    public function test_unknown_email_displays_account_not_found_on_the_login_page(): void
+    {
+        $this->from(route('login'))->followingRedirects()
+            ->post(route('login.store'), ['email' => 'unknown@example.com', 'password' => self::STRONG_PASSWORD])
+            ->assertOk()
+            ->assertSee('Account not found.');
+
+        $this->assertGuest();
+    }
+
     public function test_pending_and_disabled_staff_cannot_start_login_verification(): void
     {
         Notification::fake();
@@ -355,24 +368,68 @@ class AuthenticationTest extends TestCase
 
     public function test_login_is_throttled_after_five_failed_attempts(): void
     {
-        User::factory()->create([
-            'email' => 'staff@example.com',
+        $this->freezeTime();
+        $admin = User::factory()->create([
+            'email' => 'admin@example.com',
+            'role' => 'admin',
             'password' => self::STRONG_PASSWORD,
         ]);
 
         foreach (range(1, 5) as $attempt) {
             $this->from('/')->post('/login', [
-                'email' => 'staff@example.com',
+                'email' => $admin->email,
                 'password' => 'incorrect-password',
-            ])->assertSessionHasErrors('email');
+            ])->assertSessionHasErrors(['password' => 'Password is incorrect.']);
         }
 
         $this->from('/')->post('/login', [
-            'email' => 'staff@example.com',
+            'email' => $admin->email,
             'password' => self::STRONG_PASSWORD,
-        ])->assertSessionHasErrors('email');
+        ])->assertSessionHasErrors(['email' => 'Too many login attempts. Try again in 60 seconds.']);
 
+        $this->assertSame('active', $admin->fresh()->account_status);
         $this->assertGuest();
+    }
+
+    public function test_admin_accounts_can_sign_in_after_three_failed_passwords(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin', 'password' => self::STRONG_PASSWORD]);
+
+        foreach (range(1, 3) as $attempt) {
+            $this->post(route('login.store'), [
+                'email' => $admin->email, 'password' => 'incorrect-password',
+            ])->assertSessionHasErrors(['password' => 'Password is incorrect.']);
+        }
+
+        $this->post(route('login.store'), [
+            'email' => $admin->email, 'password' => self::STRONG_PASSWORD,
+        ])->assertRedirect(route('admin.dashboard'));
+
+        $this->assertAuthenticatedAs($admin);
+        $this->assertSame(0, $admin->fresh()->failed_login_attempts);
+    }
+
+    public function test_correct_staff_password_resets_consecutive_failures(): void
+    {
+        Notification::fake();
+        $staff = User::factory()->create(['role' => 'staff', 'password' => self::STRONG_PASSWORD]);
+
+        foreach (range(1, 2) as $attempt) {
+            $this->post(route('login.store'), [
+                'email' => $staff->email, 'password' => 'incorrect-password',
+            ])->assertSessionHasErrors(['password' => 'Password is incorrect.']);
+        }
+
+        $this->post(route('login.store'), [
+            'email' => $staff->email, 'password' => self::STRONG_PASSWORD,
+        ])->assertRedirect(route('login.verify'));
+
+        $this->post(route('login.store'), [
+            'email' => $staff->email, 'password' => 'incorrect-password',
+        ])->assertSessionHasErrors(['password' => 'Password is incorrect.']);
+
+        $this->assertSame(1, $staff->fresh()->failed_login_attempts);
+        $this->assertSame('active', $staff->fresh()->account_status);
     }
 
     public function test_unverified_user_cannot_open_a_protected_dashboard(): void

@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Product;
 use App\Models\Supplier;
 use App\Models\SupplierImport;
+use App\Models\SupplierImportRow;
 use App\Models\SupplierPrice;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -251,7 +252,7 @@ class SuppliersPageTest extends TestCase
                 "supplier_sku,product_name,unit_price\nREV-1,Review Part,150.00"),
         ];
         $this->actingAs($owner)->post(route('admin.suppliers.imports.upload'), $upload())->assertSessionHasNoErrors();
-        $import = \App\Models\SupplierImport::firstOrFail();
+        $import = SupplierImport::firstOrFail();
         $this->assertDatabaseCount('supplier_import_rows', 1);
         $this->post(route('admin.suppliers.imports.reject', $import))->assertRedirect(route('admin.suppliers'));
         $this->assertDatabaseCount('supplier_imports', 0);
@@ -335,7 +336,7 @@ class SuppliersPageTest extends TestCase
             'product_name' => 'Excel Imported Part',
             'unit_price' => 150.75,
         ]);
-        $generated = \App\Models\SupplierImportRow::where('product_name', 'Excel Part Without SKU')->firstOrFail();
+        $generated = SupplierImportRow::where('product_name', 'Excel Part Without SKU')->firstOrFail();
         $this->assertStringStartsWith('EXCE-', $generated->supplier_sku);
         $this->assertEmpty($generated->validation_errors);
     }
@@ -425,6 +426,84 @@ class SuppliersPageTest extends TestCase
         $this->assertSame(8, $product->current_stock);
     }
 
+    public function test_reviewing_a_match_prefills_supplier_stock_and_adds_only_the_confirmed_units_once(): void
+    {
+        $owner = User::factory()->create(['role' => 'admin']);
+        $product = Product::create([
+            'sku' => 'RECEIPT-01', 'name' => 'Receipt Target', 'unit_cost' => 100,
+            'unit_price' => 250, 'current_stock' => 8,
+        ]);
+        $price = $this->createSupplierPrice('SUP-RECEIPT', 'Supplier Receipt', 145.50, 50);
+        $review = route('admin.suppliers.prices.stock-review', [$price, 'product_id' => $product->getKey()]);
+        $apply = route('admin.suppliers.prices.apply-stock', $price);
+
+        $this->actingAs($owner)->get(route('admin.suppliers'))->assertOk()
+            ->assertSee('data-stock-review-dialog', false)->assertSee('Review match');
+        $this->get($review)->assertOk()->assertSee('data-stock-review-content', false)
+            ->assertSee('Current stock')->assertSee('value="50"', false)->assertSee('>58</output>', false);
+        $this->assertNull($price->fresh()->product_id);
+        $this->assertSame(8, $product->fresh()->current_stock);
+
+        $rows = [[
+            'price_id' => $price->getKey(), 'product_id' => $product->getKey(),
+            'version' => 0, 'current_stock' => 8, 'quantity' => 5,
+        ]];
+        $this->postJson($apply, compact('rows'))->assertOk()
+            ->assertJsonPath('message', 'Product match saved and stock added in Stock Management.');
+        $this->assertSame($product->getKey(), $price->fresh()->product_id);
+        $this->get(route('admin.inventory'))->assertOk()->assertViewHas('products', fn ($products) =>
+            (int) $products->firstWhere('product_id', $product->getKey())->current_stock === 13);
+
+        $this->from($review)->post($apply, compact('rows'))->assertSessionHasErrors('rows');
+        $this->assertSame(13, $product->fresh()->current_stock);
+        $this->assertDatabaseCount('inventory_ledgers', 1);
+        $this->assertDatabaseHas('inventory_ledgers', [
+            'product_id' => $product->getKey(), 'qty_in' => 5, 'qty_out' => 0, 'reason_code' => 'SUPPLIER_IMPORT',
+        ]);
+    }
+
+    public function test_bulk_stock_review_adds_edited_quantities_and_skips_zero_quantities(): void
+    {
+        $owner = User::factory()->create(['role' => 'admin']);
+        foreach (['BATCH-A', 'BATCH-B', 'BATCH-C'] as $sku) {
+            Product::create(['sku' => $sku, 'name' => $sku, 'unit_price' => 25, 'current_stock' => 8]);
+        }
+
+        $this->actingAs($owner)->post(route('admin.suppliers.imports.upload'), [
+            'supplier_name' => 'Receipt Supplier', 'supplier_code' => 'RECEIPTS',
+            'price_file' => UploadedFile::fake()->createWithContent('receipts.csv',
+                "supplier_sku,product_name,unit_price,available_quantity\n"
+                ."BATCH-A,Batch A,10,50\nBATCH-B,Batch B,10,40\nBATCH-C,Batch C,10,30\n"
+                .'NO-MATCH,Unmatched Stock,10,20'),
+        ])->assertSessionHasNoErrors();
+        $import = SupplierImport::firstOrFail();
+        $this->post(route('admin.suppliers.imports.approve', $import))->assertSessionHasNoErrors();
+
+        $review = route('admin.suppliers.imports.stock-review', $import);
+        $apply = route('admin.suppliers.imports.apply-stock', $import);
+        $this->get($review)->assertOk()->assertSee('BATCH-A')->assertSee('BATCH-B')
+            ->assertSee('value="50"', false)->assertDontSee('NO-MATCH');
+        $rows = SupplierPrice::query()->with('latestHistory')->whereNotNull('product_id')->get()->map(fn ($price) => [
+            'price_id' => $price->getKey(), 'product_id' => $price->product_id,
+            'version' => $price->latestHistory->getKey(), 'current_stock' => 8,
+            'quantity' => ['BATCH-A' => 5, 'BATCH-B' => 0, 'BATCH-C' => 3][$price->supplier_sku],
+        ])->all();
+
+        Product::query()->where('sku', 'BATCH-C')->update(['current_stock' => 7]);
+        $this->from($review)->post($apply, compact('rows'))->assertSessionHasErrors('rows');
+        $this->assertDatabaseHas('products', ['sku' => 'BATCH-A', 'current_stock' => 8]);
+        $this->assertDatabaseCount('inventory_ledgers', 0);
+        $rows[2]['current_stock'] = 7;
+        $this->postJson($apply, compact('rows'))->assertOk()
+            ->assertJsonPath('message', 'Stock added for 2 supplier items.')
+            ->assertJsonPath('review_url', $review);
+        $this->get($review)->assertOk()->assertDontSee('BATCH-A')->assertSee('BATCH-B')->assertDontSee('BATCH-C');
+        $this->assertDatabaseHas('products', ['sku' => 'BATCH-A', 'current_stock' => 13]);
+        $this->assertDatabaseHas('products', ['sku' => 'BATCH-B', 'current_stock' => 8]);
+        $this->assertDatabaseHas('products', ['sku' => 'BATCH-C', 'current_stock' => 10]);
+        $this->assertDatabaseCount('inventory_ledgers', 2);
+    }
+
     public function test_owner_can_create_a_zero_stock_catalog_product_from_an_unmatched_supplier_price(): void
     {
         $admin = User::factory()->create(['role' => 'admin']);
@@ -465,7 +544,7 @@ class SuppliersPageTest extends TestCase
             'price_file' => UploadedFile::fake()->createWithContent('bulk.csv',
                 "supplier_sku,product_name,unit_price,available_quantity,manufacturer_part_number,units_received_by_shop\n"
                 ."BULK-ONE,Bulk Product One,100,25,MPN-ONE,7\n"
-                ."BULK-TWO,Bulk Product Two,200,30,,"),
+                .'BULK-TWO,Bulk Product Two,200,30,,'),
         ])->assertSessionHasNoErrors();
         $import = SupplierImport::firstOrFail();
         $this->post(route('admin.suppliers.imports.approve', $import))->assertSessionHasNoErrors();

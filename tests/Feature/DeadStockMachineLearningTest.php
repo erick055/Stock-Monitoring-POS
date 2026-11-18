@@ -9,6 +9,7 @@ use App\Models\SalesItem;
 use App\Models\SalesTransaction;
 use App\Models\User;
 use App\Services\DeadStockMachineLearning;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -18,7 +19,7 @@ class DeadStockMachineLearningTest extends TestCase
 
     public function test_validation_groups_dates_and_purges_overlapping_targets(): void
     {
-        $start = \Carbon\CarbonImmutable::parse('2024-01-01');
+        $start = CarbonImmutable::parse('2024-01-01');
         $samples = collect();
         foreach (range(0, 9) as $i) {
             $cutoff = $start->addDays($i * 30);

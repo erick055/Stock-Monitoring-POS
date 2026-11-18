@@ -5,10 +5,10 @@ namespace App\Services;
 use App\Models\SupplierImport;
 use App\Models\SupplierImportRow;
 use DateTimeInterface;
+use Illuminate\Support\Str;
 use InvalidArgumentException;
 use OpenSpout\Reader\CSV\Reader as CsvReader;
 use OpenSpout\Reader\ReaderInterface;
-use Illuminate\Support\Str;
 use OpenSpout\Reader\XLSX\Reader as XlsxReader;
 
 class SupplierSpreadsheetImporter
@@ -31,8 +31,11 @@ class SupplierSpreadsheetImporter
             foreach ($reader->getSheetIterator() as $sheet) {
                 foreach ($sheet->getRowIterator() as $row) {
                     $values = array_map($this->stringValue(...), $row->toArray());
-                    if ($this->isEmptyRow($values)) continue;
+                    if ($this->isEmptyRow($values)) {
+                        continue;
+                    }
                     $this->validateHeaders(array_map($this->normalizeHeader(...), $values));
+
                     return true;
                 }
                 break;
@@ -49,7 +52,9 @@ class SupplierSpreadsheetImporter
     public function stageExtractedRows(SupplierImport $import, array $rows, string $defaultCurrency): void
     {
         $stream = tmpfile();
-        if ($stream === false) throw new InvalidArgumentException('Could not prepare the extracted rows for validation.');
+        if ($stream === false) {
+            throw new InvalidArgumentException('Could not prepare the extracted rows for validation.');
+        }
         try {
             fputcsv($stream, self::ALLOWED_HEADERS, ',', '"', '');
             foreach ($rows as $row) {
@@ -60,7 +65,9 @@ class SupplierSpreadsheetImporter
             $this->stage($import, stream_get_meta_data($stream)['uri'], 'csv');
             foreach ($import->rows()->orderBy('row_number')->get() as $index => $storedRow) {
                 $errors = $storedRow->validation_errors ?? [];
-                if (filled($rows[$index]['warning'] ?? null)) $errors[] = 'AI review required: '.$rows[$index]['warning'];
+                if (filled($rows[$index]['warning'] ?? null)) {
+                    $errors[] = 'AI review required: '.$rows[$index]['warning'];
+                }
                 $storedRow->update(['source_reference' => $rows[$index]['source_reference'] ?? null, 'validation_errors' => $errors ?: null]);
             }
             $this->refreshCounts($import);
@@ -73,7 +80,9 @@ class SupplierSpreadsheetImporter
     {
         $data = array_replace(array_fill_keys(self::ALLOWED_HEADERS, null), $row->only(self::ALLOWED_HEADERS), $values);
         // For AI rows, rematch the corrected identifiers rather than a prior inferred match.
-        if ($import->extraction_method === 'ai') $data['internal_sku'] = null;
+        if ($import->extraction_method === 'ai') {
+            $data['internal_sku'] = null;
+        }
         $errors = $this->validateRow($data);
         if ($import->rows()->whereKeyNot($row->supplier_import_row_id)->get(['supplier_sku'])->contains(fn ($other) => mb_strtolower(trim($other->supplier_sku)) === mb_strtolower(trim($data['supplier_sku'])))) {
             $errors[] = 'Duplicate supplier_sku in this file.';
@@ -88,7 +97,9 @@ class SupplierSpreadsheetImporter
         foreach ($import->rows()->orderBy('row_number')->get() as $item) {
             $itemErrors = array_values(array_filter($item->validation_errors ?? [], fn ($error) => $error !== 'Duplicate supplier_sku in this file.'));
             $key = mb_strtolower(trim($item->supplier_sku));
-            if ($key !== '' && isset($seen[$key])) $itemErrors[] = 'Duplicate supplier_sku in this file.';
+            if ($key !== '' && isset($seen[$key])) {
+                $itemErrors[] = 'Duplicate supplier_sku in this file.';
+            }
             $seen[$key] = true;
             $item->update(['validation_errors' => $itemErrors ?: null]);
         }
@@ -98,7 +109,7 @@ class SupplierSpreadsheetImporter
     private function refreshCounts(SupplierImport $import): void
     {
         $rows = $import->rows()->get(['validation_errors']);
-        $errors = $rows->filter(fn ($row) => !empty($row->validation_errors))->count();
+        $errors = $rows->filter(fn ($row) => ! empty($row->validation_errors))->count();
         $import->update(['row_count' => $rows->count(), 'valid_count' => $rows->count() - $errors, 'error_count' => $errors]);
     }
 
@@ -119,7 +130,9 @@ class SupplierSpreadsheetImporter
                     $values = array_map($this->stringValue(...), $row->toArray());
 
                     if ($headers === []) {
-                        if ($this->isEmptyRow($values)) continue;
+                        if ($this->isEmptyRow($values)) {
+                            continue;
+                        }
                         $headers = array_map($this->normalizeHeader(...), $values);
                         $this->validateHeaders($headers);
 
@@ -232,7 +245,9 @@ class SupplierSpreadsheetImporter
             $errors[] = 'product_name is required.';
         }
         foreach (['supplier_sku', 'product_name', 'internal_sku'] as $field) {
-            if (mb_strlen((string) $data[$field]) > 255) $errors[] = "{$field} cannot exceed 255 characters.";
+            if (mb_strlen((string) $data[$field]) > 255) {
+                $errors[] = "{$field} cannot exceed 255 characters.";
+            }
         }
         if (! is_numeric($data['unit_price']) || (float) $data['unit_price'] <= 0) {
             $errors[] = 'unit_price must be greater than zero.';

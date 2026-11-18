@@ -6,13 +6,13 @@ use App\Http\Controllers\Controller;
 use App\Models\LoginVerificationCode;
 use App\Models\User;
 use App\Notifications\LoginVerificationCodeNotification;
-use App\Services\TrustedLoginDeviceService;
 use App\Services\SingleSessionLogin;
+use App\Services\TrustedLoginDeviceService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -35,33 +35,41 @@ class LoginVerificationController extends Controller
         $request->validate(['code' => ['required', 'digits:6']]);
         $user = $this->pendingUser($request);
         $outcome = DB::transaction(function () use ($request, $user): string {
-            if (! $user) return 'expired';
+            if (! $user) {
+                return 'expired';
+            }
             // All code issue/resend/verification requests serialize on the user row.
             $lockedUser = User::query()->lockForUpdate()->find($user->id);
             $verification = LoginVerificationCode::where('user_id', $user->id)->lockForUpdate()->first();
             if (! $lockedUser || $lockedUser->account_status !== 'active'
                 || ! in_array($lockedUser->role, ['admin', 'staff'], true)) {
                 $verification?->delete();
+
                 return 'expired';
             }
             if (! $verification || $verification->expires_at->lte(now())) {
                 $verification?->delete();
+
                 return 'expired';
             }
             if ($verification->attempts >= 5) {
                 $verification->delete();
+
                 return 'locked';
             }
             if (! Hash::check((string) $request->input('code'), $verification->code_hash)) {
                 $verification->increment('attempts');
                 if ($verification->attempts >= 5) {
                     $verification->delete();
+
                     return 'locked';
                 }
+
                 // Return normally so the failed-attempt update commits.
                 return 'incorrect';
             }
             $verification->delete();
+
             return 'verified';
         });
 
@@ -70,6 +78,7 @@ class LoginVerificationController extends Controller
         }
         if ($outcome !== 'verified') {
             $this->clearPendingLogin($request);
+
             return redirect()->route('login')->withErrors(['email' => $outcome === 'locked'
                 ? 'Too many incorrect codes. Please log in again.'
                 : 'Your login code has expired. Please log in again.']);
@@ -81,6 +90,7 @@ class LoginVerificationController extends Controller
         if ($user->role === 'staff' && $user->must_change_password) {
             return redirect()->route('staff.password.edit')->withoutCookie(Auth::guard()->getRecallerName());
         }
+
         return redirect()->intended(route($user->role.'.dashboard'))
             ->withoutCookie(Auth::guard()->getRecallerName());
     }
@@ -89,17 +99,25 @@ class LoginVerificationController extends Controller
     {
         $user = $this->pendingUser($request);
         $outcome = DB::transaction(function () use ($user): string {
-            if (! $user) return 'expired';
+            if (! $user) {
+                return 'expired';
+            }
             $lockedUser = User::query()->lockForUpdate()->find($user->id);
             $verification = LoginVerificationCode::where('user_id', $user->id)->lockForUpdate()->first();
-            if (! $lockedUser || $lockedUser->account_status !== 'active' || ! $verification || $verification->attempts >= 5) return 'expired';
-            if ($verification->last_sent_at->addSeconds(60)->isFuture()) return 'wait';
+            if (! $lockedUser || $lockedUser->account_status !== 'active' || ! $verification || $verification->attempts >= 5) {
+                return 'expired';
+            }
+            if ($verification->last_sent_at->addSeconds(60)->isFuture()) {
+                return 'wait';
+            }
             $this->issueCode($lockedUser);
+
             return 'sent';
         });
 
         if ($outcome === 'expired') {
             $this->clearPendingLogin($request);
+
             return redirect()->route('login')->withErrors(['email' => 'Your login verification session has expired. Please log in again.']);
         }
 
@@ -118,13 +136,13 @@ class LoginVerificationController extends Controller
             $lockedUser = User::query()->lockForUpdate()->findOrFail($user->id);
             abort_unless($lockedUser->account_status === 'active', 403);
             LoginVerificationCode::updateOrCreate(
-            ['user_id' => $user->id],
-            [
-                'code_hash' => Hash::make($code),
-                'attempts' => 0,
-                'expires_at' => now()->addMinutes(10),
-                'last_sent_at' => now(),
-            ],
+                ['user_id' => $user->id],
+                [
+                    'code_hash' => Hash::make($code),
+                    'attempts' => 0,
+                    'expires_at' => now()->addMinutes(10),
+                    'last_sent_at' => now(),
+                ],
             );
             // A mail failure rolls back this issuance rather than clearing another request's code.
             $lockedUser->notify(new LoginVerificationCodeNotification($code));

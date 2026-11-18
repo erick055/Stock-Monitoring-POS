@@ -2,12 +2,14 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\DeadStockController;
 use App\Models\Product;
 use App\Models\ProductPromotion;
 use App\Models\SalesItem;
 use App\Models\SalesTransaction;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
 class DeadStockPageTest extends TestCase
@@ -16,12 +18,12 @@ class DeadStockPageTest extends TestCase
 
     public function test_last_sale_age_counts_elapsed_days_and_handles_missing_or_future_dates(): void
     {
-        $this->travelTo(\Illuminate\Support\Carbon::parse('2026-10-01 12:00:00'));
+        $this->travelTo(Carbon::parse('2026-10-01 12:00:00'));
         $product = Product::create([
             'sku' => 'SALE-AGE', 'name' => 'Sale Age Part',
             'unit_cost' => 100, 'unit_price' => 150, 'current_stock' => 5,
         ]);
-        $controller = app(\App\Http\Controllers\DeadStockController::class);
+        $controller = app(DeadStockController::class);
 
         foreach ([0, 1, 30, 90, 120] as $days) {
             $analysis = $controller->scoreProduct($product, 0, 1, now()->subDays($days)->toDateTimeString());

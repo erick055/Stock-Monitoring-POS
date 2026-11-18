@@ -14,6 +14,7 @@ class StaffPasswordChangeTest extends TestCase
     use RefreshDatabase;
 
     private const TEMPORARY = 'Temporary!Password123';
+
     private const PERSONAL = 'Personal!Password456';
 
     public function test_login_has_no_forgot_password_link(): void
@@ -30,6 +31,7 @@ class StaffPasswordChangeTest extends TestCase
         Notification::assertSentTo($staff, LoginVerificationCodeNotification::class, function ($notification) {
             $this->post(route('login.verify.store'), ['code' => $notification->code])
                 ->assertRedirect(route('staff.password.edit'));
+
             return true;
         });
         $this->get(route('staff.password.edit'))->assertOk()->assertSee('Create your own password')->assertSee('<dialog open', false);

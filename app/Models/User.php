@@ -5,6 +5,7 @@ namespace App\Models;
 use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -14,6 +15,8 @@ class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
+
+    public const STAFF_LOGIN_FAILURE_LIMIT = 3;
 
     /**
      * The attributes that are mass assignable.
@@ -58,7 +61,15 @@ class User extends Authenticatable implements MustVerifyEmail
             'must_change_password' => 'boolean',
             'approved_at' => 'datetime',
             'disabled_at' => 'datetime',
+            'failed_login_attempts' => 'integer',
         ];
+    }
+
+    public function isLockedByFailedLogins(): bool
+    {
+        return $this->role === 'staff'
+            && $this->account_status === 'disabled'
+            && $this->failed_login_attempts >= self::STAFF_LOGIN_FAILURE_LIMIT;
     }
 
     public function inventoryLedgers(): HasMany
@@ -76,12 +87,12 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasOne(LoginVerificationCode::class);
     }
 
-    public function approvedBy(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    public function approvedBy(): BelongsTo
     {
         return $this->belongsTo(self::class, 'approved_by');
     }
 
-    public function disabledBy(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    public function disabledBy(): BelongsTo
     {
         return $this->belongsTo(self::class, 'disabled_by');
     }

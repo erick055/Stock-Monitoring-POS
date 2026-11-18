@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Support\TablePagination;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -47,16 +48,28 @@ class AccountManagementController extends Controller
         ]);
         $emailChanged = $validated['email'] !== $user->email;
         $passwordChanged = ! empty($validated['password']);
-        if (! $passwordChanged) unset($validated['password']);
+        if (! $passwordChanged) {
+            unset($validated['password']);
+        }
 
         DB::transaction(function () use ($user, $validated, $emailChanged, $passwordChanged) {
-            if ($emailChanged) DB::table('password_reset_tokens')->where('email', $user->email)->delete();
+            if ($emailChanged) {
+                DB::table('password_reset_tokens')->where('email', $user->email)->delete();
+            }
             $user->fill($validated);
-            if ($passwordChanged) $user->must_change_password = true;
-            if ($emailChanged) $user->email_verified_at = null;
-            if ($emailChanged || $passwordChanged) $user->remember_token = Str::random(60);
+            if ($passwordChanged) {
+                $user->must_change_password = true;
+            }
+            if ($emailChanged) {
+                $user->email_verified_at = null;
+            }
+            if ($emailChanged || $passwordChanged) {
+                $user->remember_token = Str::random(60);
+            }
             $user->save();
-            if ($emailChanged || $passwordChanged) $this->revokeAccess($user);
+            if ($emailChanged || $passwordChanged) {
+                $this->revokeAccess($user);
+            }
         });
 
         return back()->with('success', "{$user->name}'s staff account was updated.".($emailChanged ? $this->sendVerification($user) : ''));
@@ -66,9 +79,11 @@ class AccountManagementController extends Controller
     {
         try {
             $user->sendEmailVerificationNotification();
+
             return ' A verification email was sent.';
         } catch (Throwable $error) {
             report($error);
+
             return ' The verification email could not be sent; staff can request it when logging in.';
         }
     }
@@ -99,7 +114,7 @@ class AccountManagementController extends Controller
             ->orderByRaw("CASE account_status WHEN 'pending' THEN 0 WHEN 'active' THEN 1 ELSE 2 END")
             ->latest()
             ->orderByDesc('id')
-            ->paginate(\App\Support\TablePagination::size($request))
+            ->paginate(TablePagination::size($request))
             ->withQueryString();
 
         $summary = User::query()->where('role', 'staff')->selectRaw(
@@ -114,6 +129,9 @@ class AccountManagementController extends Controller
         abort_unless($user->role === 'staff', 404);
 
         DB::transaction(function () use ($user, $request) {
+            $user = User::query()->lockForUpdate()->findOrFail($user->id);
+            abort_unless($user->role === 'staff' && $user->account_status === 'pending', 404);
+
             $user->update([
                 'account_status' => 'active',
                 'approved_by' => $request->user()->id,
@@ -179,14 +197,20 @@ class AccountManagementController extends Controller
     {
         abort_unless($user->role === 'staff', 404);
 
-        $user->update([
-            'account_status' => 'active',
-            'approved_by' => $request->user()->id,
-            'approved_at' => now(),
-            'disabled_by' => null,
-            'disabled_at' => null,
-            'disabled_reason' => null,
-        ]);
+        DB::transaction(function () use ($user, $request) {
+            $user = User::query()->lockForUpdate()->findOrFail($user->id);
+            abort_unless($user->role === 'staff' && $user->account_status === 'disabled', 404);
+
+            $user->forceFill([
+                'account_status' => 'active',
+                'approved_by' => $request->user()->id,
+                'approved_at' => now(),
+                'disabled_by' => null,
+                'disabled_at' => null,
+                'disabled_reason' => null,
+                'failed_login_attempts' => 0,
+            ])->save();
+        });
 
         return back()->with('success', "{$user->name}'s staff access was restored.");
     }

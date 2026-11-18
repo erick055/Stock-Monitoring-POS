@@ -135,6 +135,8 @@ class DashboardTest extends TestCase
         $this->assertTrue($activity->contains('title', 'Product archived'));
         $this->assertTrue($activity->contains('title', 'Product restored'));
         $this->assertFalse($activity->contains('title', 'Stock released'));
-        foreach ($activity as $item) $this->assertStringNotContainsString('0 unit(s)', $item['detail']);
+        foreach ($activity as $item) {
+            $this->assertStringNotContainsString('0 unit(s)', $item['detail']);
+        }
     }
 }

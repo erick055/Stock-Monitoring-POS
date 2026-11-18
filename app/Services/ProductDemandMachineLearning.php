@@ -15,7 +15,9 @@ class ProductDemandMachineLearning
     public function current(): array
     {
         $result = Cache::get(self::RESULT_KEY);
-        if ($result) return $result;
+        if ($result) {
+            return $result;
+        }
         // No sales-history scan or training in an HTTP request.
         $items = Product::where('is_active', true)->orderBy('name')->get()->map(fn ($product) => [
             'product_id' => $product->product_id, 'name' => $product->name, 'sku' => $product->sku,
@@ -23,6 +25,7 @@ class ProductDemandMachineLearning
             'trend' => 'Waiting for history', 'priority_rank' => null, 'stock_shortfall' => null,
             'recommendation' => 'Waiting for the scheduled model update.',
         ])->all();
+
         return ['available' => false, 'items' => $items, 'model' => 'Local ridge regression',
             'training_samples' => 0, 'validation_samples' => 0, 'validation_mae' => null, 'baseline_mae' => null,
             'coefficients' => null, 'updated_at' => now()->toIso8601String(),
@@ -43,6 +46,7 @@ class ProductDemandMachineLearning
 
         $result = Cache::remember($key, now()->addHour(), fn () => $this->build($products, $sales, $now));
         Cache::forever(self::RESULT_KEY, $result);
+
         return $result;
     }
 
@@ -54,10 +58,14 @@ class ProductDemandMachineLearning
             $first = CarbonImmutable::parse($sales->first()->sale_date)->startOfDay();
             for ($cutoff = $first->addDays(90); $cutoff->lte($now->subDays(30)->startOfDay()); $cutoff = $cutoff->addDays(30)) {
                 foreach ($products as $product) {
-                    if ($product->created_at->gt($cutoff->subDays(90))) continue;
+                    if ($product->created_at->gt($cutoff->subDays(90))) {
+                        continue;
+                    }
                     $history = $grouped->get($product->product_id, collect());
                     $before = $history->filter(fn ($row) => CarbonImmutable::parse($row->sale_date)->lte($cutoff));
-                    if ($before->isEmpty()) continue;
+                    if ($before->isEmpty()) {
+                        continue;
+                    }
                     $samples[] = ['date' => $cutoff, 'x' => $this->features($before, $cutoff),
                         'y' => $this->units($history, $cutoff, $cutoff->addDays(30))];
                 }
@@ -84,6 +92,7 @@ class ProductDemandMachineLearning
             $features = $this->features($history, $now);
             $eligible = $model && $product->created_at->lte($now->subDays(90)) && $history->pluck('sale_id')->unique()->count() >= 3;
             $prediction = $eligible ? (int) round($this->predict($model, $features)) : null;
+
             return ['product_id' => $product->product_id, 'name' => $product->name, 'sku' => $product->sku,
                 'stock' => $product->current_stock, 'recent_units' => (int) $features[0], 'predicted_units' => $prediction,
                 'trend' => $prediction === null ? 'Waiting for history' : ($prediction > $features[0] ? 'Rising' : ($prediction < $features[0] ? 'Falling' : 'Steady'))];
@@ -98,6 +107,7 @@ class ProductDemandMachineLearning
                 $item['stock_shortfall'] > 0 => 'Review replenishment: estimated sales exceed current stock by '.$item['stock_shortfall'].' units.',
                 default => 'Current stock covers estimated sales; monitor before reordering.',
             };
+
             return $item;
         })->all();
 
@@ -119,6 +129,7 @@ class ProductDemandMachineLearning
     {
         $recent = $history->filter(fn ($s) => CarbonImmutable::parse($s->sale_date)->gt($cutoff->subDays(30)));
         $last = $history->last();
+
         return [$this->units($history, $cutoff->subDays(30), $cutoff),
             $this->units($history, $cutoff->subDays(60), $cutoff->subDays(30)),
             $this->units($history, $cutoff->subDays(90), $cutoff->subDays(60)),
@@ -138,24 +149,39 @@ class ProductDemandMachineLearning
         foreach ($samples as $sample) {
             $x = [1.0, ...$this->standardize($sample['x'], $means, $scales)];
             foreach ($x as $i => $a) {
-                foreach ($x as $j => $b) $matrix[$i][$j] += $a * $b;
+                foreach ($x as $j => $b) {
+                    $matrix[$i][$j] += $a * $b;
+                }
                 $matrix[$i][6] += $a * $sample['y'];
             }
         }
-        foreach (range(1, 5) as $i) $matrix[$i][$i] += 1.0;
+        foreach (range(1, 5) as $i) {
+            $matrix[$i][$i] += 1.0;
+        }
         // Solve ridge normal equations with partial pivoting.
         foreach (range(0, 5) as $i) {
             $pivot = $i;
-            foreach (range($i, 5) as $j) if (abs($matrix[$j][$i]) > abs($matrix[$pivot][$i])) $pivot = $j;
+            foreach (range($i, 5) as $j) {
+                if (abs($matrix[$j][$i]) > abs($matrix[$pivot][$i])) {
+                    $pivot = $j;
+                }
+            }
             [$matrix[$i], $matrix[$pivot]] = [$matrix[$pivot], $matrix[$i]];
             $divisor = $matrix[$i][$i];
-            foreach (range($i, 6) as $j) $matrix[$i][$j] /= $divisor;
+            foreach (range($i, 6) as $j) {
+                $matrix[$i][$j] /= $divisor;
+            }
             foreach (range(0, 5) as $row) {
-                if ($row === $i) continue;
+                if ($row === $i) {
+                    continue;
+                }
                 $factor = $matrix[$row][$i];
-                foreach (range($i, 6) as $j) $matrix[$row][$j] -= $factor * $matrix[$i][$j];
+                foreach (range($i, 6) as $j) {
+                    $matrix[$row][$j] -= $factor * $matrix[$i][$j];
+                }
             }
         }
+
         return ['weights' => array_column($matrix, 6), 'means' => $means, 'scales' => $scales];
     }
 
@@ -167,6 +193,7 @@ class ProductDemandMachineLearning
     private function predict(array $model, array $features): float
     {
         $x = [1.0, ...$this->standardize($features, $model['means'], $model['scales'])];
+
         return max(0.0, array_sum(array_map(fn ($a, $b) => $a * $b, $model['weights'], $x)));
     }
 }

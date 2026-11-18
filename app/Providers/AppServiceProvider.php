@@ -2,10 +2,12 @@
 
 namespace App\Providers;
 
-use Illuminate\Support\ServiceProvider;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Middleware\TrustProxies;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\URL;
+use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -23,20 +25,24 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->registerIsolatedRateLimits();
-        RateLimiter::for('inventory-archive', fn (Request $request) =>
-            Limit::perMinute(10)->by((string) $request->user()->id)->response(function (Request $request, array $headers) {
-                $message = 'Please wait before archiving more products. No products were changed.';
-                if ($request->expectsJson()) return response()->json(['message' => $message], 429, $headers);
-                return redirect()->route('admin.inventory')->withErrors(['archive' => $message])->withHeaders($headers);
-            }));
-        RateLimiter::for('email-verification-status', fn (Request $request) =>
-            Limit::perMinute(120)->by((string) $request->user()->id));
+        RateLimiter::for('inventory-archive', fn (Request $request) => Limit::perMinute(10)->by((string) $request->user()->id)->response(function (Request $request, array $headers) {
+            $message = 'Please wait before archiving more products. No products were changed.';
+            if ($request->expectsJson()) {
+                return response()->json(['message' => $message], 429, $headers);
+            }
+
+            return redirect()->route('admin.inventory')->withErrors(['archive' => $message])->withHeaders($headers);
+        }));
+        RateLimiter::for('email-verification-status', fn (Request $request) => Limit::perMinute(120)->by((string) $request->user()->id));
         RateLimiter::for('email-verification-resend', function (Request $request) {
             return Limit::perMinute(1)->by((string) $request->user()->id)
                 ->response(function (Request $request, array $headers) {
                     $seconds = max(1, (int) ($headers['Retry-After'] ?? 60));
                     $message = "Please wait {$seconds} seconds before requesting another verification email.";
-                    if ($request->expectsJson()) return response()->json(['message' => $message, 'retry_after' => $seconds], 429, $headers);
+                    if ($request->expectsJson()) {
+                        return response()->json(['message' => $message, 'retry_after' => $seconds], 429, $headers);
+                    }
+
                     return redirect()->route('verification.notice')->withErrors(['verification' => $message])->withHeaders($headers);
                 });
         });
@@ -46,7 +52,10 @@ class AppServiceProvider extends ServiceProvider
                     ->response(function (Request $request, array $headers) {
                         $seconds = max(1, (int) ($headers['Retry-After'] ?? 60));
                         $message = "Please wait {$seconds} seconds before another account action. No changes were made.";
-                        if ($request->expectsJson()) return response()->json(['message' => $message, 'retry_after' => $seconds], 429, $headers);
+                        if ($request->expectsJson()) {
+                            return response()->json(['message' => $message, 'retry_after' => $seconds], 429, $headers);
+                        }
+
                         return redirect()->route('admin.accounts')->withErrors(['account_rate_limit' => $message])->withHeaders($headers);
                     });
             });
@@ -55,7 +64,10 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(10)->by((string) $request->user()->id)->response(function (Request $request, array $headers) {
                 $seconds = max(1, (int) ($headers['Retry-After'] ?? 60));
                 $message = "Please wait {$seconds} seconds before another compatibility search. Your search details have been kept.";
-                if ($request->expectsJson()) return response()->json(['message' => $message, 'retry_after' => $seconds], 429, $headers);
+                if ($request->expectsJson()) {
+                    return response()->json(['message' => $message, 'retry_after' => $seconds], 429, $headers);
+                }
+
                 return redirect()->route($request->user()->role.'.compatibility')
                     ->withInput($request->only('brand', 'model', 'year', 'part_search'))
                     ->withErrors(['compatibility' => $message])->withHeaders($headers);
@@ -66,9 +78,9 @@ class AppServiceProvider extends ServiceProvider
             throw new \InvalidArgumentException('TRUSTED_PROXIES must contain explicit proxy IPs/CIDRs.');
         }
         config(['trustedproxy.proxies' => $proxies]);
-        \Illuminate\Http\Middleware\TrustProxies::at($proxies);
+        TrustProxies::at($proxies);
         if ($this->app->environment('production')) {
-            \Illuminate\Support\Facades\URL::forceScheme('https');
+            URL::forceScheme('https');
         }
     }
 
@@ -92,6 +104,7 @@ class AppServiceProvider extends ServiceProvider
         foreach ($limits as $name => [$attempts, $minutes, $destination]) {
             RateLimiter::for($name, function (Request $request) use ($attempts, $minutes, $destination) {
                 $key = $request->user() ? 'user:'.$request->user()->id : 'ip:'.$request->ip();
+
                 return Limit::perMinutes($minutes, $attempts)->by($key)
                     ->response(function (Request $request, array $headers) use ($destination) {
                         $seconds = max(1, (int) ($headers['Retry-After'] ?? 60));
@@ -104,6 +117,7 @@ class AppServiceProvider extends ServiceProvider
                         $parameters = $target === 'password.reset'
                             ? ['token' => (string) $request->input('token'), 'email' => (string) $request->input('email')]
                             : [];
+
                         // Only restore non-secret fields, never passwords or verification codes.
                         return redirect()->route($target, $parameters)
                             ->withInput($request->only('email'))

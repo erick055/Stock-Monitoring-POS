@@ -2,19 +2,24 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\SendStockAlertDigest;
+use App\Mail\InventoryAlertMail;
+use App\Models\CustomerReturn;
 use App\Models\Product;
 use App\Models\ProductPromotion;
-use App\Models\CustomerReturn;
-use App\Models\StockAlertSetting;
-use App\Models\SupplierImport;
-use App\Mail\InventoryAlertMail;
-use App\Services\LowStockAlertService;
 use App\Models\SalesItem;
 use App\Models\SalesTransaction;
+use App\Models\StockAlertSetting;
+use App\Models\StockAlertState;
+use App\Models\SupplierImport;
 use App\Models\User;
+use App\Services\LowStockAlertService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Mail\PendingMail;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class SystemRegressionTest extends TestCase
@@ -43,8 +48,8 @@ class SystemRegressionTest extends TestCase
     {
         $owner = User::factory()->create(['role' => 'admin']);
         $product = Product::create(['sku' => 'BIG-TOTAL', 'name' => 'High Value Part', 'unit_price' => 6000000000, 'current_stock' => 5]);
-        $this->actingAs($owner)->withHeader('Idempotency-Key', (string) \Illuminate\Support\Str::uuid())
-            ->postJson(route('admin.pos.checkout'), ['payment_method' => 'cash', 'amount_tendered' => 10000000,'items' => [['product_id' => $product->product_id, 'quantity' => 2]]])
+        $this->actingAs($owner)->withHeader('Idempotency-Key', (string) Str::uuid())
+            ->postJson(route('admin.pos.checkout'), ['payment_method' => 'cash', 'amount_tendered' => 10000000, 'items' => [['product_id' => $product->product_id, 'quantity' => 2]]])
             ->assertUnprocessable()->assertJsonValidationErrors('checkout');
         $this->assertSame(5, $product->fresh()->current_stock);
         $this->assertDatabaseCount('sales_transactions', 0);
@@ -63,14 +68,14 @@ class SystemRegressionTest extends TestCase
 
     public function test_failed_stock_alert_delivery_is_retried_by_the_job_without_duplicate_queueing(): void
     {
-        \Illuminate\Support\Facades\Queue::fake();
+        Queue::fake();
         StockAlertSetting::create(['email_enabled' => true, 'notification_email' => 'alerts@example.com']);
         $product = Product::create(['sku' => 'RETRY-ALERT', 'name' => 'Retry Alert', 'current_stock' => 2, 'reorder_level' => 5]);
         $alerts = app(LowStockAlertService::class);
         $this->assertSame(1, $alerts->checkProduct($product));
-        $job = \Illuminate\Support\Facades\Queue::pushed(\App\Jobs\SendStockAlertDigest::class)->first();
+        $job = Queue::pushed(SendStockAlertDigest::class)->first();
         $mailManager = Mail::getFacadeRoot();
-        $pendingMail = \Mockery::mock(\Illuminate\Mail\PendingMail::class);
+        $pendingMail = \Mockery::mock(PendingMail::class);
         $pendingMail->shouldReceive('send')->once()->andThrow(new \RuntimeException('Mail server unavailable'));
         Mail::shouldReceive('to')->once()->with('alerts@example.com')->andReturn($pendingMail);
         try {
@@ -88,7 +93,7 @@ class SystemRegressionTest extends TestCase
         Mail::assertSent(InventoryAlertMail::class, 1);
         $this->assertDatabaseCount('stock_alert_deliveries', 1);
         $this->assertDatabaseHas('stock_alert_deliveries', ['id' => $job->deliveryId, 'status' => 'sent', 'error' => null]);
-        $this->assertNotNull(\App\Models\StockAlertState::firstOrFail()->last_notified_at);
+        $this->assertNotNull(StockAlertState::firstOrFail()->last_notified_at);
     }
 
     public function test_return_rate_counts_approved_receipts_once_and_excludes_rejected_returns(): void
@@ -113,7 +118,7 @@ class SystemRegressionTest extends TestCase
         $payload = ['items' => array_fill(0, 2, ['product_id' => $product->product_id, 'quantity' => 4])];
         $this->actingAs($staff)->postJson(route('staff.pos.holds.store'), $payload)
             ->assertUnprocessable()->assertJsonValidationErrors('items.0.product_id');
-        $this->withHeader('Idempotency-Key', (string) \Illuminate\Support\Str::uuid())
+        $this->withHeader('Idempotency-Key', (string) Str::uuid())
             ->postJson(route('staff.pos.checkout'), ['payment_method' => 'cash', 'amount_tendered' => 10000000, ...$payload])->assertUnprocessable();
         $this->assertDatabaseCount('held_orders', 0);
         $this->assertDatabaseCount('sales_transactions', 0);
@@ -132,11 +137,11 @@ class SystemRegressionTest extends TestCase
                 'original_price' => 50, 'promotional_price' => 0, 'status' => 'active', 'started_at' => now()]);
             $items[] = ['product_id' => $product->product_id, 'quantity' => 1];
         }
-        $this->actingAs($owner)->withHeader('Idempotency-Key', (string) \Illuminate\Support\Str::uuid())
-            ->postJson(route('admin.pos.checkout'), ['payment_method' => 'cash', 'amount_tendered' => 10000000,'items' => $items])->assertUnprocessable()->assertJsonValidationErrors('items');
+        $this->actingAs($owner)->withHeader('Idempotency-Key', (string) Str::uuid())
+            ->postJson(route('admin.pos.checkout'), ['payment_method' => 'cash', 'amount_tendered' => 10000000, 'items' => $items])->assertUnprocessable()->assertJsonValidationErrors('items');
         $this->assertDatabaseCount('sales_transactions', 0);
         $items[0]['quantity'] = 2;
-        $this->postJson(route('admin.pos.checkout'), ['payment_method' => 'cash', 'amount_tendered' => 10000000,'items' => $items])->assertCreated()->assertJsonPath('total', 200);
+        $this->postJson(route('admin.pos.checkout'), ['payment_method' => 'cash', 'amount_tendered' => 10000000, 'items' => $items])->assertCreated()->assertJsonPath('total', 200);
     }
 
     public function test_two_free_products_cannot_qualify_each_other_for_a_bundle(): void
@@ -149,8 +154,8 @@ class SystemRegressionTest extends TestCase
                 'applied_by' => $owner->id, 'action_type' => 'promo_bundle', 'discount_percent' => 100,
                 'original_price' => 100, 'promotional_price' => 0, 'status' => 'active', 'started_at' => now()]);
         }
-        $this->actingAs($owner)->withHeader('Idempotency-Key', (string) \Illuminate\Support\Str::uuid())
-            ->postJson(route('admin.pos.checkout'), ['payment_method' => 'cash', 'amount_tendered' => 10000000,'items' => [
+        $this->actingAs($owner)->withHeader('Idempotency-Key', (string) Str::uuid())
+            ->postJson(route('admin.pos.checkout'), ['payment_method' => 'cash', 'amount_tendered' => 10000000, 'items' => [
                 ['product_id' => $a->product_id, 'quantity' => 1], ['product_id' => $b->product_id, 'quantity' => 1],
             ]])->assertUnprocessable()->assertJsonValidationErrors('items');
         $this->assertSame(5, $a->fresh()->current_stock);

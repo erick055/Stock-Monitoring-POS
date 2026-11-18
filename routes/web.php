@@ -1,7 +1,7 @@
 <?php
 
-use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\AccountManagementController;
+use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\EmailVerificationController;
 use App\Http\Controllers\Auth\LoginVerificationController;
@@ -11,13 +11,15 @@ use App\Http\Controllers\Auth\StaffPasswordController;
 use App\Http\Controllers\CompatibilityController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DeadStockController;
-use App\Http\Controllers\LowStocksController;
 use App\Http\Controllers\InventoryLiveController;
+use App\Http\Controllers\LowStocksController;
 use App\Http\Controllers\PosController;
 use App\Http\Controllers\ProductsController;
 use App\Http\Controllers\ReturnsController;
+use App\Http\Controllers\SalesTargetController;
 use App\Http\Controllers\StockManagementController;
 use App\Http\Controllers\SupplierPriceController;
+use App\Services\SessionActivity;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -43,7 +45,7 @@ Route::middleware('guest')->group(function () {
 });
 
 Route::middleware('auth')->group(function () {
-    Route::get('/session/status', fn (Request $request) => response()->json(app(\App\Services\SessionActivity::class)->snapshot($request)))
+    Route::get('/session/status', fn (Request $request) => response()->json(app(SessionActivity::class)->snapshot($request)))
         ->middleware('throttle:session-status')->name('session.status');
     Route::get('/staff/change-password', [StaffPasswordController::class, 'edit'])->middleware('role:staff')->name('staff.password.edit');
     Route::post('/staff/change-password', [StaffPasswordController::class, 'update'])->middleware(['role:staff', 'throttle:staff-password-change'])->name('staff.password.update');
@@ -88,7 +90,7 @@ Route::middleware(['auth', 'verified', 'role:admin'])->group(function () {
     Route::delete('/admin/pos/holds/{heldOrder}', [PosController::class, 'cancelHold'])->name('admin.pos.holds.cancel');
     Route::get('/admin/pos/receipts/{sale}', [PosController::class, 'showReceipt'])->name('admin.pos.receipts.show');
     Route::get('/admin/analytics', [AnalyticsController::class, 'index'])->name('admin.analytics');
-    Route::post('/admin/analytics/sales-targets', [\App\Http\Controllers\SalesTargetController::class, 'store'])->name('admin.analytics.targets.store');
+    Route::post('/admin/analytics/sales-targets', [SalesTargetController::class, 'store'])->name('admin.analytics.targets.store');
     Route::get('/admin/analytics/export/excel', [AnalyticsController::class, 'export'])->middleware('throttle:analytics-export')->name('admin.analytics.export');
     Route::get('/admin/low-stocks', [LowStocksController::class, 'index'])->name('admin.low-stocks');
     Route::post('/admin/low-stocks/settings', [LowStocksController::class, 'updateSettings'])->name('admin.low-stocks.settings');
@@ -111,6 +113,10 @@ Route::middleware(['auth', 'verified', 'role:admin'])->group(function () {
     Route::patch('/admin/suppliers/imports/{supplierImport}/rows/{row}', [SupplierPriceController::class, 'updateImportRow'])->name('admin.suppliers.imports.rows.update');
     Route::post('/admin/suppliers/imports/{supplierImport}/approve', [SupplierPriceController::class, 'approve'])->name('admin.suppliers.imports.approve');
     Route::post('/admin/suppliers/imports/{supplierImport}/reject', [SupplierPriceController::class, 'reject'])->name('admin.suppliers.imports.reject');
+    Route::get('/admin/suppliers/imports/{supplierImport}/stock-review', [SupplierPriceController::class, 'bulkStockReview'])->name('admin.suppliers.imports.stock-review');
+    Route::post('/admin/suppliers/imports/{supplierImport}/stock-review', [SupplierPriceController::class, 'applyBulkStock'])->name('admin.suppliers.imports.apply-stock');
+    Route::get('/admin/suppliers/prices/{supplierPrice}/stock-review', [SupplierPriceController::class, 'stockReview'])->name('admin.suppliers.prices.stock-review');
+    Route::post('/admin/suppliers/prices/{supplierPrice}/stock-review', [SupplierPriceController::class, 'applyStock'])->name('admin.suppliers.prices.apply-stock');
     Route::patch('/admin/suppliers/prices/{supplierPrice}/match', [SupplierPriceController::class, 'matchProduct'])->name('admin.suppliers.prices.match');
     Route::delete('/admin/suppliers/prices/{supplierPrice}/match', [SupplierPriceController::class, 'unmatchProduct'])->name('admin.suppliers.prices.unmatch');
     Route::patch('/admin/suppliers/prices/{supplierPrice}/apply-cost', [SupplierPriceController::class, 'applyCost'])->name('admin.suppliers.prices.apply-cost');

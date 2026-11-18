@@ -11,6 +11,7 @@ use Illuminate\Support\Str;
 class TrustedLoginDeviceService
 {
     public const COOKIE_NAME = 'motosync_trusted_device';
+
     public const LIFETIME_MINUTES = 60 * 24 * 30;
 
     public function isTrusted(Request $request, User $user): bool

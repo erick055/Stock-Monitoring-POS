@@ -5,9 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\InventoryLedger;
 use App\Models\Product;
 use App\Models\ProductPromotion;
-use App\Services\LowStockAlertService;
 use App\Services\InventoryLiveService;
+use App\Services\LowStockAlertService;
 use App\Services\ProductDuplicateGuard;
+use App\Support\TablePagination;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -23,7 +24,7 @@ class StockManagementController extends Controller
         $search = trim((string) $request->query('search'));
         $archiveSearch = trim((string) $request->query('archive_search'));
         $status = (string) $request->query('status', 'all');
-        $perPage = \App\Support\TablePagination::size($request);
+        $perPage = TablePagination::size($request);
         $sort = (string) $request->query('sort', 'name');
 
         $sorts = [
@@ -69,7 +70,7 @@ class StockManagementController extends Controller
                     ->orWhere('category', 'like', "%{$archiveSearch}%")->orWhere('shelf_location', 'like', "%{$archiveSearch}%");
             }))
             ->orderBy('name')->orderBy('product_id')
-            ->paginate(\App\Support\TablePagination::size($request, 'archive_rows'), ['*'], 'archive_page')
+            ->paginate(TablePagination::size($request, 'archive_rows'), ['*'], 'archive_page')
             ->withQueryString()->fragment('archived-products');
         $categories = $allProducts
             ->pluck('category')
@@ -89,7 +90,7 @@ class StockManagementController extends Controller
                 $query->where('sku', 'like', "%{$search}%")->orWhere('name', 'like', "%{$search}%");
             }))
             ->latest('ledger_id')
-            ->paginate(\App\Support\TablePagination::size($request, 'ledger_rows'), ['*'], 'ledger_page')
+            ->paginate(TablePagination::size($request, 'ledger_rows'), ['*'], 'ledger_page')
             ->withQueryString()->fragment('movement-logs');
 
         $summary = [
@@ -387,6 +388,7 @@ class StockManagementController extends Controller
                     'logs' => 'Archived from Stock Management. Reason: '.trim($validated['archive_reason']),
                 ]);
             }
+
             return $products->count();
         });
 
@@ -407,8 +409,7 @@ class StockManagementController extends Controller
         $count = DB::transaction(function () use ($request, $validated) {
             $products = Product::query()->whereIn('product_id', $validated['archived_product_ids'])
                 ->with('latestLedger')->orderBy('product_id')->lockForUpdate()->get();
-            if ($products->count() !== count($validated['archived_product_ids']) || $products->contains(fn ($product) =>
-                $product->is_active || $product->latestLedger?->reason_code !== 'PRODUCT_ARCHIVED')) {
+            if ($products->count() !== count($validated['archived_product_ids']) || $products->contains(fn ($product) => $product->is_active || $product->latestLedger?->reason_code !== 'PRODUCT_ARCHIVED')) {
                 throw ValidationException::withMessages(['archived_products' => 'One or more selected items are no longer archived. No products were changed.']);
             }
             if ($validated['archived_action'] === 'delete') {
@@ -430,12 +431,14 @@ class StockManagementController extends Controller
                     $product->delete();
                 }
             }
+
             return $products->count();
         });
         if ($validated['archived_action'] === 'delete') {
             Log::notice('Archived products permanently deleted by owner.', ['owner_id' => $request->user()->id,
                 'product_ids' => $validated['archived_product_ids'], 'reason' => trim($validated['archived_reason'])]);
         }
+
         return redirect()->route('admin.inventory', ['archive_page' => 1])->with('success', $validated['archived_action'] === 'restore'
             ? "{$count} product(s) restored to active products with their existing quantities."
             : "{$count} archived product(s) permanently deleted.");
@@ -505,12 +508,13 @@ class StockManagementController extends Controller
             'movement_type' => ['required', Rule::in(['in', 'out', 'adjustment'])],
             'quantity' => ['required', 'integer', 'not_in:0', 'min:-2147483647', 'max:2147483647'],
             'reason_code' => ['required', 'string', 'max:50'],
+            'manual_reason' => ['exclude_unless:reason_code,CUSTOM', 'required', 'string', 'max:500', 'regex:/\S/u'],
             'reference' => ['nullable', 'string', 'max:100'],
             'counterparty' => ['nullable', 'string', 'max:150'],
             'logs' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        if (! in_array($validated['reason_code'], $reasonCodes[$validated['movement_type']], true)) {
+        if ($validated['reason_code'] !== 'CUSTOM' && ! in_array($validated['reason_code'], $reasonCodes[$validated['movement_type']], true)) {
             throw ValidationException::withMessages([
                 'reason_code' => 'Select a reason that matches the chosen stock movement type.',
             ]);
@@ -544,6 +548,7 @@ class StockManagementController extends Controller
             $product->update(['current_stock' => $product->current_stock + $change]);
 
             $details = collect([
+                isset($validated['manual_reason']) ? 'Reason: '.trim($validated['manual_reason']) : null,
                 ! empty($validated['reference']) ? 'Reference: '.trim($validated['reference']) : null,
                 ! empty($validated['counterparty']) ? 'Source / destination: '.trim($validated['counterparty']) : null,
                 ! empty($validated['logs']) ? 'Notes: '.trim($validated['logs']) : null,

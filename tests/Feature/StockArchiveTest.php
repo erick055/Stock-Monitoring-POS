@@ -2,9 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Models\InventoryLedger;
 use App\Models\Product;
 use App\Models\ProductPromotion;
-use App\Models\InventoryLedger;
+use App\Models\SalesItem;
+use App\Models\SalesTransaction;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -18,6 +20,7 @@ class StockArchiveTest extends TestCase
     {
         static $sequence = 0;
         $sequence++;
+
         return Product::create($attributes + ['sku' => 'ARCHIVE-'.$sequence, 'name' => 'Archive Part '.$sequence, 'is_active' => true]);
     }
 
@@ -71,8 +74,10 @@ class StockArchiveTest extends TestCase
             $product = $this->product(['is_active' => $active]);
             InventoryLedger::create(['product_id' => $product->product_id, 'user_id' => $owner->id,
                 'qty_in' => 0, 'qty_out' => 0, 'reason_code' => 'PRODUCT_ARCHIVED']);
-            if (! $active) InventoryLedger::create(['product_id' => $product->product_id, 'user_id' => $owner->id,
-                'qty_in' => 0, 'qty_out' => 0, 'reason_code' => 'PRODUCT_REMOVED']);
+            if (! $active) {
+                InventoryLedger::create(['product_id' => $product->product_id, 'user_id' => $owner->id,
+                    'qty_in' => 0, 'qty_out' => 0, 'reason_code' => 'PRODUCT_REMOVED']);
+            }
         }
         $response = $this->actingAs($owner)->get(route('admin.inventory'))->assertOk();
         $rows = $response->viewData('archivedProducts');
@@ -163,8 +168,8 @@ class StockArchiveTest extends TestCase
         $owner = User::factory()->create(['role' => 'admin', 'password' => Hash::make('ArchivePassword!123')]);
         $free = $this->product();
         $sold = $this->product();
-        $sale = \App\Models\SalesTransaction::create(['staff_id' => $owner->id, 'sale_date' => now(), 'payment_status' => 'paid', 'total_sale_amount' => 100]);
-        \App\Models\SalesItem::create(['sale_id' => $sale->sale_id, 'product_id' => $sold->product_id, 'quantity' => 1, 'unit_sale_price' => 100, 'line_total' => 100]);
+        $sale = SalesTransaction::create(['staff_id' => $owner->id, 'sale_date' => now(), 'payment_status' => 'paid', 'total_sale_amount' => 100]);
+        SalesItem::create(['sale_id' => $sale->sale_id, 'product_id' => $sold->product_id, 'quantity' => 1, 'unit_sale_price' => 100, 'line_total' => 100]);
         $this->archived($free, $owner);
         $this->archived($sold, $owner);
         $this->actingAs($owner)->patch(route('admin.inventory.archived.manage'), [
@@ -176,4 +181,3 @@ class StockArchiveTest extends TestCase
         $this->assertDatabaseHas('sales_items', ['sale_id' => $sale->sale_id, 'product_id' => $sold->product_id]);
     }
 }
-

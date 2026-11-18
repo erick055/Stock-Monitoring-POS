@@ -7,6 +7,7 @@ use App\Models\SalesItem;
 use App\Models\SalesTransaction;
 use App\Models\User;
 use App\Services\ProductDemandMachineLearning;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
@@ -27,7 +28,7 @@ class ProductDemandMachineLearningTest extends TestCase
     public function test_model_learns_local_sales_and_refreshes_after_a_paid_sale(): void
     {
         Http::preventStrayRequests();
-        $this->travelTo(\Carbon\CarbonImmutable::parse('2026-10-02 12:00:00'));
+        $this->travelTo(CarbonImmutable::parse('2026-10-02 12:00:00'));
         $staff = User::factory()->create(['role' => 'staff']);
         $products = collect();
         foreach (range(1, 5) as $i) {

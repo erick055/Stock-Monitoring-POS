@@ -1649,6 +1649,46 @@ html[data-theme="light"] #archived-products input[type=checkbox] {accent-color:h
 }
 html[data-theme="light"] .bulk-archive-toolbar [data-archived-action="delete"] {border-color:hsl(351 38% 84% / 1);background:hsl(349 32% 94% / 1);color:#202338
 }
+html[data-theme="light"] .reason-code[data-reason="PRODUCT_UPDATED"] { background: hsl(216 32% 95% / 1); color: hsl(214 80% 35% / 1)
+}
+html[data-theme="light"] .reason-code[data-reason="PRODUCT_RESTORED"] { background: hsl(174 32% 96% / 1); color: hsl(169 76% 35% / 1)
+}
+html[data-theme="light"] .reason-code[data-reason="PRODUCT_ARCHIVED"] { background: hsl(36 27% 95% / 1); color: hsl(40 80% 35% / 1)
+}
+html[data-theme="light"] .reason-code[data-reason="PRODUCT_REMOVED"] { background: hsl(320 30% 95% / 1); color: hsl(326 80% 35% / 1)
+}
+html[data-theme="light"] .reason-code[data-reason="CUSTOMER_RETURN"] { background: hsl(198 32% 95% / 1); color: hsl(193 80% 35% / 1)
+}
+html[data-theme="light"] .reason-code[data-reason="RETURN_TO_STOCK"] { background: hsl(178 32% 95% / 1); color: hsl(168 80% 35% / 1)
+}
+html[data-theme="light"] .reason-code[data-reason="POS_SALE"] { background: hsl(257 32% 94% / 1); color: hsl(261 80% 35% / 1)
+}
+html[data-theme="light"] .reason-code[data-reason="SALE"] { background: hsl(282 32% 95% / 1); color: hsl(290 80% 35% / 1)
+}
+html[data-theme="light"] .reason-code[data-reason="OPENING_STOCK"] { background: hsl(156 29% 95% / 1); color: hsl(143 80% 35% / 1)
+}
+html[data-theme="light"] .reason-code[data-reason="PURCHASE_RECEIPT"] { background: hsl(93 25% 95% / 1); color: hsl(90 80% 35% / 1)
+}
+html[data-theme="light"] .reason-code[data-reason="RECOVERED_STOCK"] { background: hsl(89 32% 95% / 1); color: hsl(71 80% 35% / 1)
+}
+html[data-theme="light"] .reason-code[data-reason="DAMAGED"] { background: hsl(351 32% 95% / 1); color: hsl(353 80% 35% / 1)
+}
+html[data-theme="light"] .reason-code[data-reason="SUPPLIER_RETURN"] { background: hsl(16 32% 95% / 1); color: hsl(21 80% 35% / 1)
+}
+html[data-theme="light"] .reason-code[data-reason="INTERNAL_USE"] { background: hsl(221 20% 95% / 1); color: hsl(221 71% 35% / 1)
+}
+html[data-theme="light"] .reason-code[data-reason="PHYSICAL_COUNT"] { background: hsl(229 32% 95% / 1); color: hsl(232 80% 35% / 1)
+}
+html[data-theme="light"] .reason-code[data-reason="DATA_CORRECTION"] { background: hsl(214 32% 95% / 1); color: hsl(201 80% 35% / 1)
+}
+html[data-theme="light"] .reason-code[data-reason="SHRINKAGE"] { background: hsl(23 32% 95% / 1); color: hsl(29 80% 35% / 1)
+}
+html[data-theme="light"] .reason-code[data-reason="NEW_PRODUCT"] { background: hsl(152 32% 95% / 1); color: hsl(140 80% 35% / 1)
+}
+html[data-theme="light"] .reason-code[data-reason="SUPPLIER_IMPORT"] { background: hsl(188 31% 95% / 1); color: hsl(187 80% 35% / 1)
+}
+html[data-theme="light"] .reason-code[data-reason="CUSTOM"] { background: hsl(243 12% 94% / 1); color: hsl(257 80% 35% / 1)
+}
 html[data-theme="light"] .supplier-purge-launch .delete-all-button,
 html[data-theme="light"] .supplier-purge-dialog .delete-all-button {border:1px solid hsl(349 38% 84% / 1);background:#bc304b;color:#fff
 }

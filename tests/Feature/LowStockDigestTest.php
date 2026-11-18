@@ -123,7 +123,7 @@ class LowStockDigestTest extends TestCase
             $items[] = ['product_id' => $product->product_id, 'quantity' => 2];
         }
         $this->actingAs($owner)->withHeader('Idempotency-Key', (string) Str::uuid())
-            ->postJson(route('admin.pos.checkout'), ['payment_method' => 'cash', 'amount_tendered' => 10000000,'items' => $items])->assertCreated();
+            ->postJson(route('admin.pos.checkout'), ['payment_method' => 'cash', 'amount_tendered' => 10000000, 'items' => $items])->assertCreated();
         Queue::assertPushed(SendStockAlertDigest::class, 1);
         Mail::assertNothingSent();
         $this->assertDatabaseCount('stock_alert_deliveries', 1);

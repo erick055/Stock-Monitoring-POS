@@ -202,6 +202,16 @@ if (movementForm) {
     const reasonInput = movementForm.querySelector('[data-movement-reason]');
     const reasonOptions = [...reasonInput.querySelectorAll('option[data-types]')];
     const oldReason = reasonInput.dataset.oldReason;
+    const manualReasonField = movementForm.querySelector('[data-manual-reason-field]');
+    const manualReason = manualReasonField?.querySelector('input');
+    function syncManualReason() {
+        if (!manualReason) return;
+        const enabled = reasonInput.value === 'CUSTOM';
+        manualReasonField.hidden = !enabled;
+        manualReason.disabled = !enabled;
+        manualReason.required = enabled;
+    }
+    reasonInput.addEventListener('change', syncManualReason);
     const configurations = {
         in: {
             title: 'Stock In adds units to the selected product.',
@@ -281,6 +291,7 @@ if (movementForm) {
             option.disabled = !available;
         });
         if (reasonInput.selectedOptions[0]?.disabled) reasonInput.value = '';
+        syncManualReason();
         updateResult();
     }
 
@@ -331,6 +342,7 @@ if (movementForm) {
     quantityInput.addEventListener('input', updateResult);
     updateMovementType();
     if (oldReason && [...reasonInput.options].some((option) => option.value === oldReason && !option.disabled)) reasonInput.value = oldReason;
+    syncManualReason();
 
     const movementDialog = document.querySelector('[data-movement-dialog]');
     const titles = { in: 'Stock In', out: 'Stock Out', adjustment: 'Stock Adjustment' };

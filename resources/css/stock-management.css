@@ -719,3 +719,25 @@ body.modal-open { overflow: hidden; }
 .bulk-archive-dialog .archived-delete-confirm input{width:18px;height:18px;flex:none}
 .bulk-archive-dialog [hidden]{display:none!important}
 .bulk-archive-toolbar [data-archived-action="delete"]{border-color:#b83e50;background:#862536;color:#fff}
+.movement-form [data-manual-reason-field][hidden] { display: none; }
+.reason-code { font-size: 10px; }
+.reason-code[data-reason="PRODUCT_UPDATED"] { background: #21334e; color: #b9d7ff; }
+.reason-code[data-reason="PRODUCT_RESTORED"] { background: #16403c; color: #a7f3e5; }
+.reason-code[data-reason="PRODUCT_ARCHIVED"] { background: #413625; color: #ffe2aa; }
+.reason-code[data-reason="PRODUCT_REMOVED"] { background: #47263c; color: #ffc0e4; }
+.reason-code[data-reason="CUSTOMER_RETURN"] { background: #173d4d; color: #abedff; }
+.reason-code[data-reason="RETURN_TO_STOCK"] { background: #224342; color: #b7fff0; }
+.reason-code[data-reason="POS_SALE"] { background: #382664; color: #dbc8ff; }
+.reason-code[data-reason="SALE"] { background: #4c2d59; color: #f6c7ff; }
+.reason-code[data-reason="OPENING_STOCK"] { background: #244236; color: #c4f9d8; }
+.reason-code[data-reason="PURCHASE_RECEIPT"] { background: #354429; color: #d9ffb3; }
+.reason-code[data-reason="RECOVERED_STOCK"] { background: #344522; color: #ecf8b4; }
+.reason-code[data-reason="DAMAGED"] { background: #4d252b; color: #ffc1c8; }
+.reason-code[data-reason="SUPPLIER_RETURN"] { background: #512f23; color: #ffd1b8; }
+.reason-code[data-reason="INTERNAL_USE"] { background: #333b4c; color: #dce5f9; }
+.reason-code[data-reason="PHYSICAL_COUNT"] { background: #2c355d; color: #cdd4ff; }
+.reason-code[data-reason="DATA_CORRECTION"] { background: #223c5d; color: #a5dfff; }
+.reason-code[data-reason="SHRINKAGE"] { background: #4d3424; color: #ffdab8; }
+.reason-code[data-reason="NEW_PRODUCT"] { background: #25503c; color: #aef9c7; }
+.reason-code[data-reason="SUPPLIER_IMPORT"] { background: #29484d; color: #b6f6ff; }
+.reason-code[data-reason="CUSTOM"] { background: #414052; color: #f0eaff; }

@@ -9,6 +9,7 @@ use App\Models\Product;
 use App\Models\SalesItem;
 use App\Models\SalesTransaction;
 use App\Services\LowStockAlertService;
+use App\Support\TablePagination;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -86,19 +87,19 @@ class ReturnsController extends Controller
             ->orderByRaw("CASE WHEN status = 'pending' THEN 0 ELSE 1 END")
             ->latest('returned_at')
             ->orderByDesc('return_id')
-            ->paginate(\App\Support\TablePagination::size($request, 'returns_rows'), ['*'], 'returns_page')
+            ->paginate(TablePagination::size($request, 'returns_rows'), ['*'], 'returns_page')
             ->withQueryString()->fragment('customer-returns');
         $damageLogs = DamagedGood::query()
             ->whereNotIn('status', ['pending', 'rejected'])
             ->with(['product', 'sale', 'user'])
             ->latest('reported_at')
             ->orderByDesc('damage_id')
-            ->paginate(\App\Support\TablePagination::size($request, 'damage_rows'), ['*'], 'damage_page')
+            ->paginate(TablePagination::size($request, 'damage_rows'), ['*'], 'damage_page')
             ->withQueryString()->fragment('damage-history');
 
         $pendingDamages = $request->user()->role === 'admin'
             ? DamagedGood::with(['product', 'sale', 'user'])->where('status', 'pending')->oldest('reported_at')->orderBy('damage_id')
-                ->paginate(\App\Support\TablePagination::size($request, 'pending_rows'), ['*'], 'pending_page')->withQueryString()->fragment('pending-damages')
+                ->paginate(TablePagination::size($request, 'pending_rows'), ['*'], 'pending_page')->withQueryString()->fragment('pending-damages')
             : collect();
         $monthStart = now()->startOfMonth();
         $approvedReturns = CustomerReturn::query()->where('status', 'approved')->where('returned_at', '>=', $monthStart);
@@ -209,9 +210,12 @@ class ReturnsController extends Controller
                     'logs' => "Owner approved customer return #{$return->return_id} from {$this->receiptNumber($sale->sale_id)} and added sellable items back to stock.",
                 ]);
             }
+
             return $product->fresh();
         });
-        if ($validated['decision'] === 'approved') $alerts->checkProduct($product);
+        if ($validated['decision'] === 'approved') {
+            $alerts->checkProduct($product);
+        }
 
         return back()->with('success', $validated['decision'] === 'approved'
             ? 'Return and requested refund approved. Only sellable items were added back to stock.'
@@ -265,6 +269,7 @@ class ReturnsController extends Controller
             }
             $damage->update(['status' => $validated['decision'] === 'accepted' ? 'reviewed' : 'rejected']);
         });
+
         return back()->with('success', $validated['decision'] === 'accepted'
             ? 'Damage accepted and displayed in the Damage Log. Stock is unchanged.'
             : 'Damage rejected. It will not appear in the Damage Log; receipt quantity is available again.');

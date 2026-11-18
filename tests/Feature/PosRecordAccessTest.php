@@ -7,6 +7,7 @@ use App\Models\Product;
 use App\Models\SalesTransaction;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class PosRecordAccessTest extends TestCase
@@ -16,7 +17,7 @@ class PosRecordAccessTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->withHeader('Idempotency-Key', (string) \Illuminate\Support\Str::uuid());
+        $this->withHeader('Idempotency-Key', (string) Str::uuid());
     }
 
     public function test_staff_lists_and_receipt_access_are_scoped_to_their_own_records(): void

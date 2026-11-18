@@ -75,7 +75,7 @@ class SingleSessionLoginTest extends TestCase
     {
         $owner = User::factory()->create(['role' => 'admin', 'password' => self::PASSWORD]);
         $owner->forceFill(['active_session_hash' => hash('sha256', 'existing')])->save();
-        $this->post(route('login.store'), ['email' => $owner->email, 'password' => 'incorrect'])->assertSessionHasErrors('email');
+        $this->post(route('login.store'), ['email' => $owner->email, 'password' => 'incorrect'])->assertSessionHasErrors('password');
         $this->assertSame(hash('sha256', 'existing'), $owner->fresh()->active_session_hash);
     }
 

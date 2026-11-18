@@ -67,15 +67,58 @@
 .sales-target-card .sales-target-metrics { gap: 18px; }
 .sales-target-card .sales-target-metrics > div { min-width: 0; }
 .sales-target-card .sales-target-metrics dd { font-variant-numeric: tabular-nums; }
-.sales-target-card .sales-target-track > .sales-target-recovery-fill {
-    background: hsl(214 85% 55%);
+.sales-target-chart {
+    --recovery-fill: hsl(214 85% 55%);
+    --surplus-fill: hsl(148 65% 43%);
+    --refund-fill: hsl(29 93% 53%);
+    display: grid;
+    gap: 10px;
+    min-width: 0;
+    margin: 0;
 }
-.sales-target-recovered dd { color: hsl(212 95% 74%); }
-.sales-target-surplus dd { color: hsl(148 62% 63%); }
-.sales-target-refunds dd { color: hsl(30 96% 71%); }
-html[data-theme="light"] .sales-target-recovered dd { color: hsl(216 80% 36%); }
-html[data-theme="light"] .sales-target-surplus dd { color: hsl(147 67% 28%); }
-html[data-theme="light"] .sales-target-refunds dd { color: hsl(25 90% 32%); }
+.sales-target-chart-label {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 4px 12px;
+    font-size: 14px;
+    font-variant-numeric: tabular-nums;
+}
+.sales-target-chart-bar { position: relative; }
+.sales-target-chart .sales-target-track { display: flex; height: 14px; }
+.sales-target-card .sales-target-chart .sales-target-track > div { border-radius: 0; }
+.sales-target-card .sales-target-chart .sales-target-recovery-fill { background: var(--recovery-fill); }
+.sales-target-card .sales-target-chart .sales-target-surplus-fill { background: var(--surplus-fill); }
+.sales-target-card .sales-target-chart .sales-target-refund-fill { background: var(--refund-fill); }
+.sales-target-chart-marker,
+.sales-target-chart-target > span {
+    width: 2px;
+    background: currentColor;
+}
+.sales-target-chart-marker {
+    position: absolute;
+    top: -3px;
+    bottom: -3px;
+    transform: translateX(-50%);
+}
+.sales-target-chart-key {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 18px;
+    list-style: none;
+    margin: 0 0 6px;
+    padding: 0;
+    font-size: 12px;
+}
+.sales-target-chart-key li { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.sales-target-chart-key li > span { display: inline-block; height: 10px; }
+.sales-target-recovered > span,
+.sales-target-surplus > span { width: 10px; border-radius: 2px; }
+.sales-target-recovered > span { background: var(--recovery-fill); }
+.sales-target-surplus > span { background: var(--surplus-fill); }
+.sales-target-refunds > span { color: hsl(30 96% 71%); }
+html[data-theme="light"] .sales-target-refunds > span { color: hsl(25 90% 32%); }
+.sales-target-chart figcaption { font-size: 12px; line-height: 1.5; }
 @media (min-width: 421px) and (max-width: 700px) {
     .sales-target-card .sales-target-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }

@@ -88,6 +88,22 @@
 .supplier-review-dialog iframe { height: min(calc(94dvh - 72px), 800px); }
 .supplier-review-details h2, .supplier-review-details p { overflow-wrap: anywhere; }
 .supplier-review-submit { flex-wrap: wrap; }
+.supplier-stock-review input[type="number"] {
+    width: 8rem;
+    padding: .5rem;
+    color: inherit;
+    background: transparent;
+    border: 1px solid currentColor;
+    border-radius: .375rem;
+}
+.supplier-stock-review > button { margin-top: 1rem; }
+.stock-review-dialog .supplier-stock-review { padding: 0; border: 0; background: transparent; }
+.stock-review-dialog th { font-size: .7rem; }
+.stock-review-dialog td { font-size: .875rem; }
+.stock-review-dialog td small { display: block; }
+.stock-review-dialog [data-stock-review-status] { margin-bottom: .75rem; }
+.stock-review-dialog [data-refresh-stock-review] { margin-bottom: .75rem; }
+body:has(.stock-review-dialog[open]) { overflow: hidden; }
 [data-review-status]:empty { display: none; }
 @media (max-width: 700px) {
     .supplier-review { padding: 14px; }

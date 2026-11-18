@@ -19,7 +19,7 @@ class StockMovementDialogTest extends TestCase
         }
         $response->assertSee('data-movement-dialog data-open-on-error="false"', false)
             ->assertSee('motosync-theme');
-        $document = new \DOMDocument();
+        $document = new \DOMDocument;
         @$document->loadHTML($response->getContent());
         $xpath = new \DOMXPath($document);
         $this->assertSame(1, $xpath->query('//dialog[@data-movement-dialog]//form[@data-movement-form]')->length);
@@ -34,7 +34,7 @@ class StockMovementDialogTest extends TestCase
         ])->assertSessionHasErrors('product_id');
         $response = $this->get(route('admin.inventory'))->assertOk()
             ->assertSee('data-movement-dialog data-open-on-error="true"', false);
-        $document = new \DOMDocument();
+        $document = new \DOMDocument;
         @$document->loadHTML($response->getContent());
         $xpath = new \DOMXPath($document);
         $this->assertSame(1, $xpath->query('//select[@name="movement_type"]/option[@value="out"][@selected]')->length);

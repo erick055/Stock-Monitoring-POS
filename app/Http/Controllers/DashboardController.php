@@ -2,8 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Services\SalesAnalyticsService;
-
 use App\Models\CustomerReturn;
 use App\Models\DamagedGood;
 use App\Models\HeldOrder;
@@ -12,6 +10,8 @@ use App\Models\Product;
 use App\Models\SalesItem;
 use App\Models\SalesTransaction;
 use App\Models\User;
+use App\Services\SalesAnalyticsService;
+use App\Services\SalesTargetService;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\View\View;
@@ -38,7 +38,7 @@ class DashboardController extends Controller
                 ['arrow-repeat', 'Returns & Damages', '/admin/returns'], ['tags', 'Supplier Price', '/admin/suppliers'], ['gear', 'Part Compatibility', '/admin/compatibility'], ['people', 'Account Management', '/admin/accounts'],
             ],
             'sales_summary' => $monthSummary,
-            'sales_target' => app(\App\Services\SalesTargetService::class)->current(),
+            'sales_target' => app(SalesTargetService::class)->current(),
             'sales_period' => 'This month',
             'stats' => [
                 ['TOTAL PRODUCTS', number_format($products->count()), $products->filter(fn (Product $product) => $product->created_at?->isCurrentMonth())->count().' added this month', 'purple'],

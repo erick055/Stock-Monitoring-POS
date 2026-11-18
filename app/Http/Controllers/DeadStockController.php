@@ -2,21 +2,22 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Product;
+use App\Jobs\RefreshInventoryPredictions;
 use App\Models\DeadStockMlModel;
 use App\Models\DeadStockMlPrediction;
+use App\Models\Product;
 use App\Models\ProductPromotion;
 use App\Models\SalesItem;
-use Illuminate\Support\Carbon;
+use App\Services\DeadStockMachineLearning;
+use App\Support\TablePagination;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
-use App\Services\DeadStockMachineLearning;
-use RuntimeException;
 
 class DeadStockController extends Controller
 {
@@ -28,7 +29,7 @@ class DeadStockController extends Controller
         $status = in_array((string) $request->query('status', 'queue'), ['queue', 'archived'], true)
             ? (string) $request->query('status', 'queue')
             : 'queue';
-        $perPage = \App\Support\TablePagination::size($request);
+        $perPage = TablePagination::size($request);
         $products = Product::query()
             ->with(['activePromotion.administrator', 'activePromotion.bundleProduct', 'deadStockArchivedBy'])
             ->where('is_active', true)
@@ -47,10 +48,10 @@ class DeadStockController extends Controller
         $scoredProducts = $products
             ->map(function (Product $product) use ($salesLastThirtyDays, $salesLastNinetyDays, $latestSales, $mlPredictions) {
                 $item = $this->scoreProduct(
-                $product,
-                (int) ($salesLastThirtyDays[$product->product_id] ?? 0),
-                (int) ($salesLastNinetyDays[$product->product_id] ?? 0),
-                $latestSales[$product->product_id] ?? null
+                    $product,
+                    (int) ($salesLastThirtyDays[$product->product_id] ?? 0),
+                    (int) ($salesLastNinetyDays[$product->product_id] ?? 0),
+                    $latestSales[$product->product_id] ?? null
                 );
                 $prediction = $mlPredictions->get($product->product_id);
                 $item['ml_prediction'] = $prediction ? [
@@ -59,6 +60,7 @@ class DeadStockController extends Controller
                     'factors' => $prediction->factors,
                     'predicted_at' => $prediction->predicted_at,
                 ] : null;
+
                 return $item;
             })
             ->sortByDesc('score')
@@ -76,7 +78,7 @@ class DeadStockController extends Controller
         $summary = [
             ['DEAD STOCK ITEM', number_format($deadStockItems->count()), 'Measured score 70-100 / high risk', 'purple'],
             ['SLOW MOVING', number_format($slowMovingItems->count()), 'Measured score 40-69 / monitor', 'violet'],
-            ['TRAPPED CAPITAL', '₱' . number_format($trappedCapital, 2), 'Estimated value tied to idle stock', 'orange'],
+            ['TRAPPED CAPITAL', '₱'.number_format($trappedCapital, 2), 'Estimated value tied to idle stock', 'orange'],
             ['ARCHIVED', number_format($archivedProducts->count()), 'Hidden from the active recovery queue', 'cyan'],
         ];
 
@@ -142,10 +144,11 @@ class DeadStockController extends Controller
 
     public function trainModel(DeadStockMachineLearning $ml): RedirectResponse
     {
-        if (! \App\Models\SalesItem::whereHas('sale', fn ($q) => $q->where('payment_status', 'paid'))->exists()) {
+        if (! SalesItem::whereHas('sale', fn ($q) => $q->where('payment_status', 'paid'))->exists()) {
             return back()->withErrors(['ml' => 'Not enough POS history. Record paid product sales before training the ML model.']);
         }
-        \App\Jobs\RefreshInventoryPredictions::dispatch()->onConnection('ml')->onQueue('ml');
+        RefreshInventoryPredictions::dispatch()->onConnection('ml')->onQueue('ml');
+
         return back()->with('success', 'Model refresh queued. Predictions will update after the background worker finishes.');
     }
 
@@ -349,10 +352,10 @@ class DeadStockController extends Controller
             'monthly_units' => $monthlyUnits,
             'quarter_units' => $quarterUnits,
             'score' => $score,
-            'score_width' => max(6, $score) . '%',
+            'score_width' => max(6, $score).'%',
             'classification' => $classification,
             'classification_class' => strtolower(str_replace(' ', '-', $classification)),
-            'total_cost' => '₱' . number_format($totalCost, 2),
+            'total_cost' => '₱'.number_format($totalCost, 2),
             'total_cost_raw' => $totalCost,
             'unit_price' => (float) $product->unit_price,
             'active_promotion' => $product->activePromotion ? [
@@ -372,9 +375,9 @@ class DeadStockController extends Controller
             'archived_at' => $product->dead_stock_archived_at?->format('M d, Y h:i A'),
             'archived_by' => $product->deadStockArchivedBy?->name ?? 'Administrator',
             'archive_note' => $product->dead_stock_archive_note,
-            'age' => $product->created_at?->diffForHumans(null, true) . ' in inventory',
+            'age' => $product->created_at?->diffForHumans(null, true).' in inventory',
             'last_sale' => $daysSinceLastSale === null ? 'No sale recorded' : "{$daysSinceLastSale} day(s) ago",
-            'velocity' => number_format($monthlyUnits) . ' units / month',
+            'velocity' => number_format($monthlyUnits).' units / month',
             'note' => 'Monthly Velocity',
             'reasons' => $reasons ?: ['Product movement is currently healthy.'],
             'recommendation' => $this->recommendationFor($classification),

@@ -2,6 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Models\Product;
+use App\Models\ProductPromotion;
+use App\Models\SalesTransaction;
+use App\Models\Supplier;
+use App\Models\SupplierImport;
 use App\Models\User;
 use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -44,12 +49,12 @@ class AccountManagementTest extends TestCase
         config(['session.driver' => 'database']);
         $owner = User::factory()->create(['role' => 'admin']);
         $staff = User::factory()->create(['role' => 'staff', 'must_change_password' => true]);
-        $sale = \App\Models\SalesTransaction::create(['staff_id' => $staff->id, 'sale_date' => now(), 'total_sale_amount' => 100]);
-        $supplier = \App\Models\Supplier::create(['name' => 'History Supplier', 'code' => 'STAFF-DELETE']);
-        $import = \App\Models\SupplierImport::create(['supplier_id' => $supplier->supplier_id, 'uploaded_by' => $staff->id,
+        $sale = SalesTransaction::create(['staff_id' => $staff->id, 'sale_date' => now(), 'total_sale_amount' => 100]);
+        $supplier = Supplier::create(['name' => 'History Supplier', 'code' => 'STAFF-DELETE']);
+        $import = SupplierImport::create(['supplier_id' => $supplier->supplier_id, 'uploaded_by' => $staff->id,
             'source_filename' => 'history.csv', 'status' => 'approved']);
-        $product = \App\Models\Product::create(['sku' => 'DELETE-HISTORY', 'name' => 'History Part']);
-        $promotion = \App\Models\ProductPromotion::create(['product_id' => $product->product_id, 'applied_by' => $staff->id,
+        $product = Product::create(['sku' => 'DELETE-HISTORY', 'name' => 'History Part']);
+        $promotion = ProductPromotion::create(['product_id' => $product->product_id, 'applied_by' => $staff->id,
             'action_type' => 'discount', 'discount_percent' => 10, 'original_price' => 100,
             'promotional_price' => 90, 'status' => 'active', 'started_at' => now()]);
         $staff->loginVerificationCode()->create(['code_hash' => Hash::make('123456'),
@@ -237,6 +242,51 @@ class AccountManagementTest extends TestCase
         $this->assertSame('active', $staff->account_status);
         $this->assertNull($staff->disabled_at);
         $this->assertNull($staff->disabled_reason);
+    }
+
+    public function test_failed_staff_logins_lock_the_account_until_an_admin_unlocks_it(): void
+    {
+        Notification::fake();
+        $owner = User::factory()->create(['role' => 'admin']);
+        $staff = User::factory()->create(['role' => 'staff']);
+        $otherStaff = User::factory()->create(['role' => 'staff']);
+        $staff->loginVerificationCode()->create([
+            'code_hash' => Hash::make('123456'),
+            'expires_at' => now()->addMinutes(10),
+            'last_sent_at' => now(),
+        ]);
+
+        $wrongCredentials = ['email' => $staff->email, 'password' => 'incorrect-password'];
+        foreach (range(1, 2) as $attempt) {
+            $this->withServerVariables(['REMOTE_ADDR' => "192.0.2.{$attempt}"])
+                ->post(route('login.store'), $wrongCredentials)
+                ->assertSessionHasErrors(['password' => 'Password is incorrect.']);
+            $this->assertSame('active', $staff->fresh()->account_status);
+        }
+
+        $this->withServerVariables(['REMOTE_ADDR' => '192.0.2.3'])
+            ->from(route('login'))->followingRedirects()
+            ->post(route('login.store'), $wrongCredentials)
+            ->assertOk()
+            ->assertSee('Your staff account is locked after three failed login attempts. Contact an admin to unlock it.');
+
+        $this->assertTrue($staff->fresh()->isLockedByFailedLogins());
+        $this->assertDatabaseMissing('login_verification_codes', ['user_id' => $staff->id]);
+        $this->travel(2)->hours();
+        $credentials = ['email' => $staff->email, 'password' => 'password'];
+        $this->post(route('login.store'), $credentials)->assertSessionHasErrors([
+            'email' => 'Your staff account is locked after three failed login attempts. Contact an admin to unlock it.',
+        ]);
+        $this->assertGuest();
+
+        $this->actingAs($otherStaff)->patch(route('admin.accounts.reactivate', $staff))->assertForbidden();
+        $this->actingAs($owner)->get(route('admin.accounts', ['status' => 'disabled']))
+            ->assertOk()->assertSee('Unlock staff account');
+        $this->patch(route('admin.accounts.reactivate', $staff))->assertSessionHas('success');
+        $this->assertSame(0, $staff->fresh()->failed_login_attempts);
+        $this->post(route('logout'));
+
+        $this->post(route('login.store'), $credentials)->assertRedirect(route('login.verify'));
     }
 
     public function test_account_actions_cannot_target_an_owner_account(): void

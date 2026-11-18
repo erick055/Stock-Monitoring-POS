@@ -17,7 +17,10 @@ class StaffPasswordController extends Controller
 {
     public function edit(Request $request): View|RedirectResponse
     {
-        if (! $request->user()->must_change_password) return redirect()->route('staff.dashboard');
+        if (! $request->user()->must_change_password) {
+            return redirect()->route('staff.dashboard');
+        }
+
         return view('auth.staff-password');
     }
 
@@ -48,6 +51,7 @@ class StaffPasswordController extends Controller
                 DB::connection(config('session.connection'))->table(config('session.table', 'sessions'))
                     ->where('user_id', $user->id)->where('id', '!=', $request->session()->getId())->delete();
             }
+
             return $user;
         });
         $request->user()->setRawAttributes($user->getAttributes(), true);

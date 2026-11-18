@@ -11,6 +11,7 @@ use RuntimeException;
 class RefreshInventoryPredictions extends Command
 {
     protected $signature = 'ml:refresh';
+
     protected $description = 'Train and refresh local demand and dead-stock predictions outside web requests';
 
     public function handle(ProductDemandMachineLearning $demand, DeadStockMachineLearning $deadStock): int
@@ -18,6 +19,7 @@ class RefreshInventoryPredictions extends Command
         $lock = Cache::lock('ml:refresh-lock', 3600);
         if (! $lock->get()) {
             $this->info('A model refresh is already running.');
+
             return self::SUCCESS;
         }
         try {
@@ -29,6 +31,7 @@ class RefreshInventoryPredictions extends Command
             } catch (RuntimeException $exception) {
                 $this->warn($exception->getMessage());
             }
+
             return self::SUCCESS;
         } finally {
             $lock->release();

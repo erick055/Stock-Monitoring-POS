@@ -8,6 +8,7 @@ use App\Models\SalesTransaction;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
 class AnalyticsPageTest extends TestCase
@@ -108,7 +109,7 @@ class AnalyticsPageTest extends TestCase
             ->assertSee('Local Demand Part')->assertSee('Waiting for history')
             ->assertSee('Future product demand predictions')->assertDontSee('Generate AI forecast')->assertDontSee('GROQ');
         Http::assertNothingSent();
-        $this->assertFalse(\Illuminate\Support\Facades\Route::has('admin.analytics.demand-forecast'));
+        $this->assertFalse(Route::has('admin.analytics.demand-forecast'));
     }
 
     public function test_sales_chart_supports_weekly_monthly_and_yearly_views(): void

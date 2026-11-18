@@ -15,7 +15,9 @@ class AccountRateLimitTest extends TestCase
         $owner = User::factory()->create(['role' => 'admin']);
         $staff = User::factory()->create(['role' => 'staff']);
         $this->actingAs($owner);
-        for ($i = 0; $i < 25; $i++) $this->getJson(route('session.status'))->assertOk();
+        for ($i = 0; $i < 25; $i++) {
+            $this->getJson(route('session.status'))->assertOk();
+        }
         $this->patch(route('admin.accounts.disable', $staff))->assertSessionHasNoErrors()->assertSessionHas('success');
         $this->assertSame('disabled', $staff->fresh()->account_status);
         $this->delete(route('admin.accounts.destroy', $staff), ['confirm_delete' => '1'])

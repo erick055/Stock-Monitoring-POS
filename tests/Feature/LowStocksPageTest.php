@@ -14,6 +14,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
 class LowStocksPageTest extends TestCase
@@ -170,7 +171,7 @@ class LowStocksPageTest extends TestCase
 
         Mail::assertNothingSent();
         $this->assertDatabaseHas('stock_alert_deliveries', ['channel' => 'email', 'alert_type' => 'immediate', 'status' => 'queued']);
-        $job = \Illuminate\Support\Facades\Queue::connection('stock-alerts')->pop();
+        $job = Queue::connection('stock-alerts')->pop();
         $this->assertNotNull($job);
         $job->fire();
         $job->delete();
@@ -213,7 +214,7 @@ class LowStocksPageTest extends TestCase
 
         Artisan::call('stock-alerts:daily-summary', ['--force' => true]);
         Mail::assertNothingSent();
-        $job = \Illuminate\Support\Facades\Queue::connection('stock-alerts')->pop();
+        $job = Queue::connection('stock-alerts')->pop();
         $this->assertNotNull($job);
         $job->fire();
         $job->delete();

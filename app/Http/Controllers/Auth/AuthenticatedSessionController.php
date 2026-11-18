@@ -4,17 +4,25 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
-use App\Services\TrustedLoginDeviceService;
 use App\Services\SingleSessionLogin;
+use App\Services\TrustedLoginDeviceService;
+use Illuminate\Contracts\Auth\UserProvider;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class AuthenticatedSessionController extends Controller
 {
+    private const ACCOUNT_NOT_FOUND = 'Account not found.';
+
+    private const WRONG_PASSWORD = 'Password is incorrect.';
+
+    private const STAFF_ACCOUNT_LOCKED = 'Your staff account is locked after three failed login attempts. Contact an admin to unlock it.';
+
     public function store(Request $request, TrustedLoginDeviceService $trustedDevices): RedirectResponse
     {
         $request->merge([
@@ -39,12 +47,20 @@ class AuthenticatedSessionController extends Controller
         $provider = Auth::guard()->getProvider();
         $user = $provider->retrieveByCredentials($credentials);
 
-        if (! $user || ! $provider->validateCredentials($user, $credentials)) {
+        $result = match (true) {
+            ! $user => ['email' => self::ACCOUNT_NOT_FOUND],
+            $user instanceof User && $user->role === 'staff' => $this->validateStaffCredentials($provider, $user, $credentials),
+            ! $provider->validateCredentials($user, $credentials) => ['password' => self::WRONG_PASSWORD],
+            default => $user,
+        };
+
+        if (is_array($result)) {
             RateLimiter::hit($throttleKey, 60);
 
-            throw ValidationException::withMessages(['email' => 'The provided credentials are incorrect.']);
+            throw ValidationException::withMessages($result);
         }
 
+        $user = $result;
         RateLimiter::clear($throttleKey);
 
         if (! $user instanceof User || ! in_array($user->role, ['admin', 'staff'], true)) {
@@ -62,7 +78,9 @@ class AuthenticatedSessionController extends Controller
         if ($user->role === 'admin' || $trustedDevices->isTrusted($request, $user)) {
             if ($user->role === 'admin') {
                 // Owners use locally provisioned credentials without an email challenge.
-                if (! $user->hasVerifiedEmail()) $user->markEmailAsVerified();
+                if (! $user->hasVerifiedEmail()) {
+                    $user->markEmailAsVerified();
+                }
                 $user->loginVerificationCode()->delete();
             }
             app(SingleSessionLogin::class)->start($request, $user);
@@ -70,6 +88,7 @@ class AuthenticatedSessionController extends Controller
             if ($user->role === 'staff' && $user->must_change_password) {
                 return redirect()->route('staff.password.edit')->withoutCookie(Auth::guard()->getRecallerName());
             }
+
             return redirect()->intended(route($user->role.'.dashboard'))
                 ->withoutCookie(Auth::guard()->getRecallerName());
         }
@@ -90,6 +109,53 @@ class AuthenticatedSessionController extends Controller
         ]);
 
         return redirect()->route('login.verify');
+    }
+
+    /** @return User|array<string, string> */
+    private function validateStaffCredentials(UserProvider $provider, User $user, #[\SensitiveParameter] array $credentials): User|array
+    {
+        return DB::transaction(function () use ($provider, $user, $credentials): User|array {
+            $current = User::query()->lockForUpdate()->find($user->id);
+            if (! $current || $current->email !== $user->email || $current->role !== 'staff') {
+                return ['email' => self::ACCOUNT_NOT_FOUND];
+            }
+
+            if ($current->isLockedByFailedLogins()) {
+                return ['email' => self::STAFF_ACCOUNT_LOCKED];
+            }
+
+            $valid = $provider->validateCredentials($current, $credentials);
+            if ($current->account_status !== 'active') {
+                return $valid ? $current : ['password' => self::WRONG_PASSWORD];
+            }
+
+            if ($valid) {
+                if ($current->failed_login_attempts > 0) {
+                    $current->forceFill(['failed_login_attempts' => 0])->save();
+                }
+
+                return $current;
+            }
+
+            $current->failed_login_attempts++;
+            if ($current->failed_login_attempts >= User::STAFF_LOGIN_FAILURE_LIMIT) {
+                $current->forceFill([
+                    'account_status' => 'disabled',
+                    'disabled_by' => null,
+                    'disabled_at' => now(),
+                    'disabled_reason' => 'Automatically locked after three failed login attempts.',
+                    'active_session_hash' => hash('sha256', Str::random(64)),
+                    'remember_token' => Str::random(60),
+                ]);
+                $current->loginVerificationCode()->delete();
+                $current->trustedLoginDevices()->delete();
+            }
+            $current->save();
+
+            return $current->isLockedByFailedLogins()
+                ? ['email' => self::STAFF_ACCOUNT_LOCKED]
+                : ['password' => self::WRONG_PASSWORD];
+        });
     }
 
     public function destroy(Request $request): RedirectResponse

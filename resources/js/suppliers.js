@@ -217,6 +217,7 @@ bulkButton?.addEventListener('click', async () => {
 });
 
 const initializedSupplierControls = new Map();
+const stockReviewDialog = document.querySelector('[data-stock-review-dialog]');
 function newSupplierControls(selector) {
     const seen = initializedSupplierControls.get(selector) ?? new WeakSet();
     initializedSupplierControls.set(selector, seen);
@@ -253,7 +254,7 @@ function initializeSupplierRows() {
         dialog.querySelectorAll('[data-close-price-dialog]').forEach((button) => {
             button.addEventListener('click', () => dialog.close());
         });
-        dialog.querySelectorAll('form').forEach((form) => {
+        dialog.querySelectorAll('form[method="POST"]').forEach((form) => {
             const marker = document.createElement('input');
             marker.type = 'hidden';
             marker.name = '_supplier_price_dialog';
@@ -286,6 +287,14 @@ function initializeSupplierRows() {
                 event.preventDefault();
                 search.setCustomValidity('Choose a product from the search suggestions.');
                 search.reportValidity();
+                return;
+            }
+
+            if (stockReviewDialog) {
+                event.preventDefault();
+                const url = new URL(form.action);
+                url.searchParams.set('product_id', productId.value);
+                void openStockReview(url.href);
             }
         });
     });
@@ -309,6 +318,148 @@ function initializeSupplierRows() {
 initializeSupplierRows();
 document.addEventListener('motosync:table-updated', initializeSupplierRows);
 
+function initializeStockBalances(stockReview) {
+    const rows = [...stockReview.querySelectorAll('[data-stock-review-row]')];
+    const updateBalances = () => {
+        const balances = new Map();
+        rows.forEach((row) => {
+            const input = row.querySelector('[data-stock-review-quantity]');
+            const productId = row.dataset.productId;
+            const startingStock = balances.get(productId) ?? Number(row.dataset.currentStock);
+            input.setCustomValidity('');
+            const balance = startingStock + (input.validity.valid ? input.valueAsNumber : 0);
+            balances.set(productId, balance);
+            row.querySelector('[data-stock-review-balance]').textContent = balance.toLocaleString();
+            if (balance > 2147483647) input.setCustomValidity('The resulting stock exceeds the supported maximum.');
+        });
+    };
+    stockReview.addEventListener('input', updateBalances);
+    updateBalances();
+}
+
+const standaloneStockReview = document.querySelector('[data-supplier-stock-review]');
+if (standaloneStockReview) initializeStockBalances(standaloneStockReview);
+
+let openStockReview;
+if (stockReviewDialog) {
+    const body = stockReviewDialog.querySelector('[data-stock-review-body]');
+    const status = stockReviewDialog.querySelector('[data-stock-review-status]');
+    const close = stockReviewDialog.querySelector('[data-close-stock-review]');
+    const refresh = stockReviewDialog.querySelector('[data-refresh-stock-review]');
+    let reviewUrl;
+    let loading;
+    let saving = false;
+    let saved = false;
+
+    function showStatus(message, error = false) {
+        status.textContent = message;
+        status.hidden = !message;
+        status.className = error ? 'supplier-message error' : 'supplier-message';
+    }
+
+    async function loadReview(url, draft = new Map(), message = '', error = false) {
+        reviewUrl = url;
+        loading?.abort();
+        const request = new AbortController();
+        loading = request;
+        refresh.hidden = true;
+        const previousSubmit = body.querySelector('button[type="submit"]');
+        if (previousSubmit) previousSubmit.disabled = true;
+        showStatus('Loading stock review…');
+        try {
+            const response = await fetch(url, { signal: request.signal });
+            if (!response.ok) throw new Error('Review unavailable');
+            const page = new DOMParser().parseFromString(await response.text(), 'text/html');
+            const content = page.querySelector('[data-stock-review-content]');
+            if (!content) throw new Error('Review unavailable');
+            if (request.signal.aborted) return;
+            body.replaceChildren(content);
+            body.querySelectorAll('[data-stock-review-quantity]').forEach(input => {
+                if (!input.readOnly && draft.has(input.name)) input.value = draft.get(input.name);
+            });
+            const form = body.querySelector('[data-supplier-stock-review]');
+            if (form) initializeStockBalances(form);
+            showStatus(message, error);
+        } catch {
+            if (request.signal.aborted) return;
+            showStatus(message || 'Could not load the stock review. Try refreshing it.', true);
+            refresh.hidden = false;
+        }
+    }
+
+    openStockReview = (url) => {
+        body.replaceChildren();
+        stockReviewDialog.showModal();
+        return loadReview(url);
+    };
+
+    document.addEventListener('click', (event) => {
+        const link = event.target.closest('[data-open-stock-review]');
+        if (!link || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+        event.preventDefault();
+        void openStockReview(link.href);
+    });
+
+    body.addEventListener('click', (event) => {
+        const link = event.target.closest('[data-stock-review-pagination] a');
+        if (!link) return;
+        event.preventDefault();
+        if (!saving) void loadReview(link.href);
+    });
+
+    const quantities = () => new Map([...body.querySelectorAll('[data-stock-review-quantity]')]
+        .map(input => [input.name, input.value]));
+    refresh.addEventListener('click', () => void loadReview(reviewUrl, quantities()));
+    close.addEventListener('click', () => stockReviewDialog.close());
+    stockReviewDialog.addEventListener('cancel', (event) => {
+        if (saving) event.preventDefault();
+    });
+    stockReviewDialog.addEventListener('close', () => {
+        loading?.abort();
+        if (saved) window.location.reload();
+    });
+
+    body.addEventListener('submit', async (event) => {
+        const form = event.target;
+        if (!form.matches('[data-supplier-stock-review]')) return;
+        event.preventDefault();
+        if (saving) return;
+        const submit = form.querySelector('button[type="submit"]');
+        const draft = quantities();
+        const data = new FormData(form);
+        saving = true;
+        close.disabled = true;
+        submit.disabled = true;
+        showStatus('Saving stock review…');
+        try {
+            const response = await fetch(form.action, {
+                method: 'POST',
+                headers: { Accept: 'application/json' },
+                body: data,
+            });
+            const result = await response.json();
+            if (response.status === 422) {
+                const message = Object.values(result.errors ?? {}).flat().join(' ') || result.message;
+                await loadReview(reviewUrl, draft, message, true);
+                return;
+            }
+            if (!response.ok) throw new Error('Could not save stock review');
+            saved = true;
+            if (result.review_url) {
+                await loadReview(result.review_url, draft, result.message);
+            } else {
+                stockReviewDialog.close();
+            }
+        } catch {
+            showStatus('Could not confirm the save. Refresh the review to check which items still need to be recorded.', true);
+            refresh.hidden = false;
+        } finally {
+            saving = false;
+            close.disabled = false;
+        }
+    });
+}
+
 // Delegated for supplier dialogs replaced by table pagination.
 document.addEventListener('change', (event) => {
     if (!event.target.matches('[data-catalog-option-select]')) return;
@@ -320,7 +471,7 @@ document.addEventListener('change', (event) => {
     input.required = creating;
     if (creating) input.focus();
 });
-const review = document.querySelector('.supplier-review');
+const review = document.querySelector('#supplier-review-form')?.closest('.supplier-review');
 if (review) {
     const form = review.querySelector('#supplier-review-form');
     const list = form.querySelector('.supplier-review-list');

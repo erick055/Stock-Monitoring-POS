@@ -51,6 +51,7 @@ class LowStockAlertService
                     if ($severity === 'critical') {
                         $eligible->push($product);
                     }
+
                     continue;
                 }
                 $previousSeverity = $state->exists ? $state->severity : 'healthy';
@@ -81,6 +82,7 @@ class LowStockAlertService
                 return 0;
             }
             $products = Product::query()->where('is_active', true)->get()->filter(fn ($product) => $this->severity($product) !== 'healthy');
+
             return $this->queueDigest($settings, $products, 'daily_summary');
         });
     }

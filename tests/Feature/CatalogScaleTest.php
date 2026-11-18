@@ -42,7 +42,9 @@ class CatalogScaleTest extends TestCase
                 'reorder_level' => 10, 'is_active' => true, 'created_at' => $now, 'updated_at' => $now,
             ];
         }
-        foreach (array_chunk($products, 100) as $chunk) DB::table('products')->insert($chunk);
+        foreach (array_chunk($products, 100) as $chunk) {
+            DB::table('products')->insert($chunk);
+        }
         $promotions = [];
         for ($i = 5; $i <= $size; $i += 25) {
             $promotions[] = ['product_id' => $i, 'applied_by' => $owner->id, 'action_type' => 'discount',
@@ -109,7 +111,9 @@ class CatalogScaleTest extends TestCase
         }
         $this->assertLessThan(700 * 1024, $measurements['/admin/inventory']['bytes'], 'Inventory should not render the entire catalog as table rows.');
         $directory = storage_path('app/testing');
-        if (! is_dir($directory)) mkdir($directory, 0755, true);
+        if (! is_dir($directory)) {
+            mkdir($directory, 0755, true);
+        }
         file_put_contents($directory.'/catalog-scale-'.$size.'.json', json_encode($measurements, JSON_PRETTY_PRINT));
     }
 }

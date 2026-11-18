@@ -2,16 +2,19 @@
 
 namespace App\Http\Controllers;
 
-use App\Services\SalesAnalyticsService;
-
 use App\Models\InventoryLedger;
 use App\Models\Product;
 use App\Models\SalesItem;
 use App\Models\SalesTransaction;
 use App\Services\ProductDemandMachineLearning;
+use App\Services\SalesAnalyticsService;
+use App\Services\SalesTargetService;
+use App\Services\SellingSpeedService;
+use App\Support\TablePagination;
 use Carbon\CarbonImmutable;
-use Illuminate\Http\Request;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 use OpenSpout\Common\Entity\Row;
@@ -28,20 +31,22 @@ class AnalyticsController extends Controller
         $perPage = in_array((int) $request->query('forecast_rows', 20), [20, 50, 100], true)
             ? (int) $request->query('forecast_rows', 20) : 20;
         $items = collect($data['aiDemandForecast']['items']);
-        $page = \Illuminate\Pagination\LengthAwarePaginator::resolveCurrentPage('forecast_page');
-        $data['forecastItems'] = (new \Illuminate\Pagination\LengthAwarePaginator(
+        $page = LengthAwarePaginator::resolveCurrentPage('forecast_page');
+        $data['forecastItems'] = (new LengthAwarePaginator(
             $items->forPage($page, $perPage)->values(), $items->count(), $perPage, $page,
             ['path' => $request->url(), 'query' => $request->query(), 'pageName' => 'forecast_page']
         ))->fragment('future-demand');
-        $data['speedRows'] = \App\Support\TablePagination::collection(collect($data['sellingSpeedRanking']), $request, 'speed', 'selling-speed');
-        $data['slowRows'] = \App\Support\TablePagination::collection(collect($data['slowMovingProducts']), $request, 'slow', 'slow-products');
-        $data['refundRows'] = \App\Support\TablePagination::collection(collect($data['dailyRefunds']), $request, 'refund', 'daily-refunds');
-        $targets = app(\App\Services\SalesTargetService::class);
+        $data['speedRows'] = TablePagination::collection(collect($data['sellingSpeedRanking']), $request, 'speed', 'selling-speed');
+        $data['slowRows'] = TablePagination::collection(collect($data['slowMovingProducts']), $request, 'slow', 'slow-products');
+        $data['refundRows'] = TablePagination::collection(collect($data['dailyRefunds']), $request, 'refund', 'daily-refunds');
+        $targets = app(SalesTargetService::class);
         $data['salesTarget'] = $targets->current();
         $data['targetRows'] = $targets->history($request);
         $data['analyticsTab'] = in_array($request->query('tab'), ['overview', 'transactions', 'movement', 'ai', 'targets'], true)
             ? $request->query('tab') : ($data['salesPeriod'] === 'day' ? 'transactions' : 'overview');
-        if ($request->session()->get('errors')?->hasAny(['target_month', 'target_amount'])) $data['analyticsTab'] = 'targets';
+        if ($request->session()->get('errors')?->hasAny(['target_month', 'target_amount'])) {
+            $data['analyticsTab'] = 'targets';
+        }
 
         return view('admin.analytics', $data);
     }
@@ -76,6 +81,7 @@ class AnalyticsController extends Controller
             ->with(['activePromotion.administrator', 'activePromotion.bundleProduct', 'deadStockArchivedBy'])
             ->get()->map(function (Product $product) use ($movement) {
                 $sales = $movement->get($product->product_id);
+
                 return app(DeadStockController::class)->scoreProduct($product,
                     (int) ($sales?->monthly_units ?? 0), (int) ($sales?->quarter_units ?? 0), $sales?->latest_sale);
             })->where('classification', 'Slow Moving')->sortByDesc('total_cost_raw')->values();
@@ -107,7 +113,7 @@ class AnalyticsController extends Controller
             ->limit(5)
             ->get();
 
-        $sellingSpeedRanking = app(\App\Services\SellingSpeedService::class)->ranking()->values();
+        $sellingSpeedRanking = app(SellingSpeedService::class)->ranking()->values();
 
         $highestStock = Product::query()->where('is_active', true)->orderByDesc('current_stock')->limit(5)->get();
         $lowestStock = Product::query()->where('is_active', true)->orderBy('current_stock')->limit(5)->get();
@@ -137,6 +143,7 @@ class AnalyticsController extends Controller
             $date = $salesPeriod === 'year' ? $chartStart->addMonths($offset) : $chartStart->addDays($offset);
             $key = $salesPeriod === 'year' ? $date->format('Y-m') : $date->toDateString();
             $totals = $chartTotals[$key] ?? ['gross_sales' => 0.0, 'refunds' => 0.0, 'net_sales' => 0.0];
+
             return [
                 'label' => match ($salesPeriod) {
                     'month' => $date->format('j'), 'year' => $date->format('M'), default => $date->format('D'),
@@ -166,7 +173,7 @@ class AnalyticsController extends Controller
         $dailySalesTotal = $dailySummary['net_sales'];
         $dailyRefunds = app(SalesAnalyticsService::class)->approvedReturns($selectedTransactionDate, $selectedTransactionDate->endOfDay())->with('product')->orderBy('approved_at')->get();
         $dayTransactions = $dailySales->with('staff')->withSum('items as units_count', 'quantity')
-            ->latest('sale_date')->orderByDesc('sale_id')->paginate(\App\Support\TablePagination::size($request, 'transactions_rows'), ['*'], 'transactions_page')
+            ->latest('sale_date')->orderByDesc('sale_id')->paginate(TablePagination::size($request, 'transactions_rows'), ['*'], 'transactions_page')
             ->withQueryString()->fragment('transaction-history');
 
         return compact(

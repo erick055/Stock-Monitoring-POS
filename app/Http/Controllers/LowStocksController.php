@@ -6,9 +6,11 @@ use App\Models\Product;
 use App\Models\SalesItem;
 use App\Models\StockAlertDelivery;
 use App\Services\LowStockAlertService;
+use App\Services\SellingSpeedService;
+use App\Support\TablePagination;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Http\Response;
 use Illuminate\View\View;
 
 class LowStocksController extends Controller
@@ -17,7 +19,7 @@ class LowStocksController extends Controller
     {
         $search = trim((string) $request->query('search'));
         $status = (string) $request->query('status', 'all');
-        $perPage = \App\Support\TablePagination::size($request);
+        $perPage = TablePagination::size($request);
 
         $products = Product::query()->where('is_active', true)->get();
 
@@ -58,7 +60,7 @@ class LowStocksController extends Controller
             ->where('sales_transactions.sale_date', '>=', now()->subDays(7))
             ->sum('sales_items.quantity');
 
-        $sellingSpeed = app(\App\Services\SellingSpeedService::class);
+        $sellingSpeed = app(SellingSpeedService::class);
         $velocities = $sellingSpeed->ranking()->keyBy('product_id');
         $fastMoving = SalesItem::query()
             ->select('products.product_id', 'products.name', 'products.sku', 'products.current_stock')
@@ -80,8 +82,8 @@ class LowStocksController extends Controller
                 return [
                     'name' => $item->name,
                     'sku' => $item->sku,
-                    'weekly' => number_format($item->weekly_units) . ' units',
-                    'turnover' => number_format(((int) $item->weekly_units) / max((int) $item->current_stock, 1), 1) . 'x / wk',
+                    'weekly' => number_format($item->weekly_units).' units',
+                    'turnover' => number_format(((int) $item->weekly_units) / max((int) $item->current_stock, 1), 1).'x / wk',
                     'days_left' => $daysLeft.' days',
                     'units_per_day' => $velocity,
                     'status' => $sellingSpeed->classify($daysLeft),
@@ -100,7 +102,7 @@ class LowStocksController extends Controller
             $settings->update(['notification_email' => $request->user()->email]);
         }
         $deliveries = StockAlertDelivery::query()->where('channel', 'email')->latest()->orderByDesc('id')
-            ->paginate(\App\Support\TablePagination::size($request, 'delivery_rows'), ['*'], 'delivery_page')
+            ->paginate(TablePagination::size($request, 'delivery_rows'), ['*'], 'delivery_page')
             ->withQueryString()->fragment('notification-history');
 
         return view('admin.low-stocks', compact(
@@ -123,7 +125,7 @@ class LowStocksController extends Controller
         return back()->with('success', 'Stock alert notification settings saved.');
     }
 
-    public function exportPdf(LowStockAlertService $alerts): \Illuminate\Http\Response
+    public function exportPdf(LowStockAlertService $alerts): Response
     {
         return response()->view('admin.partials.stock-alert-pdf', [
             'bodyText' => $alerts->criticalStockReport(),
@@ -143,7 +145,7 @@ class LowStocksController extends Controller
             return back()->with('success', 'No critical or out-of-stock items to email.');
         }
 
-        $status = \App\Models\StockAlertDelivery::find($deliveryId)?->status;
+        $status = StockAlertDelivery::find($deliveryId)?->status;
 
         return $status === 'sent'
             ? back()->with('success', 'Stock alert accepted by the mail server.')
@@ -162,7 +164,7 @@ class LowStocksController extends Controller
             'threshold' => $product->reorder_level,
             'status' => $status === 'critical' ? 'Critical' : 'Warning',
             'status_class' => $status,
-            'fill' => max(5, $percentage) . '%',
+            'fill' => max(5, $percentage).'%',
             'actions' => $status === 'critical' ? ['Restock Now', 'Priority'] : ['Monitor', 'Schedule PO'],
         ];
     }

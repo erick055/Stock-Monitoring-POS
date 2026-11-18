@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class SupplierPrice extends Model
 {
@@ -36,6 +37,11 @@ class SupplierPrice extends Model
     public function histories(): HasMany
     {
         return $this->hasMany(SupplierPriceHistory::class, 'supplier_price_id', 'supplier_price_id');
+    }
+
+    public function latestHistory(): HasOne
+    {
+        return $this->histories()->one()->latestOfMany('supplier_price_history_id');
     }
 
     public function comparisonWithProduct(): ?array

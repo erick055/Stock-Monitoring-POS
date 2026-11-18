@@ -7,13 +7,16 @@ use App\Models\SalesItem;
 use App\Models\SalesTransaction;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 
 class SalesAnalyticsService
 {
     /** Monetary totals for a page of products, using a fixed number of queries. */
-    public function productSummaries(array $productIds): \Illuminate\Support\Collection
+    public function productSummaries(array $productIds): Collection
     {
-        if ($productIds === []) return collect();
+        if ($productIds === []) {
+            return collect();
+        }
         $gross = SalesItem::query()->whereIn('product_id', $productIds)
             ->whereHas('sale', fn ($sale) => $sale->where('payment_status', 'paid'))
             ->select('product_id')->selectRaw('SUM(line_total) as gross_sales, SUM((unit_sale_price - unit_cost) * quantity) as gross_profit')
@@ -33,6 +36,7 @@ class SalesAnalyticsService
         return collect($productIds)->mapWithKeys(function ($id) use ($gross, $refunds, $reversals) {
             $sales = (float) ($gross->get($id)?->gross_sales ?? 0);
             $refund = (float) ($refunds[$id] ?? 0);
+
             return [$id => ['gross_sales' => round($sales, 2), 'refunds' => round($refund, 2),
                 'net_sales' => round($sales - $refund, 2),
                 'gross_profit' => round((float) ($gross->get($id)?->gross_profit ?? 0) - (float) ($reversals[$id] ?? 0), 2)]];

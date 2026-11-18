@@ -8,9 +8,12 @@ use App\Models\Supplier;
 use App\Models\SupplierImport;
 use App\Models\SupplierImportRow;
 use App\Models\SupplierPrice;
+use App\Services\AiSupplierPriceExtractor;
+use App\Services\ProductDuplicateGuard;
 use App\Services\SupplierProductMatcher;
 use App\Services\SupplierSpreadsheetImporter;
-use App\Services\ProductDuplicateGuard;
+use App\Support\TablePagination;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -18,6 +21,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Validation\Validator;
 use Illuminate\View\View;
 use InvalidArgumentException;
 
@@ -29,7 +33,7 @@ class SupplierPriceController extends Controller
 
         $search = trim((string) $request->query('search'));
         $importSearch = trim((string) $request->query('import_search'));
-        $perPage = \App\Support\TablePagination::size($request);
+        $perPage = TablePagination::size($request);
         $sort = (string) $request->query('sort', 'updated_desc');
         $sorts = [
             'updated_desc' => ['last_updated_at', 'desc'],
@@ -91,7 +95,7 @@ class SupplierPriceController extends Controller
         $publishedPriceList = $imports->where('status', 'approved')->whereNull('archived_at')
             ->sortByDesc('approved_at')->first()?->getKey() ?? 0;
         $importHistory = SupplierImport::query()->with('supplier')->latest()->orderByDesc('supplier_import_id')
-            ->paginate(\App\Support\TablePagination::size($request, 'history_rows'), ['*'], 'history_page')
+            ->paginate(TablePagination::size($request, 'history_rows'), ['*'], 'history_page')
             ->withQueryString()->fragment('import-history');
 
         $selectedImport = null;
@@ -110,7 +114,7 @@ class SupplierPriceController extends Controller
                             ->orWhere('sku', 'like', "%{$importSearch}%"));
                 }))
                 ->orderBy('row_number')->orderBy('supplier_import_row_id')
-                ->paginate(\App\Support\TablePagination::size($request, 'import_rows'), ['*'], 'import_page')->withQueryString()->fragment('import-records');
+                ->paginate(TablePagination::size($request, 'import_rows'), ['*'], 'import_page')->withQueryString()->fragment('import-records');
         }
 
         $summary = [
@@ -123,7 +127,7 @@ class SupplierPriceController extends Controller
         return view('admin.suppliers', compact('prices', 'imports', 'publishedPriceList', 'importHistory', 'selectedImport', 'importRows', 'summary', 'catalogProducts', 'categories', 'shelves', 'sort', 'search', 'importSearch', 'perPage'));
     }
 
-    public function upload(Request $request, SupplierSpreadsheetImporter $importer, \App\Services\AiSupplierPriceExtractor $extractor): RedirectResponse
+    public function upload(Request $request, SupplierSpreadsheetImporter $importer, AiSupplierPriceExtractor $extractor): RedirectResponse
     {
         $request->merge(['default_currency' => Str::upper(trim((string) $request->input('default_currency', 'PHP')))]);
         $mode = $request->input('import_mode', 'spreadsheet');
@@ -138,7 +142,9 @@ class SupplierPriceController extends Controller
         $file = $request->file('price_file');
         $fileHash = hash_file('sha256', $file->getRealPath());
         $duplicate = SupplierImport::query()->where('file_hash', $fileHash)->first();
-        if ($duplicate) throw ValidationException::withMessages(['price_file' => 'This exact file was already imported on '.$duplicate->created_at->format('M d, Y h:i A').'. Choose a newer price list.']);
+        if ($duplicate) {
+            throw ValidationException::withMessages(['price_file' => 'This exact file was already imported on '.$duplicate->created_at->format('M d, Y h:i A').'. Choose a newer price list.']);
+        }
         try {
             // Known supplier headings convert locally; unfamiliar layouts use AI automatically.
             if ($mode !== 'ai' && ! $importer->recognizesColumns($file->getRealPath(), $file->getClientOriginalExtension())) {
@@ -156,16 +162,22 @@ class SupplierPriceController extends Controller
                     'file_hash' => $fileHash, 'status' => 'pending', 'uploaded_by' => $request->user()->id,
                     'extraction_method' => $mode, 'extraction_model' => $mode === 'ai' ? config('openai.supplier_import_model') : null,
                 ]);
-                if ($mode === 'ai') $importer->stageExtractedRows($import, $rows, $validated['default_currency']);
-                else $importer->stage($import, $file->getRealPath(), $file->getClientOriginalExtension());
+                if ($mode === 'ai') {
+                    $importer->stageExtractedRows($import, $rows, $validated['default_currency']);
+                } else {
+                    $importer->stage($import, $file->getRealPath(), $file->getClientOriginalExtension());
+                }
+
                 return $import;
             });
         } catch (InvalidArgumentException $exception) {
             return back()->withErrors(['price_file' => $exception->getMessage()])->withInput($request->except('price_file'));
         } catch (\Throwable $exception) {
             report($exception);
+
             return back()->withErrors(['price_file' => 'The document could not be imported. Try a clearer or smaller file, or use a formatted CSV/XLSX. No prices were published.'])->withInput($request->except('price_file'));
         }
+
         return redirect()->route('admin.suppliers', ['import' => $import->supplier_import_id])
             ->with('success', $mode === 'ai' ? 'AI automatically formatted your file. Review the converted rows and correct any flagged values before approval.' : 'Spreadsheet columns automatically detected and formatted. Review the rows before approval.');
     }
@@ -188,12 +200,14 @@ class SupplierPriceController extends Controller
         unset($values['confirm_review']);
         DB::transaction(function () use ($supplierImport, $row, $values, $importer) {
             $locked = SupplierImport::query()->lockForUpdate()->findOrFail($supplierImport->supplier_import_id);
-            abort_unless($locked->status === 'pending' && !$locked->archived_at, 403, 'Only pending imports can be corrected.');
+            abort_unless($locked->status === 'pending' && ! $locked->archived_at, 403, 'Only pending imports can be corrected.');
             $lockedRow = $locked->rows()->lockForUpdate()->findOrFail($row->supplier_import_row_id);
             $importer->reviseRow($locked, $lockedRow, $values);
         });
+
         return back()->with('success', 'Import row reviewed and saved. Check the remaining rows before publishing.');
     }
+
     public function approve(Request $request, SupplierImport $supplierImport, SupplierProductMatcher $productMatcher): RedirectResponse
     {
         abort_unless($supplierImport->status === 'pending' && ! $supplierImport->archived_at, 409, 'This import has already been processed or archived.');
@@ -203,8 +217,10 @@ class SupplierPriceController extends Controller
 
         DB::transaction(function () use ($request, $supplierImport, $productMatcher) {
             $supplierImport = SupplierImport::query()->lockForUpdate()->findOrFail($supplierImport->supplier_import_id);
-            abort_unless($supplierImport->status === 'pending' && !$supplierImport->archived_at, 409, 'This import has already been processed or archived.');
-            if ($supplierImport->error_count > 0) throw ValidationException::withMessages(['import' => 'Review and correct the flagged import rows before approval.']);
+            abort_unless($supplierImport->status === 'pending' && ! $supplierImport->archived_at, 409, 'This import has already been processed or archived.');
+            if ($supplierImport->error_count > 0) {
+                throw ValidationException::withMessages(['import' => 'Review and correct the flagged import rows before approval.']);
+            }
             foreach ($supplierImport->rows()->lazyById(250, 'supplier_import_row_id') as $row) {
                 if (! $row->product_id) {
                     $matchedProduct = $productMatcher->match($row->internal_sku, $row->supplier_sku, $row->product_name);
@@ -216,7 +232,7 @@ class SupplierPriceController extends Controller
                     }
                 }
 
-                $price = SupplierPrice::query()->firstOrNew([
+                $price = SupplierPrice::query()->lockForUpdate()->firstOrNew([
                     'supplier_id' => $supplierImport->supplier_id,
                     'supplier_sku' => $row->supplier_sku,
                 ]);
@@ -235,6 +251,7 @@ class SupplierPriceController extends Controller
                     'effective_date' => $row->effective_date,
                     'manufacturer_part_number' => $row->manufacturer_part_number,
                     'shop_received_quantity' => $row->shop_received_quantity,
+                    'stock_applied_at' => null,
                     'source_type' => $supplierImport->extraction_method === 'ai' ? 'ai_document' : 'spreadsheet',
                     'source_filename' => $supplierImport->source_filename,
                     'last_updated_at' => now(),
@@ -272,6 +289,137 @@ class SupplierPriceController extends Controller
         $this->syncImportRowMatches($supplierPrice, $product);
 
         return back()->with('success', "{$supplierPrice->product_name} is now matched to {$product->sku} — {$product->name}.");
+    }
+
+    public function stockReview(Request $request, SupplierPrice $supplierPrice): View
+    {
+        $validated = $request->validate(['product_id' => ['sometimes', 'required', 'integer']]);
+        $product = Product::query()->where('is_active', true)->findOrFail($validated['product_id'] ?? $supplierPrice->product_id);
+        $supplierPrice->load('latestHistory')->setRelation('product', $product);
+
+        return view('admin.supplier-stock-review', [
+            'prices' => collect([$supplierPrice]),
+            'import' => null,
+            'action' => route('admin.suppliers.prices.apply-stock', $supplierPrice),
+            'backUrl' => route('admin.suppliers'),
+        ]);
+    }
+
+    public function bulkStockReview(SupplierImport $supplierImport): View
+    {
+        abort_unless($supplierImport->status === 'approved' && ! $supplierImport->archived_at, 404);
+        $prices = SupplierPrice::query()
+            ->with(['latestHistory', 'product'])
+            ->whereHas('latestHistory', fn ($query) => $query->where('supplier_import_id', $supplierImport->getKey()))
+            ->whereHas('product', fn ($query) => $query->where('is_active', true))
+            ->whereNull('stock_applied_at')
+            ->orderBy('supplier_price_id')
+            ->paginate(100);
+
+        return view('admin.supplier-stock-review', [
+            'prices' => $prices,
+            'import' => $supplierImport,
+            'action' => route('admin.suppliers.imports.apply-stock', $supplierImport),
+            'backUrl' => route('admin.suppliers', ['import' => $supplierImport->getKey()]),
+        ]);
+    }
+
+    public function applyStock(Request $request, SupplierPrice $supplierPrice): RedirectResponse|JsonResponse
+    {
+        $count = $this->applyReviewedStock($request, $supplierPrice, null);
+        $message = $count
+            ? 'Product match saved and stock added in Stock Management.'
+            : 'Product match saved.';
+        if ($request->expectsJson()) {
+            $request->session()->flash('success', $message);
+
+            return response()->json(['message' => $message]);
+        }
+
+        return redirect()->route('admin.suppliers')->with('success', $message);
+    }
+
+    public function applyBulkStock(Request $request, SupplierImport $supplierImport): RedirectResponse|JsonResponse
+    {
+        abort_unless($supplierImport->status === 'approved' && ! $supplierImport->archived_at, 404);
+        $count = $this->applyReviewedStock($request, null, $supplierImport);
+        $message = "Stock added for {$count} supplier items.";
+        $reviewUrl = route('admin.suppliers.imports.stock-review', $supplierImport);
+        if ($request->expectsJson()) {
+            return response()->json(['message' => $message, 'review_url' => $reviewUrl]);
+        }
+
+        return redirect()->to($reviewUrl)->with('success', $message);
+    }
+
+    private function applyReviewedStock(Request $request, ?SupplierPrice $singlePrice, ?SupplierImport $import): int
+    {
+        $rows = $request->validate([
+            'rows' => ['required', 'array', $singlePrice ? 'size:1' : 'max:100'],
+            'rows.*' => ['required', 'array:price_id,product_id,version,current_stock,quantity'],
+            'rows.*.price_id' => ['required', 'integer', 'min:1', 'distinct'],
+            'rows.*.product_id' => ['required', 'integer', 'min:1'],
+            'rows.*.version' => ['required', 'integer', 'min:0'],
+            'rows.*.current_stock' => ['required', 'integer', 'min:0', 'max:2147483647'],
+            'rows.*.quantity' => ['required', 'integer', 'min:0', 'max:2147483647'],
+        ])['rows'];
+        $rows = collect($rows)->filter(fn ($row) => $singlePrice || (int) $row['quantity'] > 0)->sortBy('price_id');
+        if ($rows->isEmpty()) {
+            throw ValidationException::withMessages(['rows' => 'Enter a quantity above zero for at least one item.']);
+        }
+
+        return DB::transaction(function () use ($request, $rows, $singlePrice, $import) {
+            $prices = SupplierPrice::query()->whereKey($rows->pluck('price_id'))
+                ->orderBy('supplier_price_id')->lockForUpdate()->get()->keyBy('supplier_price_id');
+            $products = Product::query()->whereKey($rows->pluck('product_id')->unique())
+                ->where('is_active', true)->orderBy('product_id')->lockForUpdate()->get()->keyBy('product_id');
+            $added = 0;
+            $startingStocks = $products->map->current_stock;
+
+            foreach ($rows as $row) {
+                $price = $prices->get($row['price_id']);
+                $product = $products->get($row['product_id']);
+                $quantity = (int) $row['quantity'];
+                $history = $price?->latestHistory()->first();
+                if (! $price || ! $product || (int) ($history?->getKey() ?? 0) !== (int) $row['version']
+                    || ($singlePrice && $price->getKey() !== $singlePrice->getKey())
+                    || ($import && ((int) $history?->supplier_import_id !== (int) $import->getKey()
+                        || (int) $price->product_id !== (int) $product->getKey()))) {
+                    throw ValidationException::withMessages(['rows' => 'A supplier item or its product match changed. Review the latest details and try again.']);
+                }
+
+                if ($quantity > 0) {
+                    if ($price->stock_applied_at) {
+                        throw ValidationException::withMessages(['rows' => "Stock for {$price->supplier_sku} was already added."]);
+                    }
+                    if ((int) $startingStocks->get($product->getKey()) !== (int) $row['current_stock']) {
+                        throw ValidationException::withMessages(['rows' => "The stock balance for {$product->sku} changed. Review the updated balance before confirming."]);
+                    }
+                    if ($product->current_stock + $quantity > 2147483647) {
+                        throw ValidationException::withMessages(['rows' => "The stock total for {$product->sku} exceeds the supported maximum."]);
+                    }
+
+                    $product->update(['current_stock' => $product->current_stock + $quantity]);
+                    InventoryLedger::create([
+                        'product_id' => $product->getKey(),
+                        'user_id' => $request->user()->id,
+                        'qty_in' => $quantity,
+                        'qty_out' => 0,
+                        'reason_code' => 'SUPPLIER_IMPORT',
+                        'logs' => "Stock added from supplier SKU {$price->supplier_sku} ({$price->source_filename}).",
+                    ]);
+                    $price->update(['stock_applied_at' => now()]);
+                    $added++;
+                }
+
+                if ($singlePrice) {
+                    $price->update(['product_id' => $product->getKey(), 'auto_match_disabled' => false]);
+                    $this->syncImportRowMatches($price, $product);
+                }
+            }
+
+            return $added;
+        }, 3);
     }
 
     public function unmatchProduct(SupplierPrice $supplierPrice): RedirectResponse
@@ -393,6 +541,7 @@ class SupplierPriceController extends Controller
             $supplierPrice->update([
                 'product_id' => $product->product_id,
                 'auto_match_disabled' => false,
+                'stock_applied_at' => $openingStock > 0 ? now() : $supplierPrice->stock_applied_at,
             ]);
             $this->syncImportRowMatches($supplierPrice, $product);
 
@@ -404,7 +553,7 @@ class SupplierPriceController extends Controller
             : "{$product->sku} was added with {$product->current_stock} opening units and matched to this supplier price.");
     }
 
-    public function validateBulkSelection(Request $request): \Illuminate\Http\JsonResponse
+    public function validateBulkSelection(Request $request): JsonResponse
     {
         $ids = $request->validate([
             'supplier_price_ids' => ['required', 'array', 'min:1', 'max:500'],
@@ -492,7 +641,7 @@ class SupplierPriceController extends Controller
 
         $prices = SupplierPrice::whereIn('supplier_price_id', array_keys($draft['entries']))->get()->keyBy('supplier_price_id');
         foreach ($draft['entries'] as $id => $entry) {
-            if (!isset($prices[$id]) || $this->bulkDetailsValidator($entry, $prices[$id])->fails()) {
+            if (! isset($prices[$id]) || $this->bulkDetailsValidator($entry, $prices[$id])->fails()) {
                 return redirect()->route('admin.suppliers.bulk.review', ['batch' => $batch, 'item' => $id]);
             }
         }
@@ -514,7 +663,7 @@ class SupplierPriceController extends Controller
                     ->orderBy('supplier_price_id')->lockForUpdate()->get()->keyBy('supplier_price_id');
                 foreach ($draft['entries'] as $item => $entry) {
                     $price = $prices->get($item);
-                    if (!$price) {
+                    if (! $price) {
                         throw ValidationException::withMessages(['supplier_price' => 'This supplier item was removed. Start a new review.']);
                     }
                     $details = $this->resolveCatalogOptions($this->bulkDetailsValidator($entry, $price)->validate());
@@ -566,7 +715,11 @@ class SupplierPriceController extends Controller
                             'logs' => "Opening stock of {$initialStock} units from supplier item {$price->supplier_sku}.",
                         ]);
                     }
-                    $price->update(['product_id' => $product->product_id, 'auto_match_disabled' => false]);
+                    $price->update([
+                        'product_id' => $product->product_id,
+                        'auto_match_disabled' => false,
+                        'stock_applied_at' => $initialStock > 0 ? now() : $price->stock_applied_at,
+                    ]);
                     $this->syncImportRowMatches($price, $product);
                 }
             });
@@ -604,7 +757,7 @@ class SupplierPriceController extends Controller
         ];
     }
 
-    private function bulkDetailsValidator(array $details, SupplierPrice $price): \Illuminate\Validation\Validator
+    private function bulkDetailsValidator(array $details, SupplierPrice $price): Validator
     {
         return validator($details, $this->bulkDetailsRules())->after(function ($validator) use ($price, $details) {
             if ($price->product_id || strtoupper($price->currency) !== 'PHP') {
@@ -624,7 +777,7 @@ class SupplierPriceController extends Controller
     {
         DB::transaction(function () use ($supplierImport) {
             $supplierImport = SupplierImport::query()->lockForUpdate()->findOrFail($supplierImport->supplier_import_id);
-            abort_unless($supplierImport->status === 'pending' && !$supplierImport->archived_at, 409, 'This import has already been processed or archived.');
+            abort_unless($supplierImport->status === 'pending' && ! $supplierImport->archived_at, 409, 'This import has already been processed or archived.');
             $supplierImport->delete();
         });
 
@@ -706,8 +859,7 @@ class SupplierPriceController extends Controller
             $value = $this->nullableCleanString(($validated[$column] ?? null) === '__new__'
                 ? ($validated[$newField] ?? null) : ($validated[$column] ?? null));
             $validated[$column] = $value === null ? null : (Product::query()->whereNotNull($column)
-                ->distinct()->pluck($column)->first(fn ($existing) =>
-                    mb_strtolower(trim($existing), 'UTF-8') === mb_strtolower($value, 'UTF-8')) ?? $value);
+                ->distinct()->pluck($column)->first(fn ($existing) => mb_strtolower(trim($existing), 'UTF-8') === mb_strtolower($value, 'UTF-8')) ?? $value);
         }
 
         return $validated;

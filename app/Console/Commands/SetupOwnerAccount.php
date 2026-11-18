@@ -19,6 +19,7 @@ class SetupOwnerAccount extends Command
     {
         if (! $this->input->isInteractive()) {
             $this->error('Run owner:setup in an interactive terminal to enter your password privately.');
+
             return self::FAILURE;
         }
 
@@ -26,16 +27,19 @@ class SetupOwnerAccount extends Command
         $emailValidator = Validator::make(['email' => $email], ['email' => ['required', 'email:rfc', 'max:255']]);
         if ($emailValidator->fails()) {
             $this->error($emailValidator->errors()->first());
+
             return self::FAILURE;
         }
 
         $existing = User::where('email', $email)->first();
         if ($existing && $existing->role !== 'admin') {
             $this->error('This email belongs to a staff account. Choose a different owner email.');
+
             return self::FAILURE;
         }
         if ($existing && ! $this->confirm('Reset this owner account password and sign out its existing sessions?', false)) {
             $this->info('No changes were made.');
+
             return self::SUCCESS;
         }
 
@@ -50,7 +54,10 @@ class SetupOwnerAccount extends Command
             'password' => ['required', 'confirmed', Password::min(12)->mixedCase()->numbers()->symbols()],
         ]);
         if ($validator->fails()) {
-            foreach ($validator->errors()->all() as $error) $this->error($error);
+            foreach ($validator->errors()->all() as $error) {
+                $this->error($error);
+            }
+
             return self::FAILURE;
         }
 
@@ -75,6 +82,7 @@ class SetupOwnerAccount extends Command
         });
 
         $this->info('Owner account is ready. Log in using the email and password you just entered.');
+
         return self::SUCCESS;
     }
 }

@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\SalesTransaction;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use OpenSpout\Reader\XLSX\Reader;
 use Tests\TestCase;
 
 class AnalyticsCalendarTest extends TestCase
@@ -22,7 +23,9 @@ class AnalyticsCalendarTest extends TestCase
             ->assertOk()->assertSee('Choose a specific date')->assertSee('Transactions for November 3, 2026');
         $this->assertSame(2, $response->viewData('dayTransactions')->total());
         $this->assertSame(300.0, $response->viewData('dailySalesTotal'));
-        foreach ($response->viewData('dayTransactions') as $sale) $this->assertSame('2026-11-03', $sale->sale_date->toDateString());
+        foreach ($response->viewData('dayTransactions') as $sale) {
+            $this->assertSame('2026-11-03', $sale->sale_date->toDateString());
+        }
         $this->assertSame('day', $response->viewData('salesPeriod'));
         $this->assertCount(1, $response->viewData('weeklySales'));
         $this->assertSame(300.0, $response->viewData('weeklySales')->first()['total']);
@@ -31,7 +34,9 @@ class AnalyticsCalendarTest extends TestCase
     public function test_daily_pagination_keeps_the_date_and_empty_days_have_zero_totals(): void
     {
         $owner = User::factory()->create(['role' => 'admin']);
-        for ($i = 0; $i < 26; $i++) SalesTransaction::create(['staff_id' => $owner->id, 'sale_date' => '2024-02-29 12:00:00', 'total_sale_amount' => 10, 'payment_status' => 'paid']);
+        for ($i = 0; $i < 26; $i++) {
+            SalesTransaction::create(['staff_id' => $owner->id, 'sale_date' => '2024-02-29 12:00:00', 'total_sale_amount' => 10, 'payment_status' => 'paid']);
+        }
         $response = $this->actingAs($owner)->get(route('admin.analytics', ['transaction_date' => '2024-02-29', 'period' => 'day', 'range' => '2024-02-29']))->assertOk();
         $this->assertCount(20, $response->viewData('dayTransactions'));
         $this->assertSame(26, $response->viewData('dayTransactions')->total());
@@ -42,17 +47,26 @@ class AnalyticsCalendarTest extends TestCase
         $this->get($url)->assertOk()->assertViewHas('dayTransactions', fn ($rows) => $rows->count() === 6);
         $export = $this->get(route('admin.analytics.export', ['transaction_date' => '2024-02-29']))->assertOk();
         $path = $export->baseResponse->getFile()->getPathname();
-        $reader = new \OpenSpout\Reader\XLSX\Reader;
+        $reader = new Reader;
         $exported = [];
         try {
             $reader->open($path);
             foreach ($reader->getSheetIterator() as $sheet) {
-                if ($sheet->getName() !== 'Daily Transactions') continue;
-                foreach ($sheet->getRowIterator() as $row) $exported[] = $row->toArray();
+                if ($sheet->getName() !== 'Daily Transactions') {
+                    continue;
+                }
+                foreach ($sheet->getRowIterator() as $row) {
+                    $exported[] = $row->toArray();
+                }
             }
-        } finally { $reader->close(); unlink($path); }
+        } finally {
+            $reader->close();
+            unlink($path);
+        }
         $this->assertCount(27, $exported);
-        foreach (array_slice($exported, 1) as $row) $this->assertStringStartsWith('2024-02-29', $row[1]);
+        foreach (array_slice($exported, 1) as $row) {
+            $this->assertStringStartsWith('2024-02-29', $row[1]);
+        }
         $empty = $this->get(route('admin.analytics', ['period' => 'day', 'transaction_date' => '2024-03-01']))->assertOk()->assertSee('No paid transactions on March 1, 2024.');
         $this->assertSame(0.0, $empty->viewData('dailySalesTotal'));
         $this->assertSame(0, $empty->viewData('dayTransactions')->total());

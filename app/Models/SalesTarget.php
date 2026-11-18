@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Model;
 
 class SalesTarget extends Model
@@ -10,7 +11,7 @@ class SalesTarget extends Model
 
     public function setMonthAttribute($value): void
     {
-        $this->attributes['month'] = \Carbon\CarbonImmutable::parse($value)->startOfMonth()->toDateString();
+        $this->attributes['month'] = CarbonImmutable::parse($value)->startOfMonth()->toDateString();
     }
 
     protected function casts(): array
