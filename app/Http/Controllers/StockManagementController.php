@@ -284,7 +284,7 @@ class StockManagementController extends Controller
             : "No changes were needed for {$updatedProduct->name}.");
     }
 
-    public function updateShelfLocation(Request $request, Product $product): RedirectResponse
+    public function updateShelfLocation(Request $request, Product $product): RedirectResponse|\Illuminate\Http\JsonResponse
     {
         abort_unless($product->is_active, 404);
         $validated = $request->validate([
@@ -295,13 +295,16 @@ class StockManagementController extends Controller
         $location = $this->normalizedShelf(($validated['shelf_location'] ?? '') === '__new__'
             ? $validated['new_shelf_location'] : ($validated['shelf_location'] ?? null), $product) ?? '';
         $product->update(['shelf_location' => $location !== '' ? $location : null]);
+        if ($request->expectsJson()) {
+            return response()->json(['value' => $product->shelf_location, 'product_id' => $product->product_id]);
+        }
 
         return back()->with('success', $location !== ''
             ? "Shelf location for {$product->name} updated to {$location}."
             : "Shelf location for {$product->name} was cleared.");
     }
 
-    public function updateCategory(Request $request, Product $product): RedirectResponse
+    public function updateCategory(Request $request, Product $product): RedirectResponse|\Illuminate\Http\JsonResponse
     {
         abort_unless($product->is_active, 404);
         $validated = $request->validate([
@@ -311,6 +314,9 @@ class StockManagementController extends Controller
         $category = $this->normalizedCategory(($validated['category'] ?? '') === '__new__'
             ? $validated['new_category'] : ($validated['category'] ?? null), $product);
         $product->update(['category' => $category]);
+        if ($request->expectsJson()) {
+            return response()->json(['value' => $product->category, 'product_id' => $product->product_id]);
+        }
 
         return back()->with('success', "Category for {$product->name} updated.");
     }

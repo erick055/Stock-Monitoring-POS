@@ -2,6 +2,7 @@ import { plural } from './formatters';
 import './inventory-live-reload';
 import './stock-archive';
 import './archived-products';
+import './inventory-inline-options';
 
 const statusFilter = document.querySelector('[data-status-filter]');
 const filterForm = document.querySelector('[data-filter-form]');
